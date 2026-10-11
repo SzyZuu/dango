@@ -220,17 +220,38 @@ const Tv: React.FC = () => {
   const isEmbedProvider = activeProvider?.tier === 'embed'
   const [liveServers, setLiveServers] = useState<string[]>([])
   const [embedFallbackUrl, setEmbedFallbackUrl] = useState('')
+  const [embedResolvedUrl, setEmbedResolvedUrl] = useState('')
   const [embedSelected, setEmbedSelected] = useState(false)
   const activeServers = useMemo(
     () => (liveServers.length > 0 ? liveServers : (activeProvider?.servers ?? [])),
     [liveServers, activeProvider]
   )
   const sourceButtons = useMemo(
-    () => (embedFallbackUrl ? [...activeServers, 'Embed'] : activeServers),
+    () => (embedFallbackUrl ? ['Embed', ...activeServers] : activeServers),
     [activeServers, embedFallbackUrl]
   )
   const selectedIsIframe = embedSelected && !!embedFallbackUrl
-  const iframeSourceUrl = selectedIsIframe ? embedFallbackUrl : ''
+  const iframeSourceUrl = selectedIsIframe ? embedResolvedUrl || embedFallbackUrl : ''
+
+  useEffect(() => {
+    if (!embedFallbackUrl) {
+      setEmbedResolvedUrl('')
+      return
+    }
+    let cancelled = false
+    fetch(`/api/resolve?url=${encodeURIComponent(embedFallbackUrl)}`)
+      .then((r) => r.json())
+      .then((d: { finalUrl?: string }) => {
+        if (!cancelled && d.finalUrl) setEmbedResolvedUrl(d.finalUrl)
+      })
+      .catch(() => {
+        // ignore
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [embedFallbackUrl])
+
   const streamsRef = useRef<StreamSource[]>([])
   useEffect(() => {
     streamsRef.current = streams
@@ -937,6 +958,7 @@ const Tv: React.FC = () => {
   useEffect(() => {
     setLiveServers([])
     setEmbedFallbackUrl('')
+    setEmbedResolvedUrl('')
     setEmbedSelected(false)
   }, [source])
 

@@ -33,6 +33,7 @@ import { loadHls, canPlayHlsNatively } from '../lib/hls'
 import { formatTime } from '../lib/utils'
 import { bindHlsAudioTracks } from '../lib/hlsAudio'
 import { pickSubtitleIndex, subtitleKey } from '../lib/subtitles'
+import { isConstrainedDevice } from '../lib/deviceProfile'
 import {
   buildOverlayCss,
   fitSubtitleSize,
@@ -97,7 +98,7 @@ interface Episode {
 interface StreamSource {
   url: string
   quality: string
-  type: 'hls' | 'mp4'
+  type: 'hls' | 'mp4' | 'iframe'
   width?: number
   height?: number
   bandwidth?: number
@@ -221,6 +222,8 @@ const Tv: React.FC = () => {
     () => (liveServers.length > 0 ? liveServers : (activeProvider?.servers ?? [])),
     [liveServers, activeProvider]
   )
+  const selectedIsIframe = streams[qualityIdx]?.type === 'iframe'
+  const iframeSourceUrl = selectedIsIframe ? streams[qualityIdx]?.url || '' : ''
   const streamsRef = useRef<StreamSource[]>([])
   useEffect(() => {
     streamsRef.current = streams
@@ -1056,7 +1059,10 @@ const Tv: React.FC = () => {
         staleTime: 5 * 60 * 1000,
         gcTime: 30 * 60 * 1000,
       })
-      if (streamKeyRef.current !== episodeKey) return
+      if (streamKeyRef.current !== episodeKey) {
+        setStreamLoading(false)
+        return
+      }
       setStreamLoading(false)
       if (!data.valid || !data.sources?.length) {
         setStreamError(
@@ -1161,7 +1167,15 @@ const Tv: React.FC = () => {
       hlsRef.current.destroy()
       hlsRef.current = null
     }
-    if (isEmbedProvider) return
+    if (isEmbedProvider || selectedIsIframe) {
+      const v = videoRef.current
+      if (v) {
+        v.pause()
+        v.removeAttribute('src')
+        v.load()
+      }
+      return
+    }
 
     let cancelled = false
 
@@ -1179,9 +1193,22 @@ const Tv: React.FC = () => {
       }
     }
 
+    const sameEpisode = streamKeyRef.current === `${mediaId}:${season}:${episode}`
+    if (sameEpisode && pendingSeekRef.current == null && !playbackPromptBlockedRef.current) {
+      try {
+        const video = videoRef.current
+        if (video && !video.ended && video.currentTime > 1)
+          pendingSeekRef.current = video.currentTime
+      } catch {
+        // ignore
+      }
+    }
+
     const currentUrl =
       !streamLoading && streamsEpisodeKey === `${mediaId}:${season}:${episode}`
-        ? streams[qualityIdx]?.url || ''
+        ? selectedIsIframe
+          ? ''
+          : streams[qualityIdx]?.url || ''
         : ''
     if (!currentUrl) {
       try {
@@ -1195,17 +1222,6 @@ const Tv: React.FC = () => {
     }
 
     const video = videoRef.current
-    if (
-      streamKeyRef.current === `${mediaId}:${season}:${episode}` &&
-      pendingSeekRef.current == null &&
-      !playbackPromptBlockedRef.current
-    ) {
-      try {
-        if (!video.ended && video.currentTime > 1) pendingSeekRef.current = video.currentTime
-      } catch {
-        // ignore
-      }
-    }
     video.pause()
     video.removeAttribute('src')
     video.load()
@@ -1218,7 +1234,32 @@ const Tv: React.FC = () => {
         const HlsClass = await loadHls()
         if (cancelled) return
         if (HlsClass && HlsClass.isSupported()) {
-          const hls = new HlsClass({ enableWorker: true })
+          const lowMemory = isConstrainedDevice() || document.body.classList.contains('low-end')
+          const bufTarget = lowMemory ? 60 : 180
+          const hls = new HlsClass({
+            enableWorker: true,
+            lowLatencyMode: false,
+            maxBufferLength: bufTarget,
+            maxMaxBufferLength: bufTarget + (lowMemory ? 30 : 60),
+            backBufferLength: lowMemory ? 30 : 60,
+            maxBufferSize: (lowMemory ? 120 : 360) * 1000 * 1000,
+            fragLoadPolicy: {
+              default: {
+                maxTimeToFirstByteMs: 15000,
+                maxLoadTimeMs: 45000,
+                timeoutRetry: { maxNumRetry: 2, retryDelayMs: 0, maxRetryDelayMs: 0 },
+                errorRetry: { maxNumRetry: 3, retryDelayMs: 800, maxRetryDelayMs: 6000 },
+              },
+            },
+            manifestLoadPolicy: {
+              default: {
+                maxTimeToFirstByteMs: 10000,
+                maxLoadTimeMs: 25000,
+                timeoutRetry: { maxNumRetry: 1, retryDelayMs: 500, maxRetryDelayMs: 2000 },
+                errorRetry: { maxNumRetry: 2, retryDelayMs: 800, maxRetryDelayMs: 4000 },
+              },
+            },
+          })
           hlsRef.current = hls
           hls.on(HlsClass.Events.ERROR, (_event, data) => {
             if (data.fatal) {
@@ -1356,6 +1397,7 @@ const Tv: React.FC = () => {
     source,
     referer,
     isEmbedProvider,
+    selectedIsIframe,
     videoRef,
     calibReturnRef,
     testClipActive,
@@ -2009,6 +2051,13 @@ const Tv: React.FC = () => {
             {isEmbedProvider && iframeUrl ? (
               <iframe
                 src={iframeUrl}
+                className={styles.videoIframe}
+                allow="autoplay; fullscreen"
+                allowFullScreen
+              />
+            ) : !isEmbedProvider && iframeSourceUrl ? (
+              <iframe
+                src={iframeSourceUrl}
                 className={styles.videoIframe}
                 allow="autoplay; fullscreen"
                 allowFullScreen

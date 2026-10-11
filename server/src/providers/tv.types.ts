@@ -12,7 +12,7 @@ export interface TvMediaRequest {
 export interface TvStreamSource {
   url: string
   quality: string
-  type: 'hls' | 'mp4'
+  type: 'hls' | 'mp4' | 'iframe'
 }
 
 export interface TvAudioTrack {

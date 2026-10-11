@@ -6,6 +6,7 @@ import { clearDiscordPresence } from '../lib/trpcBeacon'
 import toast from 'react-hot-toast'
 import Icon from '../components/common/Icon'
 import TvPlayerControls from '../components/tv/TvPlayerControls'
+import TvSourceSelector from '../components/tv/SourceSelector'
 import { Modal } from '../components/common/Modal'
 import { Button } from '../components/common/Button'
 import ResumeModal from '../components/common/ResumeModal'
@@ -110,6 +111,7 @@ interface TvStreamResponse {
   referer?: string
   audioTracks?: AudioTrack[]
   subtitles?: SubtitleTrack[]
+  servers?: string[]
 }
 
 interface AudioTrack {
@@ -134,19 +136,7 @@ const NO_TV_PROVIDERS: TvProviderOption[] = []
 
 const NO_SKIP_INTERVALS: SkipInterval[] = []
 
-function TvStreamError({
-  error,
-  servers,
-  selectedServer,
-  onRetry,
-  onSelect,
-}: {
-  error: string
-  servers: string[]
-  selectedServer: string
-  onRetry: () => void
-  onSelect: (server: string) => void
-}) {
+function TvStreamError({ error, onRetry }: { error: string; onRetry: () => void }) {
   return (
     <div
       className={`${styles.statusMsg} ${styles.error}`}
@@ -158,35 +148,6 @@ function TvStreamError({
           Retry
         </button>
       </div>
-      {servers.length > 0 && (
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: 6,
-            alignItems: 'center',
-            marginTop: 4,
-          }}
-        >
-          <span style={{ fontSize: '0.8rem', opacity: 0.9, fontWeight: 600 }}>Servers:</span>
-          {servers.map((city) => (
-            <button
-              key={city}
-              onClick={() => onSelect(city)}
-              className={styles.retryButton}
-              style={{
-                padding: '4px 8px',
-                fontSize: '0.75rem',
-                textTransform: 'capitalize',
-                background: selectedServer === city ? 'var(--accent)' : undefined,
-                color: selectedServer === city ? 'white' : undefined,
-              }}
-            >
-              {city}
-            </button>
-          ))}
-        </div>
-      )}
     </div>
   )
 }
@@ -243,9 +204,9 @@ const Tv: React.FC = () => {
   const [qualityIdx, setQualityIdx] = useState(0)
   const [referer, setReferer] = useState('')
   const [iframeUrl, setIframeUrl] = useState('')
-  const [selectedMovyServer, setSelectedMovyServer] = useState<string>(() => {
+  const [selectedServer, setSelectedServer] = useState<string>(() => {
     try {
-      return localStorage.getItem('movyServer') || ''
+      return localStorage.getItem('tvServer') || ''
     } catch {
       return ''
     }
@@ -255,7 +216,11 @@ const Tv: React.FC = () => {
     [tvProviders, source]
   )
   const isEmbedProvider = activeProvider?.tier === 'embed'
-  const activeServers = useMemo(() => activeProvider?.servers ?? [], [activeProvider])
+  const [liveServers, setLiveServers] = useState<string[]>([])
+  const activeServers = useMemo(
+    () => (liveServers.length > 0 ? liveServers : (activeProvider?.servers ?? [])),
+    [liveServers, activeProvider]
+  )
   const streamsRef = useRef<StreamSource[]>([])
   useEffect(() => {
     streamsRef.current = streams
@@ -531,9 +496,9 @@ const Tv: React.FC = () => {
       id,
       targetSeason,
       targetEpisode,
-      selectedMovyServer,
+      selectedServer,
     ],
-    [source, isMovie, id, selectedMovyServer]
+    [source, isMovie, id, selectedServer]
   )
 
   const fetchTvStreams = useCallback(
@@ -550,7 +515,7 @@ const Tv: React.FC = () => {
         year: details.year || '',
         totalSeasons: String(details.number_of_seasons || 1),
         imdbId: details.imdb_id || '',
-        ...(activeServers.length > 0 && selectedMovyServer ? { server: selectedMovyServer } : {}),
+        ...(activeServers.length > 0 && selectedServer ? { server: selectedServer } : {}),
       })
       return {
         valid: 'valid' in data ? data.valid : false,
@@ -559,9 +524,10 @@ const Tv: React.FC = () => {
         referer: 'referer' in data ? data.referer : undefined,
         audioTracks: data.audioTracks,
         subtitles: 'subtitles' in data ? data.subtitles : undefined,
+        servers: 'servers' in data ? data.servers : undefined,
       }
     },
-    [details, id, source, isMovie, activeServers, selectedMovyServer]
+    [details, id, source, isMovie, activeServers, selectedServer]
   )
 
   const prefetchNextTvEpisode = useCallback(() => {
@@ -622,7 +588,7 @@ const Tv: React.FC = () => {
       hasResumedRef.current = true
       setShowWatchedModal(true)
     } else if (action === 'prompt-complete') {
-      setCompleteTitle(isMovie ? details.title : `${details.title} — Season ${season}`)
+      setCompleteTitle(isMovie ? details.title : `${details.title} â€” Season ${season}`)
       setShowCompleteModal(true)
       hasDismissedWatchedRef.current = true
       hasResumedRef.current = true
@@ -818,7 +784,7 @@ const Tv: React.FC = () => {
     watchedEvaluatedKeyRef.current = epKey
     if (nextEpisodeNumber == null && nextSeasonNumber == null) {
       if (details && episodes.length > 0) {
-        setCompleteTitle(`${details.title} — Season ${season}`)
+        setCompleteTitle(`${details.title} â€” Season ${season}`)
         setShowCompleteModal(true)
         hasDismissedWatchedRef.current = true
         hasResumedRef.current = true
@@ -958,16 +924,20 @@ const Tv: React.FC = () => {
   }, [tvProviders, source])
 
   useEffect(() => {
+    setLiveServers([])
+  }, [source])
+
+  useEffect(() => {
     if (activeServers.length === 0) return
-    if (!activeServers.includes(selectedMovyServer)) {
-      setSelectedMovyServer(activeServers[0])
+    if (!activeServers.includes(selectedServer)) {
+      setSelectedServer(activeServers[0])
       try {
-        localStorage.setItem('movyServer', activeServers[0])
+        localStorage.setItem('tvServer', activeServers[0])
       } catch {
         // ignore
       }
     }
-  }, [activeServers, selectedMovyServer])
+  }, [activeServers, selectedServer])
 
   useEffect(() => {
     if (!id) {
@@ -1070,12 +1040,9 @@ const Tv: React.FC = () => {
     if (!details || !id || !source || isEmbedProvider) return
     if (details.adult && !hasMatureConsent) return
     const episodeKey = `${mediaId}:${season}:${episode}`
-    const hasExisting = streamsRef.current.length > 0
-    if (hasExisting) {
-      setStreamError('')
-    } else {
-      setStreamLoading(true)
-      setStreamError('')
+    setStreamLoading(true)
+    setStreamError('')
+    if (streamsRef.current.length === 0) {
       setStreams([])
       setQualityIdx(0)
       setAudioTracks([])
@@ -1096,13 +1063,14 @@ const Tv: React.FC = () => {
           data.error
             ? `${data.error}`
             : activeServers.length > 0
-              ? `No streams from ${selectedMovyServer}. Try another server.`
+              ? `No streams from ${selectedServer}. Try another server.`
               : 'No streams available.'
         )
         return
       }
       setStreams(data.sources)
       setStreamsEpisodeKey(episodeKey)
+      if (data.servers?.length) setLiveServers(data.servers)
       setQualityIdx(0)
       if (data.referer) setReferer(data.referer)
       const tracks = data.audioTracks || []
@@ -1152,7 +1120,7 @@ const Tv: React.FC = () => {
     isEmbedProvider,
     hasMatureConsent,
     activeServers,
-    selectedMovyServer,
+    selectedServer,
     pickDefaultSubtitle,
     persistSubtitlePick,
     pickDefaultAudio,
@@ -1162,11 +1130,10 @@ const Tv: React.FC = () => {
     fetchTvStreams,
   ])
 
-  const handleMovyServerSelect = useCallback((city: string) => {
-    const normalized = city.toLowerCase()
-    setSelectedMovyServer(normalized)
+  const handleServerSelect = useCallback((server: string) => {
+    setSelectedServer(server)
     try {
-      localStorage.setItem('movyServer', normalized)
+      localStorage.setItem('tvServer', server)
     } catch {
       // ignore
     }
@@ -1213,10 +1180,14 @@ const Tv: React.FC = () => {
     }
 
     const currentUrl =
-      streamsEpisodeKey === `${mediaId}:${season}:${episode}` ? streams[qualityIdx]?.url || '' : ''
+      !streamLoading && streamsEpisodeKey === `${mediaId}:${season}:${episode}`
+        ? streams[qualityIdx]?.url || ''
+        : ''
     if (!currentUrl) {
       try {
         videoRef.current?.pause()
+        videoRef.current?.removeAttribute('src')
+        videoRef.current?.load()
       } catch {
         // ignore
       }
@@ -1380,6 +1351,7 @@ const Tv: React.FC = () => {
   }, [
     streams,
     streamsEpisodeKey,
+    streamLoading,
     qualityIdx,
     source,
     referer,
@@ -2043,15 +2015,7 @@ const Tv: React.FC = () => {
               />
             ) : !isEmbedProvider && (streams.length > 0 || streamLoading) ? (
               <>
-                {streamError && (
-                  <TvStreamError
-                    error={streamError}
-                    servers={activeServers}
-                    selectedServer={selectedMovyServer}
-                    onRetry={loadStreams}
-                    onSelect={handleMovyServerSelect}
-                  />
-                )}
+                {streamError && <TvStreamError error={streamError} onRetry={loadStreams} />}
                 <TvPlayerControls
                   player={player}
                   title={details.title}
@@ -2063,13 +2027,9 @@ const Tv: React.FC = () => {
                   selectedSubtitle={selectedSubtitle}
                   onSubtitleChange={handleSubtitleChange}
                   streams={streams}
-                  qualityIdx={qualityIdx}
-                  onQualityChange={setQualityIdx}
+                  resolutionIdx={qualityIdx}
+                  onResolutionChange={setQualityIdx}
                   onBack={handleBack}
-                  movyServers={activeServers}
-                  selectedMovyServer={selectedMovyServer}
-                  onMovyServerSelect={handleMovyServerSelect}
-                  isMovySource={activeServers.length > 0}
                   videoDelayEnabled={videoDelayEnabled}
                   onVideoDelayToggle={setDelayEnabled}
                   videoDelayMs={videoDelayMs}
@@ -2136,13 +2096,7 @@ const Tv: React.FC = () => {
                 </TvPlayerControls>
               </>
             ) : streamError && !isEmbedProvider ? (
-              <TvStreamError
-                error={streamError}
-                servers={activeServers}
-                selectedServer={selectedMovyServer}
-                onRetry={loadStreams}
-                onSelect={handleMovyServerSelect}
-              />
+              <TvStreamError error={streamError} onRetry={loadStreams} />
             ) : null}
           </div>
         )}
@@ -2164,7 +2118,7 @@ const Tv: React.FC = () => {
                 disabled={tvProviders.length === 0}
               >
                 {providersLoading ? (
-                  <option value="">Loading…</option>
+                  <option value="">Loading...</option>
                 ) : tvProviders.length === 0 ? (
                   <option value="">No providers available</option>
                 ) : (
@@ -2193,6 +2147,21 @@ const Tv: React.FC = () => {
             </label>
           </div>
         )}
+
+        {!isTheaterMode &&
+          details &&
+          !isEmbedProvider &&
+          (streamLoading ? (
+            <div className={styles.sourceLoader}>
+              <div className={styles.ringSpinner} />
+            </div>
+          ) : (
+            <TvSourceSelector
+              servers={activeServers}
+              selectedServer={selectedServer}
+              onServerSelect={handleServerSelect}
+            />
+          ))}
 
         {!isTheaterMode && details && (
           <div className={layoutStyles.playerInfoContainer}>
@@ -2236,7 +2205,7 @@ const Tv: React.FC = () => {
                       {metaRow.map((m, i) => (
                         <span key={`${m}-${i}`}>
                           {m}
-                          {i < metaRow.length - 1 ? ' · ' : ''}
+                          {i < metaRow.length - 1 ? ' Â· ' : ''}
                         </span>
                       ))}
                     </div>

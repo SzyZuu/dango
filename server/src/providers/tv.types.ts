@@ -32,6 +32,7 @@ export interface TvSourcesResult {
   subtitles?: TvSubtitle[]
   referer?: string
   server?: string
+  servers?: string[]
 }
 
 export interface TvProvider {

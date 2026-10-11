@@ -1,6 +1,6 @@
 import type { Hono } from 'hono'
 import logger from '../logger.js'
-import { linkAbort, setProxyHeaders } from '../utils/http.utils.js'
+import { fetchWithRetry, linkAbort, setProxyHeaders } from '../utils/http.utils.js'
 import { URL } from 'url'
 import { isSafeExternalUrl } from '../utils/security.utils.js'
 import type { TvMediaRequest, TvProvider } from '../providers/tv.types.js'
@@ -91,11 +91,14 @@ export function registerTv(app: Hono, getTvProvider: (name: string) => TvProvide
       }
       if (refererStr) headers['Referer'] = refererStr
 
-      const fetchResp = await fetch(urlStr, {
-        headers,
-        signal: abort.signal,
-        redirect: 'follow',
-      })
+      const fetchResp = await fetchWithRetry(
+        urlStr,
+        {
+          headers,
+          redirect: 'follow',
+        },
+        { retries: 3, baseDelayMs: 750, signal: abort.signal }
+      )
 
       const status = fetchResp.status
       if (status !== 200 && status !== 206) {
@@ -119,20 +122,22 @@ export function registerTv(app: Hono, getTvProvider: (name: string) => TvProvide
         return new Response(bodyBuffer, { status, headers: outHeaders })
       }
 
-      const chunks: Buffer[] = []
       const reader = fetchResp.body?.getReader()
       if (!reader) {
         logger.warn({ host: safeCheck.url?.hostname }, 'tv stream-proxy: upstream sent no body')
         return c.text('Upstream sent no body', 502)
       }
       try {
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          chunks.push(Buffer.from(value))
-        }
-        const body = Buffer.concat(chunks)
-        if (isPlaylistBody(body)) {
+        const first = await reader.read()
+        const head = first.done ? Buffer.alloc(0) : Buffer.from(first.value)
+        if (isPlaylistBody(head)) {
+          const chunks = [head]
+          while (true) {
+            const { done, value } = await reader.read()
+            if (done) break
+            chunks.push(Buffer.from(value))
+          }
+          const body = Buffer.concat(chunks)
           const baseUrl = new URL(fetchResp.url || urlStr)
           const rewritten = rewriteTvPlaylist(body.toString('utf8'), baseUrl, refererStr)
           const bodyBuffer = Buffer.from(rewritten, 'utf8')
@@ -140,7 +145,20 @@ export function registerTv(app: Hono, getTvProvider: (name: string) => TvProvide
           outHeaders.set('Content-Length', String(bodyBuffer.length))
           return new Response(bodyBuffer, { status, headers: outHeaders })
         }
-        return new Response(body, { status, headers: outHeaders })
+        const stream = new ReadableStream<Uint8Array>({
+          start(controller) {
+            if (head.length) controller.enqueue(head)
+          },
+          async pull(controller) {
+            const { done, value } = await reader.read()
+            if (done) controller.close()
+            else controller.enqueue(value)
+          },
+          cancel(reason) {
+            return reader.cancel(reason)
+          },
+        })
+        return new Response(stream, { status, headers: outHeaders })
       } catch (err) {
         logger.warn(
           { err, host: safeCheck.url?.hostname },

@@ -22,14 +22,10 @@ interface TvPlayerControlsProps {
   selectedSubtitle: number
   onSubtitleChange: (index: number) => void
   streams: { quality: string; type: string }[]
-  qualityIdx: number
-  onQualityChange: (idx: number) => void
+  resolutionIdx: number
+  onResolutionChange: (idx: number) => void
   onBack: () => void
   children?: React.ReactNode
-  movyServers?: readonly string[]
-  selectedMovyServer?: string
-  onMovyServerSelect?: (city: string) => void
-  isMovySource?: boolean
   videoDelayEnabled?: boolean
   onVideoDelayToggle?: (value: boolean) => void
   videoDelayMs?: number
@@ -57,14 +53,10 @@ const TvPlayerControls: React.FC<TvPlayerControlsProps> = ({
   selectedSubtitle,
   onSubtitleChange,
   streams,
-  qualityIdx,
-  onQualityChange,
+  resolutionIdx,
+  onResolutionChange,
   onBack,
   children,
-  movyServers = [],
-  selectedMovyServer = 'atlanta',
-  onMovyServerSelect,
-  isMovySource = false,
   videoDelayEnabled = false,
   onVideoDelayToggle,
   videoDelayMs = 0,
@@ -103,7 +95,7 @@ const TvPlayerControls: React.FC<TvPlayerControlsProps> = ({
     const observer = new ResizeObserver(update)
     observer.observe(video)
     return () => observer.disconnect()
-  }, [videoRef, streams])
+  }, [videoRef])
   const persistSubtitleSetting = (key: string, value: string | number | boolean) => {
     try {
       localStorage.setItem(key, String(value))
@@ -342,12 +334,8 @@ const TvPlayerControls: React.FC<TvPlayerControlsProps> = ({
       player={player}
       onSubtitleStyleChange={handleSubtitleStyleChange}
       streams={streams}
-      qualityIdx={qualityIdx}
-      onQualityChange={onQualityChange}
-      isMovySource={isMovySource}
-      movyServers={movyServers}
-      selectedMovyServer={selectedMovyServer}
-      onMovyServerSelect={onMovyServerSelect}
+      resolutionIdx={resolutionIdx}
+      onResolutionChange={onResolutionChange}
       hasSubtitles={hasSubtitles}
       subtitles={subtitles}
       selectedSubtitle={selectedSubtitle}

@@ -1,5 +1,4 @@
 import React from 'react'
-import Icon from '../common/Icon'
 import styles from './TvPlayerControls.module.css'
 import SettingsShell from '../player/SettingsShell'
 import SubtitleStyleMenu, { type SubtitleStyleKey } from '../player/SubtitleStyleMenu'
@@ -13,12 +12,11 @@ import type useVideoPlayer from '../../hooks/useVideoPlayer'
 
 export type TvSettingsView =
   | 'main'
-  | 'quality'
+  | 'resolution'
   | 'subtitles'
   | 'subtitle-style'
   | 'subtitle-timing'
   | 'audio'
-  | 'server'
   | 'av-sync'
   | 'ambient'
   | null
@@ -30,12 +28,8 @@ interface TvSettingsProps {
   player: ReturnType<typeof useVideoPlayer>
   onSubtitleStyleChange: (key: SubtitleStyleKey, value: number | string | boolean) => void
   streams: { quality: string; type: string }[]
-  qualityIdx: number
-  onQualityChange: (idx: number) => void
-  isMovySource: boolean
-  movyServers: readonly string[]
-  selectedMovyServer: string
-  onMovyServerSelect?: (city: string) => void
+  resolutionIdx: number
+  onResolutionChange: (idx: number) => void
   hasSubtitles: boolean
   subtitles: { language: string; label: string; url: string }[]
   selectedSubtitle: number
@@ -62,12 +56,8 @@ const TvSettings: React.FC<TvSettingsProps> = ({
   player,
   onSubtitleStyleChange,
   streams,
-  qualityIdx,
-  onQualityChange,
-  isMovySource,
-  movyServers,
-  selectedMovyServer,
-  onMovyServerSelect,
+  resolutionIdx,
+  onResolutionChange,
   hasSubtitles,
   subtitles,
   selectedSubtitle,
@@ -91,19 +81,9 @@ const TvSettings: React.FC<TvSettingsProps> = ({
   const renderMainSettings = () => (
     <>
       {streams.length > 1 && (
-        <button className={styles.menuItem} onClick={() => onSelectView('quality')}>
-          <span>Quality</span>
-          <span className={styles.currentValue}>{streams[qualityIdx]?.quality || 'Auto'}</span>
-        </button>
-      )}
-      {isMovySource && movyServers.length > 0 && (
-        <button className={styles.menuItem} onClick={() => onSelectView('server')}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Icon name="server" size={12} /> Movy Server
-          </span>
-          <span className={styles.currentValue} style={{ textTransform: 'capitalize' }}>
-            {selectedMovyServer}
-          </span>
+        <button className={styles.menuItem} onClick={() => onSelectView('resolution')}>
+          <span>Resolution</span>
+          <span className={styles.currentValue}>{streams[resolutionIdx]?.quality || 'Auto'}</span>
         </button>
       )}
       {hasSubtitles && (
@@ -153,15 +133,15 @@ const TvSettings: React.FC<TvSettingsProps> = ({
     </>
   )
 
-  const renderQualitySettings = () => (
+  const renderResolutionSettings = () => (
     <OptionListMenu
       classes={{ item: styles.menuItem, active: styles.active }}
       options={streams.map((s, i) => ({
         key: String(i),
         label: s.quality,
-        selected: i === qualityIdx,
+        selected: i === resolutionIdx,
       }))}
-      onSelect={(key) => onQualityChange(Number(key))}
+      onSelect={(key) => onResolutionChange(Number(key))}
     />
   )
 
@@ -216,18 +196,6 @@ const TvSettings: React.FC<TvSettingsProps> = ({
     />
   )
 
-  const renderServerSettings = () => (
-    <OptionListMenu
-      classes={{ item: styles.menuItem, active: styles.active }}
-      options={movyServers.map((city) => ({
-        key: city,
-        label: <span style={{ textTransform: 'capitalize' }}>{city}</span>,
-        selected: selectedMovyServer === city,
-      }))}
-      onSelect={(city) => onMovyServerSelect?.(city)}
-    />
-  )
-
   const renderAvSyncSettings = () => (
     <AvSyncMenu
       classes={{ item: styles.menuItem, active: styles.active, note: styles.menuNote }}
@@ -267,8 +235,8 @@ const TvSettings: React.FC<TvSettingsProps> = ({
                 ? 'Subtitle Timing'
                 : view === 'audio'
                   ? 'Audio Track'
-                  : view === 'server'
-                    ? 'Movy Server'
+                  : view === 'resolution'
+                    ? 'Resolution'
                     : view === 'av-sync'
                       ? 'A/V Sync'
                       : view === 'ambient'
@@ -278,12 +246,11 @@ const TvSettings: React.FC<TvSettingsProps> = ({
         onBack={() => (view === 'main' ? onClose() : onSelectView('main'))}
       >
         {view === 'main' && renderMainSettings()}
-        {view === 'quality' && renderQualitySettings()}
+        {view === 'resolution' && renderResolutionSettings()}
         {view === 'subtitles' && renderSubtitleSettings()}
         {view === 'subtitle-style' && renderSubtitleStyleSettings()}
         {view === 'subtitle-timing' && renderSubtitleTimingSettings()}
         {view === 'audio' && renderAudioSettings()}
-        {view === 'server' && renderServerSettings()}
         {view === 'av-sync' && renderAvSyncSettings()}
         {view === 'ambient' && renderAmbientSettings()}
       </SettingsShell>

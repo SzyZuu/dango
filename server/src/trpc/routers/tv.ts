@@ -715,6 +715,7 @@ export const tvRouter = router({
       return {
         provider: mod.name,
         server: result.server || server,
+        servers: result.servers,
         sources: result.sources,
         audioTracks: result.audioTracks || [],
         subtitles: result.subtitles || [],

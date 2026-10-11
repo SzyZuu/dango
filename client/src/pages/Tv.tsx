@@ -113,6 +113,7 @@ interface TvStreamResponse {
   audioTracks?: AudioTrack[]
   subtitles?: SubtitleTrack[]
   servers?: string[]
+  embedUrl?: string
 }
 
 interface AudioTrack {
@@ -218,12 +219,18 @@ const Tv: React.FC = () => {
   )
   const isEmbedProvider = activeProvider?.tier === 'embed'
   const [liveServers, setLiveServers] = useState<string[]>([])
+  const [embedFallbackUrl, setEmbedFallbackUrl] = useState('')
+  const [embedSelected, setEmbedSelected] = useState(false)
   const activeServers = useMemo(
     () => (liveServers.length > 0 ? liveServers : (activeProvider?.servers ?? [])),
     [liveServers, activeProvider]
   )
-  const selectedIsIframe = streams[qualityIdx]?.type === 'iframe'
-  const iframeSourceUrl = selectedIsIframe ? streams[qualityIdx]?.url || '' : ''
+  const sourceButtons = useMemo(
+    () => (embedFallbackUrl ? [...activeServers, 'Embed'] : activeServers),
+    [activeServers, embedFallbackUrl]
+  )
+  const selectedIsIframe = embedSelected && !!embedFallbackUrl
+  const iframeSourceUrl = selectedIsIframe ? embedFallbackUrl : ''
   const streamsRef = useRef<StreamSource[]>([])
   useEffect(() => {
     streamsRef.current = streams
@@ -528,6 +535,7 @@ const Tv: React.FC = () => {
         audioTracks: data.audioTracks,
         subtitles: 'subtitles' in data ? data.subtitles : undefined,
         servers: 'servers' in data ? data.servers : undefined,
+        embedUrl: 'embedUrl' in data ? data.embedUrl : undefined,
       }
     },
     [details, id, source, isMovie, activeServers, selectedServer]
@@ -928,6 +936,8 @@ const Tv: React.FC = () => {
 
   useEffect(() => {
     setLiveServers([])
+    setEmbedFallbackUrl('')
+    setEmbedSelected(false)
   }, [source])
 
   useEffect(() => {
@@ -1077,6 +1087,7 @@ const Tv: React.FC = () => {
       setStreams(data.sources)
       setStreamsEpisodeKey(episodeKey)
       if (data.servers?.length) setLiveServers(data.servers)
+      if (data.embedUrl) setEmbedFallbackUrl(data.embedUrl)
       setQualityIdx(0)
       if (data.referer) setReferer(data.referer)
       const tracks = data.audioTracks || []
@@ -1137,6 +1148,11 @@ const Tv: React.FC = () => {
   ])
 
   const handleServerSelect = useCallback((server: string) => {
+    if (server === 'Embed') {
+      setEmbedSelected(true)
+      return
+    }
+    setEmbedSelected(false)
     setSelectedServer(server)
     try {
       localStorage.setItem('tvServer', server)
@@ -2206,8 +2222,8 @@ const Tv: React.FC = () => {
             </div>
           ) : (
             <TvSourceSelector
-              servers={activeServers}
-              selectedServer={selectedServer}
+              servers={sourceButtons}
+              selectedServer={embedSelected ? 'Embed' : selectedServer}
               onServerSelect={handleServerSelect}
             />
           ))}

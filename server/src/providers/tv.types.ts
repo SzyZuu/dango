@@ -33,6 +33,7 @@ export interface TvSourcesResult {
   referer?: string
   server?: string
   servers?: string[]
+  embedUrl?: string
 }
 
 export interface TvProvider {

@@ -1,19 +1,11 @@
 import React from 'react'
 import { Link } from 'react-router'
 import Icon from '../common/Icon'
+import Logo from '../common/Logo'
 import styles from './Footer.module.css'
 import packageJson from '../../../package.json'
-import { useTheme } from '../../contexts/ThemeContext'
-
-const THEME_LOGOS: Record<string, string> = {
-  iris: '/logo.png',
-  mochi: '/logo-mochi.png',
-  sakura: '/logo-sakura.png',
-}
 
 const Footer: React.FC = () => {
-  const { theme } = useTheme()
-  const logoSrc = THEME_LOGOS[theme] || THEME_LOGOS.iris
   const currentYear = new Date().getFullYear()
 
   const scrollToTop = () => {
@@ -25,13 +17,7 @@ const Footer: React.FC = () => {
       <div className={styles.footerInner}>
         <div className={styles.brandSection}>
           <div className={styles.logoRow}>
-            <img
-              src={logoSrc}
-              className={styles.logoText}
-              alt="dango"
-              loading="lazy"
-              decoding="async"
-            />
+            <Logo className={styles.logoText} />
           </div>
           <div className={styles.brandMeta}>
             <div className={styles.statusPill}>

@@ -1,6 +1,6 @@
 .header {
   height: var(--header-height);
-  --logo-height: 60px;
+  --logo-height: 42px;
   background: transparent;
   border-bottom: 1px solid transparent;
   position: fixed;
@@ -32,7 +32,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px;
+  padding: 4px;
   border-radius: var(--radius-md);
   transition: opacity var(--transition-base);
 }
@@ -54,14 +54,14 @@
 .leftSection {
   display: flex;
   align-items: center;
-  gap: var(--space-6);
+  gap: var(--space-2);
 }
 
 .desktopNav {
   display: flex;
   align-items: center;
   gap: var(--space-1);
-  margin-left: var(--space-2);
+  margin-left: var(--space-6);
 }
 
 .navLink {
@@ -215,9 +215,7 @@
 }
 
 .hamburgerBtn {
-  background: rgba(0, 0, 0, 0.15);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  background: none;
   border: none;
   color: var(--text-primary);
   font-size: 1.25rem;
@@ -227,15 +225,14 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all var(--transition-base);
-  height: 50px;
-  width: 50px;
+  transition: background var(--transition-fast), transform var(--transition-fast);
+  height: 40px;
+  width: 40px;
   flex-shrink: 0;
 }
 
 .hamburgerBtn:hover {
-  background: rgba(0, 0, 0, 0.25);
-  border-color: rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .hamburgerBtn:active {
@@ -338,7 +335,7 @@
   .header {
     height: 64px;
     padding: 0 var(--space-3);
-    --logo-height: 44px;
+    --logo-height: 36px;
   }
 
   .headerInner {

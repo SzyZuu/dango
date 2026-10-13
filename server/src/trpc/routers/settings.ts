@@ -13,6 +13,7 @@ import { keyInput, setSettingInput } from '../validation.js'
 export const SETTING_DEFAULTS: Record<string, string> = {
   discordRPCEnabled: 'true',
   discordRPCHideMature: 'true',
+  dangoGaze: 'true',
   ignoreAdultContent: 'true',
   mangaIgnoreAdultContent: 'true',
   tvIgnoreAdultContent: 'true',

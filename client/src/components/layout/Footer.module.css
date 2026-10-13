@@ -33,7 +33,7 @@
   max-width: 320px;
   position: relative;
   padding-top: 0px;
-  margin-top: -60px;
+  margin-top: -30px;
 }
 
 .logoRow {
@@ -42,22 +42,8 @@
   gap: 14px;
 }
 
-.mascotContainer {
-  position: absolute;
-  top: -90px;
-  left: 0;
-  line-height: 0;
-  flex-shrink: 0;
-}
-
-.mascot {
-  height: 160px;
-  width: auto;
-  display: block;
-}
-
 .logoText {
-  height: 105px;
+  --logo-height: 60px;
   width: auto;
   display: block;
 }
@@ -210,14 +196,7 @@
     text-align: center;
     padding-top: 0;
     justify-content: center;
-    margin-top: -40px;
-  }
-
-  .mascotContainer {
-    position: absolute;
-    top: -60px;
-    left: 50%;
-    transform: translateX(-50%);
+    margin-top: -26px;
   }
 
   .logoRow {
@@ -226,12 +205,8 @@
     gap: 6px;
   }
 
-  .mascot {
-    height: 120px;
-  }
-
   .logoText {
-    height: 84px;
+    --logo-height: 52px;
   }
 
   .brandMeta {

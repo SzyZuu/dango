@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="client/public/logo.png" alt="dango logo" width="400"/>
+<img src="client/public/repo_logo.svg" alt="dango logo" width="400"/>
 
 _A local-first anime web app focused on performance, privacy, and personal library tracking._
 

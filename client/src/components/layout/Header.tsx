@@ -76,6 +76,7 @@ const Header: React.FC = () => {
   const mobileSearchRef = useRef<HTMLDivElement>(null)
   const mobileInputRef = useRef<HTMLInputElement>(null)
   const headerRef = useRef<HTMLElement>(null)
+  const overHeader = useRef(false)
 
   const { data: user } = useQuery<UserProfile | null>({
     queryKey: ['sync-profile'],
@@ -106,6 +107,14 @@ const Header: React.FC = () => {
       }
     }
 
+    const scheduleHide = () => {
+      clearTimer()
+      if (window.scrollY <= 10) return
+      autoHideTimer.current = window.setTimeout(() => {
+        if (!overHeader.current) setVisible(false)
+      }, 2500)
+    }
+
     const handleScroll = () => {
       if (scrollTicking.current) return
       scrollTicking.current = true
@@ -115,12 +124,7 @@ const Header: React.FC = () => {
         const atTop = window.scrollY <= 10
         setIsAtTop((prev) => (prev === atTop ? prev : atTop))
         setVisible((prev) => (prev ? prev : true))
-        clearTimer()
-        if (!atTop) {
-          autoHideTimer.current = window.setTimeout(() => {
-            setVisible(false)
-          }, 2500)
-        }
+        scheduleHide()
       })
     }
 
@@ -133,11 +137,24 @@ const Header: React.FC = () => {
       }
     }
 
+    const header = headerRef.current
+    const handleEnter = () => {
+      overHeader.current = true
+    }
+    const handleLeave = () => {
+      overHeader.current = false
+      scheduleHide()
+    }
+
     window.addEventListener('scroll', handleScroll, { passive: true })
     window.addEventListener('keydown', handleKeyDown)
+    header?.addEventListener('pointerenter', handleEnter)
+    header?.addEventListener('pointerleave', handleLeave)
     return () => {
       window.removeEventListener('scroll', handleScroll)
       window.removeEventListener('keydown', handleKeyDown)
+      header?.removeEventListener('pointerenter', handleEnter)
+      header?.removeEventListener('pointerleave', handleLeave)
       clearTimer()
       if (scrollRaf.current !== null) {
         cancelAnimationFrame(scrollRaf.current)

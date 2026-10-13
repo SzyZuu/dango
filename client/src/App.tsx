@@ -34,6 +34,7 @@ const PlayerRedirect = lazy(() => import('./pages/PlayerRedirect'))
 const VirtualKeyboard = lazy(() => import('./components/common/VirtualKeyboard'))
 
 import { useSidebar } from './hooks/useSidebar'
+import { useDangoAnimation } from './hooks/useDangoAnimation'
 import { Toaster } from 'react-hot-toast'
 import TopProgressBar from './components/common/TopProgressBar'
 import ErrorBoundary from './components/common/ErrorBoundary'
@@ -42,6 +43,7 @@ import { useLanAuth } from './hooks/useLanAuth'
 import LanAuthModal from './components/modals/LanAuthModal'
 
 function App() {
+  useDangoAnimation()
   const { isOpen: animePaheOpen, closeModal: closeAnimePaheModal, onSuccess } = useAnimePaheCookie()
   const { isOpen: sidebarOpen, setIsOpen } = useSidebar()
   const {

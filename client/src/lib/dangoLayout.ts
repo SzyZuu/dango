@@ -10,12 +10,7 @@ export const OFFSETS = [
 
 export const GAP = SPACING - BALL.w
 
-export const hitTest = (
-  clientX: number,
-  clientY: number,
-  rect: DOMRect,
-  pad = 0
-): number => {
+export const hitTest = (clientX: number, clientY: number, rect: DOMRect, pad = 0): number => {
   if (rect.width <= 0) return -1
   const scale = rect.width / VIEWBOX.w
   const vx = (clientX - rect.left) / scale + VIEWBOX.x

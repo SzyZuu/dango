@@ -297,8 +297,8 @@ const Settings: React.FC = () => {
                         color: 'var(--text-secondary)',
                       }}
                     >
-                      Lets the dango logo look around, blink and react when you pet it. Always off in
-                      Low End Mode.
+                      Lets the dango logo look around, blink and react when you pet it. Always off
+                      in Low End Mode.
                     </p>
                   </div>
                   <ToggleSwitch

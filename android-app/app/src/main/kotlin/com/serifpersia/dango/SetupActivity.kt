@@ -4,7 +4,9 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.PowerManager
 import android.provider.Settings
@@ -86,6 +88,12 @@ class SetupActivity : AppCompatActivity() {
             startInstall(true)
         }
         requestBatteryExemption()
+        if (Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            requestPermissions(arrayOf(android.Manifest.permission.POST_NOTIFICATIONS), 1)
+        }
         launchBtn.setOnClickListener {
             Log.i(TAG, "Launch button clicked")
             if (DevConfig.isEnabled(this)) {
@@ -568,6 +576,39 @@ class SetupActivity : AppCompatActivity() {
                 progressText.visibility = View.GONE
                 logScroll.visibility = View.VISIBLE
             }
+        }
+    }
+
+    private suspend fun isServerHealthy(): Boolean = withContext(Dispatchers.IO) {
+        if (!NodeService.isRunning) return@withContext false
+        var conn: HttpURLConnection? = null
+        try {
+            conn = URL("http://localhost:3000/api/health").openConnection() as HttpURLConnection
+            conn.connectTimeout = 2000
+            conn.readTimeout = 2000
+            conn.connect()
+            conn.responseCode == 200
+        } catch (_: Exception) {
+            false
+        } finally {
+            try {
+                conn?.disconnect()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    // Relaunching from the launcher re-delivers the launcher intent to this
+    // singleTask root, which would otherwise drop the user back on the setup
+    // screen. If dango is already serving, go straight back into it.
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        if (DevConfig.isEnabled(this) || isFinishing) return
+        scope.launch {
+            if (!isServerHealthy()) return@launch
+            startActivity(Intent(this@SetupActivity, MainActivity::class.java))
+            finish()
         }
     }
 

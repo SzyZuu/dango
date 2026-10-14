@@ -47,7 +47,6 @@ class MainActivity : AppCompatActivity() {
         const val TAG = "DangoMain"
         const val SERVER_URL = "http://localhost:3000"
         const val HEALTH_URL = "$SERVER_URL/api/health"
-        const val SHUTDOWN_URL = "$SERVER_URL/api/internal/shutdown"
     }
 
     private var devMode = false
@@ -87,6 +86,7 @@ class MainActivity : AppCompatActivity() {
     private var shuttingDown = false
     private var webviewEnabled = true
     private var webViewLoaded = false
+    private var edgeSwipeEnabled = false
     private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
     private var pendingDownloadUrl: String? = null
     private var pendingDownloadFileName: String = "dango-backup.db"
@@ -251,14 +251,13 @@ class MainActivity : AppCompatActivity() {
             customView != null || webView.canScrollVertically(-1)
         }
         swipeRefreshLayout.setOnRefreshListener {
-            if (!webviewEnabled) {
-                swipeRefreshLayout.isRefreshing = false
-            } else if (customView == null) {
+            if (customView == null && webviewEnabled) {
                 webView.reload()
             } else {
                 swipeRefreshLayout.isRefreshing = false
             }
         }
+        updateGestureState()
 
         shutdownConfirmAccept.setOnClickListener {
             if (shutdownConfirmVisible) {
@@ -406,7 +405,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 customView = view
                 customViewCallback = callback
-                swipeRefreshLayout.isEnabled = false
+                updateGestureState()
 
                 savedSystemUiVisibility = window.decorView.systemUiVisibility
                 savedOrientation = requestedOrientation
@@ -457,6 +456,7 @@ class MainActivity : AppCompatActivity() {
                 customViewCallback?.onCustomViewHidden()
                 customViewCallback = null
                 customView = null
+                updateGestureState()
             }
 
             override fun getDefaultVideoPoster(): android.graphics.Bitmap? {
@@ -491,7 +491,15 @@ class MainActivity : AppCompatActivity() {
             Log.i(TAG, "Dev server mode: loading $startUrl, node install skipped")
             waitForServer(startUrl, "$startUrl/api/health")
         } else {
-            NodeService.onStatusChange = null
+            // The tray's Stop action stops the service without going through
+            // this activity, so drop back to setup instead of showing a dead page.
+            NodeService.onStatusChange = { running ->
+                if (!running && !devMode) {
+                    runOnUiThread {
+                        if (!isFinishing && !shuttingDown) finish()
+                    }
+                }
+            }
             NodeService.start(this)
             waitForServer(SERVER_URL, HEALTH_URL)
         }
@@ -619,7 +627,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleEdgeSwipe(event: MotionEvent): Boolean {
-        if (customView != null || shutdownConfirmVisible) return shutdownConfirmVisible
+        if (!edgeSwipeEnabled) return false
 
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
@@ -673,9 +681,17 @@ class MainActivity : AppCompatActivity() {
         return false
     }
 
+    // Pull-to-refresh and the edge swipe are only meaningful while the built-in
+    // browser is actually on screen; in server-only mode they must not fire.
+    private fun updateGestureState() {
+        val active = webviewEnabled && customView == null &&
+            !shutdownConfirmVisible && !shuttingDown
+        swipeRefreshLayout.isEnabled = active
+        edgeSwipeEnabled = active
+    }
+
     private fun showShutdownConfirm() {
         shutdownConfirmVisible = true
-        swipeRefreshLayout.isEnabled = false
         shutdownConfirmOverlay.visibility = View.VISIBLE
         shutdownConfirmArrow.text = if (swipeFromLeftEdge) ">" else "<"
         shutdownConfirmArrow.gravity = if (swipeFromLeftEdge) Gravity.START else Gravity.END
@@ -685,14 +701,15 @@ class MainActivity : AppCompatActivity() {
         } else {
             "You swiped in from the right edge."
         }
+        updateGestureState()
     }
 
     private fun hideShutdownConfirm() {
         shutdownConfirmVisible = false
         shutdownConfirmOverlay.visibility = View.GONE
-        swipeRefreshLayout.isEnabled = true
         swipeEdgeTriggered = false
         swipeActive = false
+        updateGestureState()
     }
 
     private fun waitForServer(pageUrl: String, healthUrl: String) {
@@ -805,6 +822,7 @@ class MainActivity : AppCompatActivity() {
     private fun enterWebViewMode(url: String = startUrl) {
         serverPanel.visibility = View.GONE
         webView.visibility = View.VISIBLE
+        updateGestureState()
         if (serverReady && !webViewLoaded) {
             webViewLoaded = true
             webView.loadUrl(url)
@@ -817,6 +835,7 @@ class MainActivity : AppCompatActivity() {
         bootOverlay.visibility = View.GONE
         updateServerUrlText()
         serverPanel.visibility = View.VISIBLE
+        updateGestureState()
     }
 
     private fun updateServerUrlText() {
@@ -861,74 +880,9 @@ class MainActivity : AppCompatActivity() {
         bootOverlay.visibility = View.GONE
         serverPanel.visibility = View.GONE
         shutdownOverlay.visibility = View.VISIBLE
-
-        scope.launch {
-            withContext(Dispatchers.IO) {
-                try {
-                    val conn = URL(SHUTDOWN_URL).openConnection() as HttpURLConnection
-                    conn.requestMethod = "POST"
-                    conn.connectTimeout = 3000
-                    conn.readTimeout = 3000
-                    conn.connect()
-                    try {
-                        conn.inputStream.use { it.readBytes() }
-                    } catch (_: Exception) {
-                    }
-                    conn.disconnect()
-                } catch (_: Exception) {
-                }
-            }
-            val serverDown = withContext(Dispatchers.IO) {
-                for (i in 1..20) {
-                    var conn: HttpURLConnection? = null
-                    try {
-                        conn = URL(HEALTH_URL).openConnection() as HttpURLConnection
-                        conn.connectTimeout = 1500
-                        conn.readTimeout = 1500
-                        conn.connect()
-                        val code = conn.responseCode
-                        if (code == 503) {
-                            return@withContext waitForPortClosed(15000)
-                        }
-                    } catch (_: Exception) {
-                        return@withContext true
-                    } finally {
-                        try {
-                            conn?.disconnect()
-                        } catch (_: Exception) {
-                        }
-                    }
-                    delay(1000)
-                }
-                waitForPortClosed(5000)
-            }
-            Log.i(TAG, "Shutdown requested, server down: $serverDown")
-            NodeService.stop(this@MainActivity)
-            finishAndRemoveTask()
-        }
-    }
-
-    private fun waitForPortClosed(timeoutMs: Long): Boolean {
-        val deadline = System.currentTimeMillis() + timeoutMs
-        while (System.currentTimeMillis() < deadline) {
-            var conn: HttpURLConnection? = null
-            try {
-                conn = URL(HEALTH_URL).openConnection() as HttpURLConnection
-                conn.connectTimeout = 1000
-                conn.readTimeout = 1000
-                conn.connect()
-                conn.responseCode
-            } catch (_: Exception) {
-                return true
-            } finally {
-                try {
-                    conn?.disconnect()
-                } catch (_: Exception) {
-                }
-            }
-            Thread.sleep(500)
-        }
-        return false
+        updateGestureState()
+        NodeService.stop(this)
+        finishAndRemoveTask()
     }
 
     private fun hideFullscreen() {
@@ -945,7 +899,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        swipeRefreshLayout.isEnabled = true
+        updateGestureState()
 
         customViewCallback?.onCustomViewHidden()
         customViewCallback = null
@@ -992,7 +946,7 @@ class MainActivity : AppCompatActivity() {
             webView.destroy()
         } catch (_: Exception) {
         }
-        if (!devMode && (isFinishing || shuttingDown)) {
+        if (!devMode && isFinishing && !shuttingDown) {
             NodeService.stop(this)
         }
         super.onDestroy()

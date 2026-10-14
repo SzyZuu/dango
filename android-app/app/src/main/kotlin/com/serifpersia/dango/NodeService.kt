@@ -1,7 +1,9 @@
 package com.serifpersia.dango
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -9,10 +11,13 @@ import android.net.wifi.WifiManager
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
+import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.*
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.concurrent.TimeUnit
 
 class NodeService : Service() {
@@ -23,6 +28,11 @@ class NodeService : Service() {
         const val NOTIFICATION_ID = 1
         const val NODE_PORT = 3000
         const val DANGO_PACKAGE = "@serifpersia/dango"
+        const val ACTION_STOP = "com.serifpersia.dango.STOP"
+
+        private const val SERVER_URL = "http://localhost:$NODE_PORT"
+        private const val HEALTH_URL = "$SERVER_URL/api/health"
+        private const val SHUTDOWN_URL = "$SERVER_URL/api/internal/shutdown"
 
         var isRunning = false
             private set
@@ -36,7 +46,7 @@ class NodeService : Service() {
         fun stop(context: Context) {
             try {
                 context.startService(Intent(context, NodeService::class.java).apply {
-                    action = "STOP"
+                    action = ACTION_STOP
                 })
             } catch (_: Exception) {
                 try {
@@ -47,6 +57,7 @@ class NodeService : Service() {
     }
 
     private var nodeProcess: Process? = null
+    private var stopJob: Job? = null
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
@@ -78,11 +89,16 @@ class NodeService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            "STOP" -> {
-                stopNode()
-                releaseLocks()
-                stopForeground(STOP_FOREGROUND_REMOVE)
-                stopSelf()
+            ACTION_STOP -> {
+                if (stopJob?.isActive != true) {
+                    stopJob = scope.launch {
+                        requestShutdown()
+                        stopNode()
+                        releaseLocks()
+                        stopForeground(STOP_FOREGROUND_REMOVE)
+                        stopSelf()
+                    }
+                }
                 return START_NOT_STICKY
             }
             else -> {
@@ -93,6 +109,71 @@ class NodeService : Service() {
             }
         }
         return START_STICKY
+    }
+
+    // The server flushes its sync snapshot on this endpoint, so every stop path
+    // (activity, tray action) goes through here rather than killing node outright.
+    private suspend fun requestShutdown() {
+        updateNotification("Syncing and shutting down...")
+        postShutdown()
+        for (i in 1..20) {
+            when (healthCode()) {
+                null -> return
+                503 -> {
+                    awaitPortClosed(15000)
+                    return
+                }
+            }
+            delay(1000)
+        }
+        awaitPortClosed(5000)
+    }
+
+    private fun postShutdown() {
+        var conn: HttpURLConnection? = null
+        try {
+            conn = URL(SHUTDOWN_URL).openConnection() as HttpURLConnection
+            conn.requestMethod = "POST"
+            conn.connectTimeout = 3000
+            conn.readTimeout = 3000
+            conn.connect()
+            try {
+                conn.inputStream.use { it.readBytes() }
+            } catch (_: Exception) {
+            }
+        } catch (_: Exception) {
+        } finally {
+            try {
+                conn?.disconnect()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    private fun healthCode(): Int? {
+        var conn: HttpURLConnection? = null
+        return try {
+            conn = URL(HEALTH_URL).openConnection() as HttpURLConnection
+            conn.connectTimeout = 1500
+            conn.readTimeout = 1500
+            conn.connect()
+            conn.responseCode
+        } catch (_: Exception) {
+            null
+        } finally {
+            try {
+                conn?.disconnect()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    private suspend fun awaitPortClosed(timeoutMs: Long) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            if (healthCode() == null) return
+            delay(500)
+        }
     }
 
     private fun releaseLocks() {
@@ -211,13 +292,28 @@ class NodeService : Service() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
-    private fun buildNotification(text: String) =
-        androidx.core.app.NotificationCompat.Builder(this, CHANNEL_ID)
+    private fun buildNotification(text: String): Notification {
+        val contentIntent = PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val stopIntent = PendingIntent.getService(
+            this,
+            1,
+            Intent(this, NodeService::class.java).setAction(ACTION_STOP),
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("dango")
             .setContentText(text)
             .setSmallIcon(android.R.drawable.ic_menu_send)
+            .setContentIntent(contentIntent)
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Stop", stopIntent)
             .setOngoing(true)
             .build()
+    }
 
     private fun updateNotification(text: String) {
         val nm = getSystemService(NotificationManager::class.java)

@@ -31,6 +31,14 @@ _A local-first anime web app focused on performance, privacy, and personal libra
 
 ---
 
+## Join the dango Discord server
+
+Be part of the dango community where you can connect with fellow users, ask questions, and share your experiences:
+
+[![Discord Server](https://discordapp.com/api/guilds/1559959149721288795/widget.png?style=banner2)](https://discord.gg/6yT3VwTqz9)
+
+---
+
 ## Installation
 
 ### Prerequisites
@@ -59,14 +67,6 @@ dango
 
 > [!IMPORTANT]
 > Once the server initializes, navigate to `http://localhost:3000` in your browser. The background process runs locally until terminated (`Ctrl + C or q key press as well as window X button closing action`).
-
----
-
-## Join the dango Discord server
-
-Be part of the dango community where you can connect with fellow users, ask questions, and share your experiences:
-
-[![Discord Server](https://discordapp.com/api/guilds/1559959149721288795/widget.png?style=banner2)](https://discord.gg/6yT3VwTqz9)
 
 ---
 

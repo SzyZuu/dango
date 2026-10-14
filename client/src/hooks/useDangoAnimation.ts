@@ -1,8 +1,8 @@
 ﻿import { useEffect } from 'react'
 import { useSetting } from './useSettings'
 import { useLowEndMode } from '../contexts/LowEndModeContext'
-import { gazeOffset } from '../lib/dangoGaze'
-import { hitTest } from '../lib/dangoLayout'
+import { gazeAt } from '../lib/dangoGaze'
+import { hitTest, OFFSETS } from '../lib/dangoLayout'
 import {
   pickResting,
   PET_FACE,
@@ -10,41 +10,48 @@ import {
   IDLE_MS,
   PETTLE_MS,
   PET_PAD,
+  SHUFFLE_MS,
+  SHUFFLE_JITTER_MS,
   WAKE_STAGGER,
   NUDGE,
 } from '../lib/dangoFaces'
 
 type Slot = SVGGElement
 
-const slots = () => document.querySelectorAll<Slot>('[data-dango-face-slot]')
-const slotOf = (target: EventTarget | null) =>
-  (target as Element | null)?.closest?.('[data-dango-face-slot]') ?? null
+const FACE = 'data-dango-face'
+const HOVER = 'data-dango-hover'
+const CHEER = 'data-dango-cheer'
+const NUDGE_ATTR = 'data-dango-nudge'
 
-export const useDangoAnimation = () => {
+const logos = () => document.querySelectorAll<SVGSVGElement>('svg[data-dango-gaze-origin]')
+const slots = () => document.querySelectorAll<Slot>('[data-dango-face-slot]')
+const eyeGroups = (svg: SVGSVGElement) => svg.querySelectorAll<SVGGElement>('[data-dango-eye]')
+const allEyes = () => document.querySelectorAll<SVGGElement>('[data-dango-eye]')
+
+export const useDangoAlive = () => {
   const { data: gazeSetting } = useSetting('dangoGaze')
   const { lowEndMode } = useLowEndMode()
-  const alive = gazeSetting !== 'false' && !lowEndMode
+  return gazeSetting !== 'false' && !lowEndMode
+}
+
+export const useDangoAnimation = () => {
+  const alive = useDangoAlive()
 
   useEffect(() => {
     if (!alive) return
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
 
-    const resting = ['normal', 'normal', 'normal']
+    const resting: string[] = OFFSETS.map(() => 'normal')
     let hovered = -1
     let petting = -1
     let asleep = false
+    let turn = -1
+    let frame = 0
+    let px = 0
+    let py = 0
     let idleTimer = 0
     let settleTimer = 0
     const timers: number[] = []
-
-    const boxAt = (x: number, y: number) => {
-      const boxes = Array.from(
-        document.querySelectorAll<SVGSVGElement>('svg[data-dango-gaze-origin]')
-      ).map((el) => el.getBoundingClientRect())
-      return (
-        boxes.find((b) => x >= b.left && x <= b.right && y >= b.top && y <= b.bottom) ?? boxes[0]
-      )
-    }
 
     const later = (fn: () => void, ms: number) => {
       const id = window.setTimeout(() => {
@@ -52,17 +59,6 @@ export const useDangoAnimation = () => {
         fn()
       }, ms)
       timers.push(id)
-    }
-
-    const pulse = (index: number, attr: string, ms: number) => {
-      const clear = () => slots().forEach((el) => el.removeAttribute(attr))
-      clear()
-      requestAnimationFrame(() => {
-        slots().forEach((el) => {
-          if (Number(el.getAttribute('data-dango-face-slot')) === index) el.setAttribute(attr, '')
-        })
-        later(clear, ms)
-      })
     }
 
     const setOn = (index: number, attr: string, on: boolean) => {
@@ -73,20 +69,30 @@ export const useDangoAnimation = () => {
       })
     }
 
+    const clearOn = (attr: string) => slots().forEach((el) => el.removeAttribute(attr))
+
+    const pulse = (index: number, attr: string, ms: number) => {
+      clearOn(attr)
+      requestAnimationFrame(() => {
+        setOn(index, attr, true)
+        later(() => clearOn(attr), ms)
+      })
+    }
+
     const paint = () => {
       slots().forEach((el) => {
         const i = Number(el.getAttribute('data-dango-face-slot'))
-        el.setAttribute('data-face', petting === i ? PET_FACE : resting[i])
-        if (hovered === i) el.setAttribute('data-hover', '')
-        else el.removeAttribute('data-hover')
+        el.setAttribute(FACE, petting === i ? PET_FACE : resting[i])
+        if (hovered === i) el.setAttribute(HOVER, '')
+        else el.removeAttribute(HOVER)
       })
     }
 
     const setPetting = (index: number) => {
       if (index === petting) return
-      if (petting >= 0) setOn(petting, 'data-cheer', false)
+      if (petting >= 0) setOn(petting, CHEER, false)
       petting = index
-      if (index >= 0) setOn(index, 'data-cheer', true)
+      if (index >= 0) setOn(index, CHEER, true)
     }
 
     const armSettle = () => {
@@ -107,7 +113,7 @@ export const useDangoAnimation = () => {
       WAKE_STAGGER.forEach((delay, i) => {
         later(() => {
           resting[i] = pickResting()
-          if (i === NUDGE.from) later(() => pulse(NUDGE.to, 'data-nudge', 520), NUDGE.after)
+          if (i === NUDGE.from) later(() => pulse(NUDGE.to, NUDGE_ATTR, 520), NUDGE.after)
           paint()
         }, delay)
       })
@@ -125,19 +131,34 @@ export const useDangoAnimation = () => {
       idleTimer = window.setTimeout(sleep, IDLE_MS)
     }
 
-    const onMove = (e: PointerEvent) => {
-      const box = boxAt(e.clientX, e.clientY)
-      if (!box) return
+    const shuffle = () => {
+      if (!asleep) {
+        turn = (turn + 1) % resting.length
+        resting[turn] = pickResting(Math.random(), resting[turn])
+        paint()
+      }
+      later(shuffle, SHUFFLE_MS + Math.random() * SHUFFLE_JITTER_MS)
+    }
 
-      const { x, y } = gazeOffset(e.clientX, e.clientY, box)
-      const root = document.documentElement.style
-      root.setProperty('--dango-gaze-x', x.toFixed(3))
-      root.setProperty('--dango-gaze-y', y.toFixed(3))
+    const step = () => {
+      const boxes = Array.from(logos(), (el) => [el, el.getBoundingClientRect()] as const)
 
+      boxes.forEach(([svg, rect]) => {
+        eyeGroups(svg).forEach((el) => {
+          const { x, y } = gazeAt(px, py, rect, OFFSETS[Number(el.getAttribute('data-dango-eye'))])
+          el.style.setProperty('--dango-gaze-x', x.toFixed(3))
+          el.style.setProperty('--dango-gaze-y', y.toFixed(3))
+        })
+      })
+
+      const box =
+        boxes.find(
+          ([, b]) => px >= b.left && px <= b.right && py >= b.top && py <= b.bottom
+        )?.[1] ?? null
       const wasHover = hovered
       const wasPet = petting
-      const strict = hitTest(e.clientX, e.clientY, box)
-      const loose = strict >= 0 ? strict : hitTest(e.clientX, e.clientY, box, PET_PAD)
+      const strict = box ? hitTest(px, py, box) : -1
+      const loose = strict >= 0 ? strict : box ? hitTest(px, py, box, PET_PAD) : -1
       hovered = strict
       if (loose >= 0) {
         setPetting(loose)
@@ -151,11 +172,18 @@ export const useDangoAnimation = () => {
       armIdle()
     }
 
+    const onMove = (e: PointerEvent) => {
+      px = e.clientX
+      py = e.clientY
+      if (frame) return
+      frame = requestAnimationFrame(() => {
+        frame = 0
+        step()
+      })
+    }
+
     const onOut = (e: PointerEvent) => {
-      const from = slotOf(e.target)
-      const slotIndex = from?.getAttribute('data-dango-face-slot')
-      const to = slotOf(e.relatedTarget)
-      if (!from || to?.getAttribute('data-dango-face-slot') === slotIndex) return
+      if (e.relatedTarget) return
       hovered = -1
       dropPetting()
       paint()
@@ -164,20 +192,25 @@ export const useDangoAnimation = () => {
 
     paint()
     armIdle()
+    later(shuffle, SHUFFLE_MS)
     window.addEventListener('pointermove', onMove, { passive: true })
-    document.addEventListener('pointerout', onOut)
+    window.addEventListener('pointerout', onOut)
     return () => {
+      cancelAnimationFrame(frame)
       window.clearTimeout(idleTimer)
       window.clearTimeout(settleTimer)
       timers.forEach(window.clearTimeout)
       window.removeEventListener('pointermove', onMove)
-      document.removeEventListener('pointerout', onOut)
-      document.documentElement.style.removeProperty('--dango-gaze-x')
-      document.documentElement.style.removeProperty('--dango-gaze-y')
+      window.removeEventListener('pointerout', onOut)
+      allEyes().forEach((el) => {
+        el.style.removeProperty('--dango-gaze-x')
+        el.style.removeProperty('--dango-gaze-y')
+      })
       slots().forEach((el) => {
-        el.setAttribute('data-face', 'normal')
-        el.removeAttribute('data-hover')
-        el.removeAttribute('data-cheer')
+        el.setAttribute(FACE, 'normal')
+        el.removeAttribute(HOVER)
+        el.removeAttribute(CHEER)
+        el.removeAttribute(NUDGE_ATTR)
       })
     }
   }, [alive])

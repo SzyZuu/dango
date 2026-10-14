@@ -1,4 +1,4 @@
-export const VIEWBOX = { x: -0.6, y: -2, w: 44.8, h: 14 } as const
+export const VIEWBOX = { x: -2.8, y: -2, w: 48.6, h: 14 } as const
 export const SPACING = 15
 export const BALL = { w: 13.6, h: 10.2 } as const
 
@@ -9,6 +9,10 @@ export const OFFSETS = [
 ] as const
 
 export const GAP = SPACING - BALL.w
+
+export const EYE = { x: BALL.w / 2, y: BALL.h / 2 - 0.5 } as const
+
+export const SKEWER = { y: BALL.h / 2, x1: -2, x2: SPACING * 2 + BALL.w + 1.4 } as const
 
 export const hitTest = (clientX: number, clientY: number, rect: DOMRect, pad = 0): number => {
   if (rect.width <= 0) return -1

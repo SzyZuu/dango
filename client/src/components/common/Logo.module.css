@@ -5,28 +5,31 @@
   overflow: visible;
 }
 
+.skewer {
+  fill: none;
+  stroke: #d9c6a5;
+  stroke-width: 1.1;
+  stroke-linecap: round;
+}
+
 .gaze {
-  transform: translate(
-    calc(var(--dango-gaze-x, 0) * var(--lag, 1) * var(--amp-x, 2px)),
-    calc(var(--dango-gaze-y, 0) * var(--lag, 1) * var(--amp-y, 1.4px))
-  );
-  transition: transform 0.15s ease-out;
+  transform: translate(calc(var(--dango-gaze-x, 0) * 1.1px), calc(var(--dango-gaze-y, 0) * 0.8px));
+  transition: transform var(--gaze-dur, 0.15s) ease-out;
 }
 
 .face {
   opacity: 0;
-  pointer-events: none;
   transition: opacity 0.18s ease;
 }
 
-[data-face='normal'] .faceNormal,
-[data-face='pet'] .facePet,
-[data-face='squint'] .faceSquint,
-[data-face='sleep'] .faceSleep {
+[data-dango-face='normal'] .faceNormal,
+[data-dango-face='pet'] .facePet,
+[data-dango-face='squint'] .faceSquint,
+[data-dango-face='sleep'] .faceSleep {
   opacity: 1;
 }
 
-[data-hover] .gaze {
+[data-dango-hover] .gaze {
   filter: drop-shadow(0 0 0.5px var(--accent));
 }
 
@@ -36,6 +39,20 @@
   stroke-width: 0.5;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.sway {
+  animation: dango-sway 7.4s ease-in-out infinite;
+}
+
+@keyframes dango-sway {
+  0%,
+  100% {
+    transform: translate(0, 0);
+  }
+  50% {
+    transform: translate(0, 0.5px);
+  }
 }
 
 .weight {
@@ -49,7 +66,7 @@
   }
   45%,
   65% {
-    transform: translate(1.2px, 0.25px);
+    transform: translate(0.2px, 0.8px);
   }
 }
 
@@ -60,10 +77,10 @@
 @keyframes dango-shift {
   0%,
   100% {
-    transform: translate(-0.4px, 0.2px);
+    transform: translate(0.3px, 0.6px);
   }
   50% {
-    transform: translate(0.4px, 0);
+    transform: translate(-0.3px, 0.3px);
   }
 }
 
@@ -78,10 +95,10 @@
     transform: translate(0, 0);
   }
   80% {
-    transform: translate(-0.8px, 0.2px);
+    transform: translate(-0.35px, 0.5px);
   }
   88% {
-    transform: translate(-0.3px, 0);
+    transform: translate(0.15px, 0.1px);
   }
 }
 
@@ -97,7 +114,7 @@
   }
   40%,
   50% {
-    transform: translate(-3.5px, -1.2px);
+    transform: translate(-1.6px, -0.45px);
   }
   62% {
     transform: translate(0, 0);
@@ -152,7 +169,7 @@
   }
 }
 
-[data-nudge=''] {
+[data-dango-nudge=''] .bump {
   animation: dango-nudge 0.52s ease-out;
 }
 
@@ -162,18 +179,14 @@
     transform: translate(0, 0);
   }
   25% {
-    transform: translate(1.2px, 0);
+    transform: translate(0.5px, 0);
   }
   60% {
-    transform: translate(-0.8px, 0);
+    transform: translate(-0.35px, 0);
   }
 }
 
-.cheer {
-  pointer-events: none;
-}
-
-[data-cheer=''] .heart {
+[data-dango-cheer=''] .heart {
   animation: dango-heart 1.2s ease-out infinite;
 }
 
@@ -200,14 +213,15 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .sway,
   .weight,
   .shift,
   .rock,
   .glance,
   .blinkDouble,
   .blinkSlow,
-  [data-nudge=''],
-  [data-cheer=''] .heart {
+  [data-dango-nudge=''] .bump,
+  [data-dango-cheer=''] .heart {
     animation: none;
   }
 }

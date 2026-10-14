@@ -45,7 +45,7 @@ const Footer: React.FC = () => {
 
           <div className={styles.linkColumn}>
             <h4 className={styles.columnTitle}>Community</h4>
-            <a href="https://discord.gg/2FTSPXCsvn" target="_blank" rel="noopener noreferrer">
+            <a href="https://discord.gg/6yT3VwTqz9" target="_blank" rel="noopener noreferrer">
               <Icon name="discord" style={{ marginRight: '6px' }} /> Discord
             </a>
             <a

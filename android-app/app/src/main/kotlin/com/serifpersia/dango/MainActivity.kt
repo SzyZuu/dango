@@ -751,31 +751,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun isHealthReady(healthUrl: String): Boolean {
-        var conn: HttpURLConnection? = null
-        return try {
-            conn = URL(healthUrl).openConnection() as HttpURLConnection
-            conn.connectTimeout = 2000
-            conn.readTimeout = 2000
-            conn.connect()
-            if (conn.responseCode != 200) {
-                return false
-            }
-            val body = try {
-                conn.inputStream.bufferedReader().readText()
-            } catch (_: Exception) {
-                ""
-            }
-            body.contains("\"ready\":true") || body.contains("\"ready\": true")
-        } catch (_: Exception) {
-            false
-        } finally {
-            try {
-                conn?.disconnect()
-            } catch (_: Exception) {
-            }
-        }
-    }
+    private fun isHealthReady(healthUrl: String): Boolean = NodeService.isHealthy(healthUrl)
 
     private fun onServerReady(pageUrl: String) {
         if (serverReady || shuttingDown) return

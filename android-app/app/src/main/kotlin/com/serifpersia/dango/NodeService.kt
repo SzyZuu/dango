@@ -33,11 +33,38 @@ class NodeService : Service() {
         private const val SERVER_URL = "http://localhost:$NODE_PORT"
         private const val HEALTH_URL = "$SERVER_URL/api/health"
         private const val SHUTDOWN_URL = "$SERVER_URL/api/internal/shutdown"
+        private const val SHUTDOWN_TIMEOUT_MS = 20_000L
 
         var isRunning = false
             private set
         var onStatusChange: ((Boolean) -> Unit)? = null
         var onLogLine: ((String) -> Unit)? = null
+
+        // Single readiness signal for the whole app: the notification, the
+        // webview reveal and the boot overlay all wait on this, not on stdout.
+        fun isHealthy(url: String = HEALTH_URL): Boolean {
+            var conn: HttpURLConnection? = null
+            return try {
+                conn = URL(url).openConnection() as HttpURLConnection
+                conn.connectTimeout = 2000
+                conn.readTimeout = 2000
+                conn.connect()
+                if (conn.responseCode != 200) return false
+                val body = try {
+                    conn.inputStream.bufferedReader().readText()
+                } catch (_: Exception) {
+                    ""
+                }
+                body.contains("\"ready\":true") || body.contains("\"ready\": true")
+            } catch (_: Exception) {
+                false
+            } finally {
+                try {
+                    conn?.disconnect()
+                } catch (_: Exception) {
+                }
+            }
+        }
 
         fun start(context: Context) {
             context.startForegroundService(Intent(context, NodeService::class.java))
@@ -91,18 +118,26 @@ class NodeService : Service() {
         when (intent?.action) {
             ACTION_STOP -> {
                 if (stopJob?.isActive != true) {
+                    Log.i(TAG, "Stop requested (startId=$startId)")
+                    updateNotification("dango server is stopping...")
                     stopJob = scope.launch {
-                        requestShutdown()
-                        stopNode()
-                        releaseLocks()
-                        stopForeground(STOP_FOREGROUND_REMOVE)
-                        stopSelf()
+                        try {
+                            withTimeoutOrNull(SHUTDOWN_TIMEOUT_MS) { requestShutdown() }
+                        } finally {
+                            stopNode()
+                            releaseLocks()
+                            stopForeground(STOP_FOREGROUND_REMOVE)
+                            getSystemService(NotificationManager::class.java)
+                                .cancel(NOTIFICATION_ID)
+                            stopSelfResult(startId)
+                            Log.i(TAG, "Stopped, notification cleared")
+                        }
                     }
                 }
                 return START_NOT_STICKY
             }
             else -> {
-                startForeground(NOTIFICATION_ID, buildNotification("Starting server..."))
+                startForeground(NOTIFICATION_ID, buildNotification("dango server is starting..."))
                 if (!isRunning) {
                     scope.launch { startDango() }
                 }
@@ -114,17 +149,16 @@ class NodeService : Service() {
     // The server flushes its sync snapshot on this endpoint, so every stop path
     // (activity, tray action) goes through here rather than killing node outright.
     private suspend fun requestShutdown() {
-        updateNotification("Syncing and shutting down...")
         postShutdown()
         for (i in 1..20) {
             when (healthCode()) {
                 null -> return
                 503 -> {
-                    awaitPortClosed(15000)
+                    awaitPortClosed(5000)
                     return
                 }
             }
-            delay(1000)
+            delay(500)
         }
         awaitPortClosed(5000)
     }
@@ -223,7 +257,6 @@ class NodeService : Service() {
             }
 
             Log.i(TAG, "Starting dango: ${entryPoint.absolutePath}")
-            updateNotification("Starting dango server...")
 
             val args = mutableListOf(nodeBin.absolutePath, entryPoint.absolutePath)
             if (entryPoint.name == "orchestrator.js") {
@@ -247,15 +280,13 @@ class NodeService : Service() {
             nodeProcess = pb.start()
             isRunning = true
             onStatusChange?.invoke(true)
+            scope.launch { watchReady() }
 
             val reader = BufferedReader(InputStreamReader(nodeProcess!!.inputStream))
             while (nodeProcess?.isAlive == true) {
                 val line = reader.readLine() ?: break
                 Log.i(TAG, line)
                 onLogLine?.invoke(line)
-                if (line.contains("running at") || line.contains("Listening on")) {
-                    updateNotification("dango running on port $NODE_PORT")
-                }
             }
 
             val exitCode = nodeProcess?.waitFor() ?: -1
@@ -265,6 +296,18 @@ class NodeService : Service() {
         } finally {
             isRunning = false
             onStatusChange?.invoke(false)
+        }
+    }
+
+    private suspend fun watchReady() {
+        for (i in 1..120) {
+            if (!isRunning) return
+            if (isHealthy()) {
+                Log.i(TAG, "Server healthy on port $NODE_PORT")
+                updateNotification("dango server is running")
+                return
+            }
+            delay(1000)
         }
     }
 

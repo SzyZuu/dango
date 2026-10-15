@@ -5,6 +5,7 @@ const http = require('http')
 const os = require('os')
 const path = require('path')
 const crypto = require('crypto')
+const { parseArgs } = require('util')
 
 async function fetchJson(url, timeoutMs) {
   const controller = new AbortController()
@@ -36,7 +37,38 @@ function detectGlobalInstall() {
 }
 
 const shutdownToken = crypto.randomBytes(32).toString('hex')
-const mode = process.argv[2] || 'prod'
+let options, mode
+try {
+  const { values, positionals } = parseArgs({
+    allowPositionals: true,
+    options: {
+      port: { type: 'string' },
+      'dev-port': { type: 'string' },
+      'no-update': { type: 'boolean' },
+      version: { type: 'boolean', short: 'v' },
+      help: { type: 'boolean', short: 'h' },
+    },
+  })
+  options = values
+  mode = positionals[0] || 'prod'
+  if (positionals.length > 1 || !['dev', 'prod'].includes(mode)) {
+    throw new Error('Expected at most one mode: dev or prod')
+  }
+  for (const [flag, variable] of [
+    ['port', 'PORT'],
+    ['dev-port', 'DEV_PORT'],
+  ]) {
+    const value = options[flag]
+    if (value === undefined) continue
+    if (!/^\d+$/.test(value) || Number(value) < 1 || Number(value) > 65535) {
+      throw new Error(`--${flag} must be an integer between 1 and 65535`)
+    }
+    process.env[variable] = String(Number(value))
+  }
+} catch (err) {
+  console.error(`dango: ${err.message}`)
+  process.exit(1)
+}
 const isWin = os.platform() === 'win32'
 const npmCmd = isWin ? 'npm.cmd' : 'npm'
 
@@ -47,16 +79,20 @@ const colors = {
   system: '\x1b[33m',
 }
 
-if (mode === '--version' || mode === '-v') {
+if (options.version) {
   const pkg = require('./package.json')
   console.log(`dango version ${pkg.version}`)
   process.exit(0)
 }
 
-if (mode === '--help' || mode === '-h') {
-  console.log('Usage: dango [dev|prod] [--no-update] [--version] [--help]')
+if (options.help) {
+  console.log(
+    'Usage: dango [dev|prod] [--port PORT] [--dev-port PORT] [--no-update] [--version] [--help]'
+  )
   console.log('  dev          Run with hot-reload (server + client)')
   console.log('  prod         Run pre-built version (default)')
+  console.log('  --port PORT      Backend port (overrides PORT; default: 3000)')
+  console.log('  --dev-port PORT  Development frontend port (overrides DEV_PORT; default: 5173)')
   console.log('  --no-update  Skip update checks')
   console.log('  --version, -v  Print version and exit')
   console.log('  --help, -h     Show this help and exit')
@@ -104,7 +140,7 @@ const isNewerVersion = (remote, current) => {
 }
 
 async function checkForUpdates() {
-  if (process.argv.includes('--no-update') || mode === 'dev') return
+  if (options['no-update'] || mode === 'dev') return
 
   try {
     const isGlobalInstall = detectGlobalInstall()

@@ -176,6 +176,17 @@ PORT=4000 DEV_PORT=5174 pnpm run dev
 PORT=4000 pnpm start
 ```
 
+You can also set ports as launch options. These override the corresponding
+environment variables:
+
+```bash
+dango --port 4000
+dango dev --port 4000 --dev-port 5174
+# From a source checkout:
+pnpm start --port 4000
+pnpm run dev --port 4000 --dev-port 5174
+```
+
 ### Command Reference
 
 | Command                              | Action                                     |

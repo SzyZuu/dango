@@ -260,6 +260,37 @@ const CLIENT_DIR = path.join(__dirname, 'client')
 let syncSpinner = null
 let syncMessage = ''
 let syncDots = 0
+let providerLineActive = false
+let providerPhase = false
+let providerFields = {}
+let pendingProviderSummary = false
+
+const ansiPattern = /\x1b\[[0-9;]*m/g
+const readPrettyField = (line) => {
+  const match = /^\s+([\w-]+):\s*(.*)$/.exec(line.replace(ansiPattern, ''))
+  return match ? [match[1], match[2].trim().replace(/^"|"$/g, '')] : null
+}
+
+const showProvider = (color, prefix, fields) => {
+  process.stdout.write(
+    `\r\x1b[K${color}[${prefix}]${colors.reset} ${colors.system}Loading providers${colors.reset} ` +
+      `${colors.client}${fields.provider || ''}${fields.version ? ` v${fields.version}` : ''}${colors.reset}`
+  )
+  providerLineActive = true
+}
+
+const flushProviderSummary = (color, prefix) => {
+  if (providerLineActive) {
+    process.stdout.write('\n')
+    providerLineActive = false
+  }
+  if (!pendingProviderSummary) return
+  pendingProviderSummary = false
+  console.log(
+    `${color}[${prefix}]${colors.reset} ${colors.system}Providers ready${colors.reset} ` +
+      `${colors.client}${providerFields.count} anime, ${providerFields.mangaCount} manga, ${providerFields.tvCount} tv${colors.reset}`
+  )
+}
 
 const startSpinner = (msg) => {
   stopSpinner()
@@ -317,7 +348,7 @@ const formatChildLine = (line) => {
   const text =
     `${time ? `[${time}] ` : ''}${levelColor}${levelName}${colors.reset} ${messageColor}${obj.msg}${colors.reset}` +
     (extras.length ? ` (${propertyColor}${extras.join(' ')}${colors.reset})` : '')
-  return { text, msg: obj.msg }
+  return { text, msg: obj.msg, obj }
 }
 
 const log = (prefix, color, data) => {
@@ -329,7 +360,18 @@ const log = (prefix, color, data) => {
 
   const display = []
   for (const line of lines) {
-    const { text, msg } = formatChildLine(line)
+    if (providerPhase) {
+      const field = readPrettyField(line)
+      if (field) {
+        providerFields[field[0]] = field[1]
+        if (providerLineActive && field[0] !== 'module') {
+          showProvider(color, prefix, providerFields)
+        }
+        continue
+      }
+    }
+
+    const { text, msg, obj } = formatChildLine(line)
     const content = msg !== undefined ? msg : text
 
     const boundMatch = content.match(/Server running on http:\/\/localhost:(\d+)/)
@@ -346,6 +388,23 @@ const log = (prefix, color, data) => {
       setTimeout(() => process.exit(0), 2000)
       return
     }
+
+    if (content.includes('remote provider loaded')) {
+      if (pendingProviderSummary) flushProviderSummary(color, prefix)
+      providerPhase = true
+      providerFields = { ...(obj || {}) }
+      showProvider(color, prefix, providerFields)
+      continue
+    }
+    if (content.includes('remote providers refreshed')) {
+      providerPhase = true
+      Object.assign(providerFields, obj)
+      pendingProviderSummary = true
+      continue
+    }
+    flushProviderSummary(color, prefix)
+    providerPhase = false
+    providerFields = {}
 
     if (content.includes('[SYNC_START]')) {
       startSpinner(content.split('[SYNC_START]')[1].trim())

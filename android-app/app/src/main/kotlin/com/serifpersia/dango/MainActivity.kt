@@ -491,8 +491,6 @@ class MainActivity : AppCompatActivity() {
             Log.i(TAG, "Dev server mode: loading $startUrl, node install skipped")
             waitForServer(startUrl, "$startUrl/api/health")
         } else {
-            // The tray's Stop action stops the service without going through
-            // this activity, so drop back to setup instead of showing a dead page.
             NodeService.onStatusChange = { running ->
                 if (!running && !devMode) {
                     runOnUiThread {
@@ -681,8 +679,6 @@ class MainActivity : AppCompatActivity() {
         return false
     }
 
-    // Pull-to-refresh and the edge swipe are only meaningful while the built-in
-    // browser is actually on screen; in server-only mode they must not fire.
     private fun updateGestureState() {
         val active = webviewEnabled && customView == null &&
             !shutdownConfirmVisible && !shuttingDown
@@ -921,9 +917,6 @@ class MainActivity : AppCompatActivity() {
             (webView.parent as? ViewGroup)?.removeView(webView)
             webView.destroy()
         } catch (_: Exception) {
-        }
-        if (!devMode && isFinishing && !shuttingDown) {
-            NodeService.stop(this)
         }
         super.onDestroy()
     }

@@ -40,8 +40,6 @@ class NodeService : Service() {
         var onStatusChange: ((Boolean) -> Unit)? = null
         var onLogLine: ((String) -> Unit)? = null
 
-        // Single readiness signal for the whole app: the notification, the
-        // webview reveal and the boot overlay all wait on this, not on stdout.
         fun isHealthy(url: String = HEALTH_URL): Boolean {
             var conn: HttpURLConnection? = null
             return try {
@@ -146,8 +144,6 @@ class NodeService : Service() {
         return START_STICKY
     }
 
-    // The server flushes its sync snapshot on this endpoint, so every stop path
-    // (activity, tray action) goes through here rather than killing node outright.
     private suspend fun requestShutdown() {
         postShutdown()
         for (i in 1..20) {

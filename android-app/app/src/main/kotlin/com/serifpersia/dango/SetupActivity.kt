@@ -598,9 +598,6 @@ class SetupActivity : AppCompatActivity() {
         }
     }
 
-    // Relaunching from the launcher re-delivers the launcher intent to this
-    // singleTask root, which would otherwise drop the user back on the setup
-    // screen. If dango is already serving, go straight back into it.
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
@@ -608,7 +605,6 @@ class SetupActivity : AppCompatActivity() {
         scope.launch {
             if (!isServerHealthy()) return@launch
             startActivity(Intent(this@SetupActivity, MainActivity::class.java))
-            finish()
         }
     }
 

@@ -583,7 +583,7 @@ class SetupActivity : AppCompatActivity() {
         if (!NodeService.isRunning) return@withContext false
         var conn: HttpURLConnection? = null
         try {
-            conn = URL("http://localhost:3000/api/health").openConnection() as HttpURLConnection
+            conn = URL(NodeService.healthUrl(this@SetupActivity)).openConnection() as HttpURLConnection
             conn.connectTimeout = 2000
             conn.readTimeout = 2000
             conn.connect()

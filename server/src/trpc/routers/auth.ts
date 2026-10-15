@@ -1,4 +1,5 @@
 import logger from '../../logger.js'
+import { TRPCError } from '@trpc/server'
 import { googleDriveService } from '../../google.js'
 import { githubSyncService } from '../../github-sync.js'
 import type { DatabaseWrapper } from '../../db.js'
@@ -49,6 +50,11 @@ const syncProviderInput = () =>
 const rcloneSaveInput = () =>
   defineSchema<{ remote?: unknown }, { remote?: unknown }>((value) => ({
     remote: reqObj(value).remote,
+  }))
+
+const serverPortInput = () =>
+  defineSchema<{ port?: unknown }, { port?: unknown }>((value) => ({
+    port: reqObj(value).port,
   }))
 
 export const authRouter = router({
@@ -185,6 +191,19 @@ export const authRouter = router({
     })
     await runSyncFromCtx(ctx, ctx.db, 'rclone')
     return { success: true }
+  }),
+
+  setServerPort: protectedProcedure.input(serverPortInput()).mutation(async ({ input }) => {
+    const port = Number(input.port)
+    if (!Number.isInteger(port) || port < 1 || port > 65535) {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'Port must be an integer between 1 and 65535',
+      })
+    }
+    await updateEnvFile({ PORT: String(port) })
+    logger.info({ port }, 'Server port saved. Restart required to apply.')
+    return { success: true, port }
   }),
 
   googleAuthUrl: protectedProcedure.query(async () => {

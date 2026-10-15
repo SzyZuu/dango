@@ -23,10 +23,11 @@ export default defineConfig({
   },
   server: {
     host: '0.0.0.0',
+    port: Number(process.env.DEV_PORT) || 5173,
     strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://127.0.0.1:3000',
+        target: `http://127.0.0.1:${Number(process.env.PORT) || 3000}`,
         changeOrigin: true,
         secure: false,
         configure(proxy) {

@@ -3,7 +3,6 @@ import logger from '../logger.js'
 import { googleDriveService } from '../google.js'
 import type { DatabaseWrapper } from '../db.js'
 import type { HonoDbs } from '../app-hono.js'
-import { CONFIG } from '../config.js'
 import { updateEnvFile } from '../utils/env.utils.js'
 
 export type RunSyncSequence = (
@@ -45,12 +44,6 @@ export function registerAuth(app: Hono, getDbs: () => HonoDbs, runSync: RunSyncS
               try {
                 if (window.opener && !window.opener.closed) {
                   window.opener.postMessage(payload, window.location.origin);
-                  try {
-                    window.opener.postMessage(payload, 'http://localhost:${CONFIG.PORT}');
-                  } catch (e) {}
-                  try {
-                    window.opener.postMessage(payload, 'http://127.0.0.1:${CONFIG.PORT}');
-                  } catch (e) {}
                   setTimeout(function () { window.close(); }, 300);
                   setTimeout(function () { window.location.href = '/?google_auth=success'; }, 1500);
                 } else {

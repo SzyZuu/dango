@@ -45,12 +45,10 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val TAG = "DangoMain"
-        const val SERVER_URL = "http://localhost:3000"
-        const val HEALTH_URL = "$SERVER_URL/api/health"
     }
 
     private var devMode = false
-    private var startUrl = SERVER_URL
+    private var startUrl = ""
 
     private lateinit var webView: WebView
     private lateinit var swipeRefreshLayout: DangoSwipeRefreshLayout
@@ -484,7 +482,7 @@ class MainActivity : AppCompatActivity() {
         })
 
         devMode = DevConfig.isEnabled(this)
-        startUrl = if (devMode) DevConfig.getDevUrl(this) else SERVER_URL
+        startUrl = if (devMode) DevConfig.getDevUrl(this) else NodeService.serverUrl(this)
         webView.visibility = View.INVISIBLE
         if (devMode) {
             webViewSwitchConfirm.visibility = View.GONE
@@ -499,7 +497,7 @@ class MainActivity : AppCompatActivity() {
                 }
             }
             NodeService.start(this)
-            waitForServer(SERVER_URL, HEALTH_URL)
+            waitForServer(startUrl, NodeService.healthUrl(this))
         }
     }
 
@@ -740,7 +738,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun pollHealthOnce() {
         scope.launch {
-            val ready = withContext(Dispatchers.IO) { isHealthReady(HEALTH_URL) }
+            val ready = withContext(Dispatchers.IO) {
+                isHealthReady(NodeService.healthUrl(this@MainActivity))
+            }
             if (ready) {
                 onServerReady(startUrl)
             }
@@ -812,10 +812,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateServerUrlText() {
         val lanIp = getLanIp()
+        val port = NodeService.serverPort(this)
         serverUrlText.text = if (lanIp != null) {
-            "On this device:\nhttp://localhost:3000\n\nOn your network:\nhttp://$lanIp:3000"
+            "On this device:\nhttp://localhost:$port\n\nOn your network:\nhttp://$lanIp:$port"
         } else {
-            "On this device:\nhttp://localhost:3000"
+            "On this device:\nhttp://localhost:$port"
         }
     }
 
@@ -886,7 +887,9 @@ class MainActivity : AppCompatActivity() {
         }
         if (serverReady && webviewEnabled && !shuttingDown) {
             scope.launch {
-                val healthUrl = if (devMode) "${startUrl.trimEnd('/')}/api/health" else HEALTH_URL
+                val healthUrl =
+                    if (devMode) "${startUrl.trimEnd('/')}/api/health"
+                    else NodeService.healthUrl(this@MainActivity)
                 val ready = withContext(Dispatchers.IO) { isHealthReady(healthUrl) }
                 if (ready) {
                     try {

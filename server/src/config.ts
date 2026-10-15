@@ -137,10 +137,11 @@ dotenv.config({ path: path.join(SERVER_ROOT, '.env') })
 dotenv.config({ path: ENV_PATH, override: true })
 
 const IS_DEV = process.argv.includes('--dev')
-const PORT = 3000
+const PORT = Number(process.env.PORT) || 3000
+const DEV_PORT = Number(process.env.DEV_PORT) || 5173
 const HOST = process.env.HOST || '0.0.0.0'
 const GOOGLE_REDIRECT_URI = IS_DEV
-  ? 'http://localhost:5173/api/auth/google/callback'
+  ? `http://localhost:${DEV_PORT}/api/auth/google/callback`
   : `http://localhost:${PORT}/api/auth/google/callback`
 
 export const CONFIG = {

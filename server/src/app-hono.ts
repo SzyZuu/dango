@@ -408,7 +408,7 @@ export function createHonoApp(
     const authed =
       !hasAppPassword() ||
       validateLanSession(getTokenFromHeaders(c.req.header('authorization'), c.req.header('cookie')))
-    return c.json({ hasPassword: hasAppPassword(), isAuthenticated: authed })
+    return c.json({ hasPassword: hasAppPassword(), isAuthenticated: authed, port: CONFIG.PORT })
   })
 
   app.post('/api/auth/app-login', async (c) => {

@@ -26,13 +26,10 @@ class NodeService : Service() {
         const val TAG = "DangoNode"
         const val CHANNEL_ID = "dango_node"
         const val NOTIFICATION_ID = 1
-        const val NODE_PORT = 3000
         const val DANGO_PACKAGE = "@serifpersia/dango"
         const val ACTION_STOP = "com.serifpersia.dango.STOP"
 
-        private const val SERVER_URL = "http://localhost:$NODE_PORT"
-        private const val HEALTH_URL = "$SERVER_URL/api/health"
-        private const val SHUTDOWN_URL = "$SERVER_URL/api/internal/shutdown"
+        private const val DEFAULT_PORT = 3000
         private const val SHUTDOWN_TIMEOUT_MS = 20_000L
 
         var isRunning = false
@@ -40,7 +37,22 @@ class NodeService : Service() {
         var onStatusChange: ((Boolean) -> Unit)? = null
         var onLogLine: ((String) -> Unit)? = null
 
-        fun isHealthy(url: String = HEALTH_URL): Boolean {
+        fun serverPort(context: Context): Int =
+            File(File(context.filesDir, "data"), ".local/share/dango/.env")
+                .takeIf { it.isFile }
+                ?.readLines()
+                ?.lastOrNull { it.trimStart().startsWith("PORT=") }
+                ?.substringAfter('=')
+                ?.trim()
+                ?.toIntOrNull()
+                ?.takeIf { it in 1..65535 }
+                ?: DEFAULT_PORT
+
+        fun serverUrl(context: Context): String = "http://localhost:${serverPort(context)}"
+
+        fun healthUrl(context: Context): String = "${serverUrl(context)}/api/health"
+
+        fun isHealthy(url: String): Boolean {
             var conn: HttpURLConnection? = null
             return try {
                 conn = URL(url).openConnection() as HttpURLConnection
@@ -162,7 +174,7 @@ class NodeService : Service() {
     private fun postShutdown() {
         var conn: HttpURLConnection? = null
         try {
-            conn = URL(SHUTDOWN_URL).openConnection() as HttpURLConnection
+            conn = URL("${serverUrl(this)}/api/internal/shutdown").openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
             conn.connectTimeout = 3000
             conn.readTimeout = 3000
@@ -183,7 +195,7 @@ class NodeService : Service() {
     private fun healthCode(): Int? {
         var conn: HttpURLConnection? = null
         return try {
-            conn = URL(HEALTH_URL).openConnection() as HttpURLConnection
+            conn = URL(healthUrl(this)).openConnection() as HttpURLConnection
             conn.connectTimeout = 1500
             conn.readTimeout = 1500
             conn.connect()
@@ -266,7 +278,6 @@ class NodeService : Service() {
                 put("PATH", "$nativeLibDir:${payloadDir.absolutePath}/bin:/system/bin")
                 put("LD_LIBRARY_PATH", libDir.absolutePath)
                 put("OPENSSL_CONF", File(payloadDir, "etc/tls/openssl.cnf").absolutePath)
-                put("PORT", NODE_PORT.toString())
                 put("PREFIX", payloadDir.absolutePath)
                 put("npm_config_prefix", payloadDir.absolutePath)
                 put("NODE_PATH", File(payloadDir, "lib/node_modules").absolutePath)
@@ -298,8 +309,8 @@ class NodeService : Service() {
     private suspend fun watchReady() {
         for (i in 1..120) {
             if (!isRunning) return
-            if (isHealthy()) {
-                Log.i(TAG, "Server healthy on port $NODE_PORT")
+            if (isHealthy(healthUrl(this))) {
+                Log.i(TAG, "Server healthy on port ${serverPort(this)}")
                 updateNotification("dango server is running")
                 return
             }

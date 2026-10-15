@@ -136,6 +136,15 @@ export function getHonoClientIp(c: Context): string | undefined {
   }
 }
 
+const NOT_READY_HEADER = 'x-dango-not-ready'
+
+function notReady(c: Context, body: string): Response
+function notReady(c: Context, body: Record<string, unknown>): Response
+function notReady(c: Context, body: string | Record<string, unknown>): Response {
+  c.header(NOT_READY_HEADER, '1')
+  return typeof body === 'string' ? c.text(body, 503) : c.json(body, 503)
+}
+
 export async function honoRequestLogger(c: Context, next: Next) {
   const start = process.hrtime.bigint()
   const url = new URL(c.req.url)
@@ -144,7 +153,7 @@ export async function honoRequestLogger(c: Context, next: Next) {
   const ms = Math.round((Number(process.hrtime.bigint() - start) / 1_000_000) * 10) / 10
   const status = c.res.status
   const payload = { method: c.req.method, url: loggedUrl, status, ms }
-  if (status >= 500) {
+  if (status >= 500 && !c.res.headers.get(NOT_READY_HEADER)) {
     logger.warn(payload, 'request failed')
   } else if (!loggedUrl.startsWith('/api/proxy')) {
     logger.trace(`${c.req.method} ${loggedUrl} ${status} ${ms}ms`)
@@ -316,37 +325,32 @@ export function createHonoApp(
   app.get('/api/health', (c) => {
     const state = getState()
     if (state.shuttingDown) {
-      return c.json({ status: 'shutting-down', ready: false }, 503)
+      return notReady(c, { status: 'shutting-down', ready: false })
     }
     if (!state.dbReady) {
-      return c.json({ status: 'starting', ready: false }, 503)
+      return notReady(c, { status: 'starting', ready: false })
     }
     return c.json({ status: 'ok', ready: true })
   })
 
-  app.use(
-    async (
-      c: { req: { method: string }; text: (body: string, status: number) => Response },
-      next: () => Promise<void>
-    ) => {
-      const guard = getGuardState()
-      if (guard.shuttingDown) {
-        return c.text('Server is shutting down...', 503)
-      }
-      if (!guard.dbsReady) {
-        return c.text('Database initializing...', 503)
-      }
-      if (
-        guard.bootSyncing &&
-        c.req.method !== 'GET' &&
-        c.req.method !== 'HEAD' &&
-        c.req.method !== 'OPTIONS'
-      ) {
-        return c.text('Sync in progress...', 503)
-      }
-      await next()
+  app.use(async (c: Context, next: () => Promise<void>) => {
+    const guard = getGuardState()
+    if (guard.shuttingDown) {
+      return notReady(c, 'Server is shutting down...')
     }
-  )
+    if (!guard.dbsReady) {
+      return notReady(c, 'Database initializing...')
+    }
+    if (
+      guard.bootSyncing &&
+      c.req.method !== 'GET' &&
+      c.req.method !== 'HEAD' &&
+      c.req.method !== 'OPTIONS'
+    ) {
+      return notReady(c, 'Sync in progress...')
+    }
+    await next()
+  })
 
   const honoCompress = compress({ threshold: 1024 })
   app.use(async (c, next) => {
@@ -614,7 +618,7 @@ export function createHonoApp(
     try {
       const dbs = getDbs()
       if (!dbs.mangaDb || dbs.mangaDb.isClosedCheck()) {
-        return c.json({ error: 'Manga database is not ready' }, 503)
+        return notReady(c, { error: 'Manga database is not ready' })
       }
       let result: { myanimelist?: { manga?: Record<string, MangaXmlVal>[] } }
       try {

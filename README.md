@@ -166,6 +166,16 @@ chmod +x run.sh && ./run.sh
 run.bat
 ```
 
+Set `PORT` to change the backend port (default: `3000`). In development,
+set `DEV_PORT` to change the Vite frontend port (default: `5173`). The frontend
+API proxy and Google OAuth callback use these ports automatically. Export these
+variables in the shell before starting the app so all processes use the same values:
+
+```bash
+PORT=4000 DEV_PORT=5174 pnpm run dev
+PORT=4000 pnpm start
+```
+
 ### Command Reference
 
 | Command                              | Action                                     |

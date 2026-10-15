@@ -120,10 +120,6 @@ const Trackers: React.FC = () => {
       return
     }
     const frontendBase = window.location.origin + window.location.pathname
-    const isDevFrontend = window.location.port === '5173'
-    const _backendOrigin = isDevFrontend
-      ? `${window.location.protocol}//${window.location.hostname}:3000`
-      : window.location.origin
     const state = encodeURIComponent(frontendBase)
     window.location.href = `https://anilist.co/api/v2/oauth/authorize?client_id=${encodeURIComponent(clientId)}&response_type=token&state=${state}`
   }
@@ -536,13 +532,8 @@ const Trackers: React.FC = () => {
                         anilist.co/settings/developer
                       </a>
                       , set its <strong>Redirect URL</strong> to{' '}
-                      <code>
-                        {window.location.port === '5173'
-                          ? `${window.location.protocol}//${window.location.hostname}:3000/api/tracker/anilist/callback`
-                          : `${window.location.origin}/api/tracker/anilist/callback`}
-                      </code>
-                      , then paste only the <strong>Client ID</strong> above (leave empty to use
-                      Dango's).
+                      <code>{`${window.location.origin}/api/tracker/anilist/callback`}</code>, then
+                      paste only the <strong>Client ID</strong> above (leave empty to use Dango's).
                     </>
                   ) : (
                     <>
@@ -555,12 +546,8 @@ const Trackers: React.FC = () => {
                         anilist.co/settings/developer
                       </a>
                       , set <strong>Redirect URL</strong> to{' '}
-                      <code>
-                        {window.location.port === '5173'
-                          ? `${window.location.protocol}//${window.location.hostname}:3000/api/tracker/anilist/callback`
-                          : `${window.location.origin}/api/tracker/anilist/callback`}
-                      </code>
-                      , then paste the <strong>Client ID</strong> above.
+                      <code>{`${window.location.origin}/api/tracker/anilist/callback`}</code>, then
+                      paste the <strong>Client ID</strong> above.
                     </>
                   )}
                 </p>

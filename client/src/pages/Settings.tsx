@@ -12,6 +12,7 @@ import RcloneSettings from '../components/settings/RcloneSettings'
 import SyncProviderSelector from '../components/settings/SyncProviderSelector'
 import DiscordTokenBookmarklet from '../components/settings/DiscordTokenBookmarklet'
 import LanAuthSettings from '../components/settings/LanAuthSettings'
+import ServerPortSettings from '../components/settings/ServerPortSettings'
 import ThemeSettings from '../components/settings/ThemeSettings'
 import Icon from '../components/common/Icon'
 import { trpcClient } from '../lib/trpc'
@@ -355,6 +356,10 @@ const Settings: React.FC = () => {
 
               <div style={{ marginTop: '2rem' }}>
                 <LanAuthSettings />
+              </div>
+
+              <div style={{ marginTop: '2rem' }}>
+                <ServerPortSettings />
               </div>
 
               {discordEnabled && (

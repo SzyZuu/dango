@@ -66,7 +66,7 @@ dango
 ```
 
 > [!IMPORTANT]
-> Once the server initializes, navigate to `http://localhost:3000` in your browser. The background process runs locally until terminated (`Ctrl + C or q key press as well as window X button closing action`).
+> Once the server initializes, navigate to `http://localhost:3000` in your browser (or whatever `PORT` you set, see [Manual Setup](#manual-setup-development)). The background process runs locally until terminated (`Ctrl + C or q key press as well as window X button closing action`).
 
 ---
 
@@ -76,7 +76,7 @@ No `npm install` needed — dependencies ship inside the zip, client is prebuilt
 
 1. Download and extract `dango.zip` from [Releases](https://github.com/serifpersia/dango/releases).
 2. Install Node.js 22.12+ (`node --version` to check).
-3. Launch using `run.bat` (Windows) or `./run.sh` (Linux/macOS), then open `http://localhost:3000`.
+3. Launch using `run.bat` (Windows) or `./run.sh` (Linux/macOS), then open `http://localhost:3000` (`http://localhost:$PORT` if you changed it).
 
 ---
 
@@ -106,7 +106,7 @@ Run standard dango via Termux:
    npm install -g @serifpersia/dango
    dango
    ```
-5. Open your mobile browser at `http://localhost:3000`.
+5. Open your mobile browser at `http://localhost:3000` (`http://localhost:$PORT` if you changed it).
 
 </details>
 
@@ -166,10 +166,10 @@ chmod +x run.sh && ./run.sh
 run.bat
 ```
 
-Set `PORT` to change the backend port (default: `3000`). In development,
-set `DEV_PORT` to change the Vite frontend port (default: `5173`). The frontend
-API proxy and Google OAuth callback use these ports automatically. Export these
-variables in the shell before starting the app so all processes use the same values:
+Set `PORT` to change the backend port (default: `3000`) and `DEV_PORT` to change the Vite
+frontend port (default: `5173`). The dev proxy and the Google OAuth callback follow both
+values automatically. They are read from the environment of the process you launch, not
+from dango's `.env`, so export them in the shell before starting:
 
 ```bash
 PORT=4000 DEV_PORT=5174 pnpm run dev
@@ -186,6 +186,17 @@ dango dev --port 4000 --dev-port 5174
 pnpm start --port 4000
 pnpm run dev --port 4000 --dev-port 5174
 ```
+
+OAuth callbacks follow the port, and redirect URIs are registered with the provider:
+
+| Provider | Registered redirect URIs                                                                                    |
+| :------- | :---------------------------------------------------------------------------------------------------------- |
+| AniList  | `http://localhost:3000/api/tracker/anilist/callback`                                                        |
+| Google   | `http://localhost:3000/api/auth/google/callback` and `http://localhost:5173/api/auth/google/callback` (dev) |
+
+Sign-in breaks with `redirect_uri_mismatch` when the port you run on is not on that list, so
+a custom port needs your own AniList client and your own Google OAuth client (see Settings).
+GitHub uses the device flow and rclone needs no local port, so both keep working on any port.
 
 ### Command Reference
 

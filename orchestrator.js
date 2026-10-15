@@ -332,6 +332,9 @@ const log = (prefix, color, data) => {
     const { text, msg } = formatChildLine(line)
     const content = msg !== undefined ? msg : text
 
+    const boundMatch = content.match(/Server running on http:\/\/localhost:(\d+)/)
+    if (boundMatch) boundServerPort = Number(boundMatch[1])
+
     if (content.includes('[SERVER_EXIT]')) {
       isShuttingDown = true
       stopSpinner()
@@ -428,6 +431,7 @@ const terminateProcess = (proc, signal = 'SIGTERM') => {
 }
 let serverProcess, clientProcess
 let isShuttingDown = false
+let boundServerPort = Number(process.env.PORT) || 3000
 
 async function main() {
   console.log(
@@ -501,7 +505,7 @@ const shutdown = () => {
     }, 5000)
   }
 
-  const serverPort = Number(process.env.PORT) || 3000
+  const serverPort = boundServerPort
   const req = http.request(
     {
       hostname: '127.0.0.1',

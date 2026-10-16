@@ -4,8 +4,8 @@ plugins {
 }
 
 // Standalone app version, independent from the dango node project version.
-val dangoVersionName = "1.0.8"
-val dangoVersionCode = 8
+val dangoVersionName = "1.1.0"
+val dangoVersionCode = 11
 
 android {
     namespace = "com.serifpersia.dango"

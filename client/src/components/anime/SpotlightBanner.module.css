@@ -166,8 +166,9 @@
 }
 
 .poster {
-  width: 230px;
-  height: 330px;
+  width: clamp(110px, 18vw, 230px);
+  height: auto;
+  aspect-ratio: 2 / 3;
   object-fit: cover;
   border-radius: var(--radius-lg);
   flex-shrink: 0;
@@ -176,6 +177,7 @@
 }
 
 .info {
+  min-width: 0;
   max-width: 620px;
 }
 
@@ -302,7 +304,7 @@
 
 .title {
   display: block;
-  font-size: 3rem;
+  font-size: clamp(1.6rem, 4.6vw, 3rem);
   line-height: 1.04;
   cursor: pointer;
   max-width: 800px;
@@ -439,9 +441,8 @@
 }
 
 /* Portrait: tall centered hero */
-@media (max-width: 768px) {
+@media (max-width: 768px) and (pointer: coarse) {
   .hero {
-    height: auto;
     min-height: 92svh;
   }
 
@@ -463,8 +464,7 @@
   }
 
   .poster {
-    width: 172px;
-    height: 248px;
+    width: min(46vw, 172px);
   }
 
   .slide.active .poster {
@@ -533,21 +533,11 @@
   .slideInner {
     gap: 2rem;
   }
-
-  .title {
-    font-size: 2.2rem;
-  }
-
-  .poster {
-    width: 200px;
-    height: 288px;
-  }
 }
 
 /* Short landscape (phones in landscape): keep hero compact, dots centered */
 @media (max-height: 500px) and (orientation: landscape) {
   .hero {
-    height: 92svh;
     min-height: 360px;
   }
 
@@ -558,7 +548,6 @@
 
   .poster {
     width: 140px;
-    height: 200px;
   }
 
   .title {

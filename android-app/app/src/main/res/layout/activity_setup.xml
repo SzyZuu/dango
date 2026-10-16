@@ -70,6 +70,17 @@
             android:layout_marginBottom="12dp" />
 
         <Button
+            android:id="@+id/appUpdateBtn"
+            android:layout_width="280dp"
+            android:layout_height="52dp"
+            android:text="Update app"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:backgroundTint="#2563eb"
+            android:visibility="gone"
+            android:layout_marginBottom="12dp" />
+
+        <Button
             android:id="@+id/launchBtn"
             android:layout_width="280dp"
             android:layout_height="52dp"

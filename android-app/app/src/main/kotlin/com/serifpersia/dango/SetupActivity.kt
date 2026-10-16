@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Environment
 import android.os.PowerManager
 import android.provider.Settings
 import android.util.Log
@@ -17,7 +18,9 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.FileProvider
 import kotlinx.coroutines.*
 import org.json.JSONObject
 import java.io.BufferedReader
@@ -35,6 +38,10 @@ class SetupActivity : AppCompatActivity() {
         const val KEY_WEBVIEW_ENABLED = "webview_enabled"
         const val NPM_REGISTRY = "https://registry.npmjs.org/@serifpersia/dango/latest"
         const val DANGO_PACKAGE = "@serifpersia/dango"
+        const val RELEASE_API = "https://api.github.com/repos/serifpersia/dango/releases/latest"
+        const val RELEASE_DOWNLOADS =
+            "https://github.com/serifpersia/dango/releases/latest/download"
+        val APK_ASSET = Regex("com\\.serifpersia\\.dango-v(\\d+)\\.(\\d+)\\.(\\d+)-universal\\.apk")
     }
 
     private lateinit var prefs: SharedPreferences
@@ -43,6 +50,7 @@ class SetupActivity : AppCompatActivity() {
     private lateinit var versionText: TextView
     private lateinit var devServerUrlInput: android.widget.EditText
     private lateinit var updateBtn: Button
+    private lateinit var appUpdateBtn: Button
     private lateinit var launchBtn: Button
     private lateinit var browserSwitch: android.widget.Switch
     private lateinit var swipeHintText: TextView
@@ -52,6 +60,8 @@ class SetupActivity : AppCompatActivity() {
     private lateinit var logScroll: ScrollView
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
     private var latestVersion: String? = null
+    private var latestAppVersion: String? = null
+    private var pendingInstall: File? = null
     private var nodeProcess: Process? = null
     private val logBuffer = mutableListOf<String>()
     private var logFlushJob: Job? = null
@@ -65,12 +75,14 @@ class SetupActivity : AppCompatActivity() {
         Log.i(TAG, "=== SetupActivity onCreate ===")
 
         prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE)
+        cleanupStaleApkDownloads()
 
         statusTitle = findViewById(R.id.statusTitle)
         statusSubtitle = findViewById(R.id.statusSubtitle)
         versionText = findViewById(R.id.versionText)
         devServerUrlInput = findViewById(R.id.devServerUrlInput)
         updateBtn = findViewById(R.id.updateBtn)
+        appUpdateBtn = findViewById(R.id.appUpdateBtn)
         launchBtn = findViewById(R.id.launchBtn)
         browserSwitch = findViewById(R.id.browserSwitch)
         browserSwitch.isChecked = prefs.getBoolean(KEY_WEBVIEW_ENABLED, true)
@@ -86,6 +98,9 @@ class SetupActivity : AppCompatActivity() {
         updateBtn.setOnClickListener {
             Log.i(TAG, "Update button clicked")
             startInstall(true)
+        }
+        appUpdateBtn.setOnClickListener {
+            latestAppVersion?.let(::startAppUpdate)
         }
         requestBatteryExemption()
         if (Build.VERSION.SDK_INT >= 33 &&
@@ -112,12 +127,24 @@ class SetupActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        val file = pendingInstall ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !packageManager.canRequestPackageInstalls()
+        ) {
+            return
+        }
+        launchInstaller(file)
+    }
+
     private fun showDevServerMode() {
         statusTitle.text = "dango"
         statusSubtitle.text = "Dev server mode"
         versionText.visibility = View.GONE
         swipeHintText.visibility = View.GONE
         updateBtn.visibility = View.GONE
+        appUpdateBtn.visibility = View.GONE
         devServerUrlInput.setText(DevConfig.getDevUrl(this))
         devServerUrlInput.visibility = View.VISIBLE
         browserSwitch.visibility = View.GONE
@@ -172,6 +199,7 @@ class SetupActivity : AppCompatActivity() {
 
         showInstalled(installedVersion)
         checkForUpdate(installedVersion)
+        checkForAppUpdate()
     }
 
     private fun getDangoDir(): File {
@@ -436,6 +464,137 @@ class SetupActivity : AppCompatActivity() {
         }
     }
 
+    private suspend fun checkForAppUpdate() {
+        val installed = installedAppVersion() ?: return
+        val latest = withContext(Dispatchers.IO) { fetchLatestAppVersion() } ?: return
+        if (isNewerVersion(latest, installed)) {
+            showAppUpdateAvailable(latest)
+        }
+    }
+
+    private fun installedAppVersion(): String? {
+        return try {
+            @Suppress("DEPRECATION")
+            val info = packageManager.getPackageInfo(packageName, 0)
+            info.versionName
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to read app version: ${e.message}")
+            null
+        }
+    }
+
+    private fun isNewerVersion(candidate: String, current: String): Boolean {
+        val a = candidate.split(".").map { it.toIntOrNull() ?: 0 }
+        val b = current.split(".").map { it.toIntOrNull() ?: 0 }
+        for (i in 0 until 3) {
+            val diff = (a.getOrNull(i) ?: 0) - (b.getOrNull(i) ?: 0)
+            if (diff != 0) return diff > 0
+        }
+        return false
+    }
+
+    private fun fetchLatestAppVersion(): String? {
+        return try {
+            val conn = URL(RELEASE_API).openConnection() as HttpURLConnection
+            conn.connectTimeout = 5000
+            conn.readTimeout = 5000
+            conn.setRequestProperty("Accept", "application/vnd.github+json")
+            conn.connect()
+            val body = conn.inputStream.bufferedReader().readText()
+            conn.disconnect()
+            val assets = JSONObject(body).getJSONArray("assets")
+            var version: String? = null
+            for (i in 0 until assets.length()) {
+                val match = APK_ASSET.find(assets.getJSONObject(i).optString("name")) ?: continue
+                version = "${match.groupValues[1]}.${match.groupValues[2]}.${match.groupValues[3]}"
+                break
+            }
+            Log.i(TAG, "fetchLatestAppVersion: $version")
+            version
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to fetch latest app version: ${e.message}")
+            null
+        }
+    }
+
+    @SuppressLint("SetTextI18n")
+    private fun showAppUpdateAvailable(version: String) {
+        latestAppVersion = version
+        appUpdateBtn.text = "Update app v$version"
+        appUpdateBtn.visibility = View.VISIBLE
+        appendLog("App v$version is available.")
+    }
+
+    private fun startAppUpdate(version: String) {
+        appUpdateBtn.isEnabled = false
+        showProgress("Downloading app v$version...")
+        scope.launch {
+            val file = withContext(Dispatchers.IO) { downloadApk(version) }
+            if (file == null) {
+                appendLog("App download failed. Try again.")
+                showAppUpdateAvailable(version)
+                appUpdateBtn.isEnabled = true
+                return@launch
+            }
+            appendLog("Download complete, opening installer...")
+            launchInstaller(file)
+            appUpdateBtn.isEnabled = true
+            showAppUpdateAvailable(version)
+        }
+    }
+
+    private fun downloadApk(version: String): File? {
+        return try {
+            val dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: return null
+            val file = File(dir, "dango-app-v$version.apk")
+            val url = "$RELEASE_DOWNLOADS/com.serifpersia.dango-v$version-universal.apk"
+            URL(url).openStream().use { input ->
+                file.outputStream().use { output -> input.copyTo(output) }
+            }
+            file
+        } catch (e: Exception) {
+            Log.w(TAG, "APK download failed: ${e.message}")
+            null
+        }
+    }
+
+    private fun cleanupStaleApkDownloads() {
+        val dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS) ?: return
+        val stale = dir.listFiles { file -> file.name.startsWith("dango-app-v") } ?: return
+        stale.forEach { file ->
+            Log.i(TAG, "Removing leftover APK ${file.name}")
+            runCatching { file.delete() }
+        }
+    }
+
+    private fun launchInstaller(file: File) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !packageManager.canRequestPackageInstalls()
+        ) {
+            pendingInstall = file
+            startActivity(
+                Intent(
+                    Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+                    Uri.parse("package:$packageName")
+                )
+            )
+            return
+        }
+        pendingInstall = null
+        try {
+            val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+            startActivity(
+                Intent(Intent.ACTION_VIEW).apply {
+                    setDataAndType(uri, "application/vnd.android.package-archive")
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to open installer: ${e.message}")
+            Toast.makeText(this, "Couldn't open the installer", Toast.LENGTH_LONG).show()
+        }
+    }
+
     @SuppressLint("SetTextI18n")
     private fun showLoading(text: String) {
         statusTitle.text = text
@@ -443,6 +602,7 @@ class SetupActivity : AppCompatActivity() {
         versionText.visibility = View.GONE
         swipeHintText.visibility = View.GONE
         updateBtn.visibility = View.GONE
+        appUpdateBtn.visibility = View.GONE
         launchBtn.visibility = View.GONE
         browserSwitch.visibility = View.GONE
         progressBar.visibility = View.VISIBLE
@@ -455,9 +615,11 @@ class SetupActivity : AppCompatActivity() {
     private fun showInstalled(version: String) {
         statusTitle.text = "dango"
         statusSubtitle.text = "Installed"
-        versionText.text = "v$version"
+        val appVersion = installedAppVersion()
+        versionText.text = if (appVersion != null) "v$version • App v$appVersion" else "v$version"
         versionText.visibility = View.VISIBLE
         updateBtn.visibility = View.GONE
+        appUpdateBtn.visibility = View.GONE
         swipeHintText.visibility = View.VISIBLE
         launchBtn.text = "Launch"
         launchBtn.visibility = View.VISIBLE
@@ -490,6 +652,7 @@ class SetupActivity : AppCompatActivity() {
         versionText.visibility = View.GONE
         swipeHintText.visibility = View.GONE
         updateBtn.visibility = View.GONE
+        appUpdateBtn.visibility = View.GONE
         launchBtn.visibility = View.GONE
         browserSwitch.visibility = View.GONE
         progressBar.visibility = View.VISIBLE

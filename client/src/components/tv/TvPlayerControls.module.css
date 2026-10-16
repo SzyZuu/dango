@@ -17,7 +17,7 @@
   }
 
   .bottomControls {
-    padding: 0.75rem 0.75rem 0.75rem;
+    padding: 0 0.75rem 0.75rem;
   }
 
   .leftControls,
@@ -171,7 +171,7 @@
     rgba(0, 0, 0, 0.45) 60%,
     transparent 100%
   );
-  padding: clamp(1rem, 4cqw, 2.5rem) clamp(1rem, 4cqw, 2.5rem) clamp(0.75rem, 2.5cqw, 1.5rem);
+  padding: 0 clamp(0.5rem, 1.5cqw, 0.75rem) clamp(0.75rem, 2.5cqw, 1.5rem);
   z-index: 10;
   pointer-events: auto;
   transition: transform 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -341,6 +341,15 @@
 .controlBtn:hover {
   color: white;
   background: rgba(255, 255, 255, 0.1);
+}
+
+.controlBtn:focus {
+  outline: none;
+}
+
+.controlBtn:focus-visible {
+  outline: 2px solid var(--accent-light);
+  outline-offset: 2px;
 }
 
 .controlBtn.active {
@@ -522,8 +531,8 @@
 }
 
 .menuItem.active {
-  background: var(--bg-tertiary);
-  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  color: var(--accent-lighter);
 }
 
 .currentValue {

@@ -1880,7 +1880,7 @@ const Player: React.FC = () => {
               />
             )}
 
-            <div className={styles.providerAndEpisodeRow}>
+            <div className={styles.streamPanel}>
               <ProviderSelector
                 selectedProvider={state.selectedProvider}
                 isAdult={state.showMeta?.isAdult}
@@ -1907,14 +1907,12 @@ const Player: React.FC = () => {
                 `${styles.episodeActions} ${styles.desktopEpisodeActions}`,
                 'desktop'
               )}
-            </div>
 
-            {isVideoLoading ? (
-              <div className={styles.sourceLoader}>
-                <div className={styles.spinner}></div>
-              </div>
-            ) : (
-              <>
+              {isVideoLoading ? (
+                <div className={styles.sourceLoader}>
+                  <div className={styles.spinner}></div>
+                </div>
+              ) : (
                 <SourceSelector
                   videoSources={state.videoSources}
                   selectedSource={state.selectedSource}
@@ -1950,8 +1948,8 @@ const Player: React.FC = () => {
                     })
                   }}
                 />
-              </>
-            )}
+              )}
+            </div>
 
             <div className={layoutStyles.playerInfoContainer}>
               <div className={layoutStyles.playerInfoHeader}>
@@ -2053,30 +2051,31 @@ const Player: React.FC = () => {
                 'mobile'
               )}
 
-              <div className={styles.descriptionSection}>
-                <h3>Synopsis</h3>
-                <SynopsisText
-                  text={
-                    state.showMeta.description
-                      ? state.showMeta.description.replace(/<[^>]*>?/gm, '')
-                      : ''
-                  }
-                  emptyText="No description available."
-                />
-              </div>
+              <div className={layoutStyles.infoColumns}>
+                <div className={`${styles.descriptionSection} ${styles.synopsisFlat}`}>
+                  <h3>Synopsis</h3>
+                  <SynopsisText
+                    text={
+                      state.showMeta.description
+                        ? state.showMeta.description.replace(/<[^>]*>?/gm, '')
+                        : ''
+                    }
+                    emptyText="No description available."
+                  />
+                  <button className={styles.detailsToggleBtn} onClick={handleToggleDetails}>
+                    {state.showCombinedDetails ? (
+                      <Icon name="chevron-up" />
+                    ) : (
+                      <Icon name="chevron-down" />
+                    )}
+                    {state.showCombinedDetails ? 'Hide Details' : 'Show Details'}
+                  </button>
+                </div>
 
-              <button className={styles.detailsToggleBtn} onClick={handleToggleDetails}>
-                {state.showCombinedDetails ? (
-                  <Icon name="chevron-up" />
-                ) : (
-                  <Icon name="chevron-down" />
+                {state.showCombinedDetails && (
+                  <AnimeMetaDetails showMeta={state.showMeta} styles={styles} />
                 )}
-                {state.showCombinedDetails ? 'Hide Details' : 'Show Details'}
-              </button>
-
-              {state.showCombinedDetails && (
-                <AnimeMetaDetails showMeta={state.showMeta} styles={styles} />
-              )}
+              </div>
             </div>
           </>
         )}

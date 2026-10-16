@@ -12,6 +12,10 @@
   animation: fadeIn 0.8s var(--ease-smooth);
 }
 
+.playerPageLayout.noSidebar {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .episodeSidebar {
   background: var(--glass-bg);
   backdrop-filter: blur(20px);
@@ -51,12 +55,12 @@
 
 .playerInfoHeader {
   display: flex;
-  gap: 2.5rem;
+  gap: 2rem;
   align-items: flex-start;
 }
 
 .playerAnimeCard {
-  width: 140px;
+  width: 160px;
   flex-shrink: 0;
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -72,11 +76,27 @@
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--glass-border);
-  padding: 3rem;
+  padding: 2rem;
   border-radius: var(--radius-2xl);
   box-shadow: var(--glass-shadow);
   display: flex;
   flex-direction: column;
+}
+
+.infoColumns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem 2.5rem;
+  border-top: 1px solid var(--border-primary);
+  padding-top: 1.5rem;
+  margin-top: 1.5rem;
+}
+
+@media (min-width: 1100px) {
+  .infoColumns:has(> :last-child:not(:first-child)) {
+    grid-template-columns: minmax(0, 1.5fr) minmax(240px, 1fr);
+    align-items: start;
+  }
 }
 
 .playerAnimeCard img {
@@ -96,12 +116,12 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
-  gap: 1.5rem;
+  gap: 1.25rem;
 }
 
 .videoTitleSection h1 {
   margin: 0;
-  font-size: 2.5rem;
+  font-size: 2.25rem;
   line-height: 1.1;
   font-weight: 800;
   color: var(--text-primary);

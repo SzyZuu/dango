@@ -141,12 +141,29 @@ export default function AnimeInfo() {
               )}
             </div>
 
-            <div className={styles.synopsisSection}>
-              <h2 className={styles.sectionTitleSmall}>Synopsis</h2>
-              <SynopsisText
-                text={sanitizeText(showMeta.description)}
-                emptyText="No description available."
-              />
+            <div className={styles.infoColumns}>
+              <div className={styles.synopsisSection}>
+                <h2 className={styles.sectionTitleSmall}>Synopsis</h2>
+                <SynopsisText
+                  text={sanitizeText(showMeta.description)}
+                  emptyText="No description available."
+                />
+                <button
+                  className={styles.detailsToggleBtn}
+                  onClick={() => {
+                    setShowDetails(!showDetails)
+                  }}
+                >
+                  {showDetails ? <Icon name="chevron-up" /> : <Icon name="chevron-down" />}
+                  {showDetails ? 'Hide Details' : 'Show Details'}
+                </button>
+              </div>
+
+              {showDetails && (
+                <div className={styles.expandedContent}>
+                  <AnimeMetaDetails showMeta={showMeta} styles={styles} />
+                </div>
+              )}
             </div>
 
             <div className={styles.actions}>
@@ -174,24 +191,6 @@ export default function AnimeInfo() {
             </div>
           </div>
         </div>
-      </div>
-
-      <div className={styles.detailsSection}>
-        <button
-          className={styles.detailsToggleBtn}
-          onClick={() => {
-            setShowDetails(!showDetails)
-          }}
-        >
-          {showDetails ? <Icon name="chevron-up" /> : <Icon name="chevron-down" />}
-          {showDetails ? 'Hide Details' : 'Show Details'}
-        </button>
-
-        {showDetails && (
-          <div className={styles.expandedContent}>
-            <AnimeMetaDetails showMeta={showMeta} styles={styles} />
-          </div>
-        )}
       </div>
 
       {matureBlocked && (

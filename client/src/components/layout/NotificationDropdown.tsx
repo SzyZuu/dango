@@ -196,7 +196,7 @@ const NotificationDropdown: React.FC = () => {
                   type="button"
                   onClick={() => setFullMessageId(null)}
                   style={{
-                    background: 'var(--primary-color)',
+                    background: 'var(--accent)',
                     color: '#fff',
                     border: 'none',
                     padding: '0.5rem 1rem',

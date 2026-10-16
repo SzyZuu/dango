@@ -112,8 +112,8 @@
 }
 
 .menuItem.selected {
-  color: var(--accent-light);
-  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  color: var(--accent-lighter);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 .presetSelect {

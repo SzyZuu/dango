@@ -20,8 +20,8 @@ export const useTheme = (): ThemeContextType => {
 
 export const THEMES: { id: ThemeId; label: string; blurb: string; swatch: string }[] = [
   { id: 'iris', label: 'Taro (default)', blurb: 'Deep purple', swatch: '#7d6df0' },
-  { id: 'mochi', label: 'Mochi', blurb: 'Monochrome pearl', swatch: '#f0f0f0' },
   { id: 'sakura', label: 'Sakura', blurb: 'Soft pink', swatch: '#e0b0e0' },
+  { id: 'mochi', label: 'Mochi', blurb: 'Monochrome pearl', swatch: '#f0f0f0' },
 ]
 
 export const THEME_LOGOS: Record<ThemeId, { fill: string; stroke: string }> = {

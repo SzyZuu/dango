@@ -1169,20 +1169,29 @@ const Tv: React.FC = () => {
     fetchTvStreams,
   ])
 
-  const handleServerSelect = useCallback((server: string) => {
-    if (server === 'Embed') {
-      setEmbedSelected(true)
-      return
-    }
-    setEmbedSelected(false)
-    setSelectedServer(server)
-    try {
-      localStorage.setItem('tvServer', server)
-    } catch {
-      // ignore
-    }
-    setStreamError('')
-  }, [])
+  const rememberPosition = useCallback(() => {
+    const video = videoRef.current
+    if (video && !isNaN(video.currentTime)) pendingSeekRef.current = video.currentTime
+  }, [videoRef])
+
+  const handleServerSelect = useCallback(
+    (server: string) => {
+      if (server === 'Embed') {
+        setEmbedSelected(true)
+        return
+      }
+      rememberPosition()
+      setEmbedSelected(false)
+      setSelectedServer(server)
+      try {
+        localStorage.setItem('tvServer', server)
+      } catch {
+        // ignore
+      }
+      setStreamError('')
+    },
+    [rememberPosition]
+  )
 
   const handleSourceSelect = useCallback((newSource: string) => {
     setSource(newSource)
@@ -1231,6 +1240,11 @@ const Tv: React.FC = () => {
       }
     }
 
+    if (calibReturnRef.current != null) {
+      pendingSeekRef.current = calibReturnRef.current
+      calibReturnRef.current = null
+    }
+
     const sameEpisode = streamKeyRef.current === `${mediaId}:${season}:${episode}`
     if (sameEpisode && pendingSeekRef.current == null && !playbackPromptBlockedRef.current) {
       try {
@@ -1241,6 +1255,8 @@ const Tv: React.FC = () => {
         // ignore
       }
     }
+
+    const resumePosition = pendingSeekRef.current ?? 0
 
     const currentUrl =
       !streamLoading && streamsEpisodeKey === `${mediaId}:${season}:${episode}`
@@ -1277,6 +1293,7 @@ const Tv: React.FC = () => {
           const hls = new HlsClass({
             enableWorker: true,
             lowLatencyMode: false,
+            startPosition: resumePosition > 0 ? resumePosition : -1,
             maxBufferLength: bufTarget,
             maxMaxBufferLength: bufTarget + (lowMemory ? 30 : 60),
             backBufferLength: lowMemory ? 30 : 60,
@@ -1348,13 +1365,11 @@ const Tv: React.FC = () => {
           })
           hls.on(HlsClass.Events.MANIFEST_PARSED, () => {
             applySubtitlePreference()
-            if (calibReturnRef.current != null) {
-              video.currentTime = calibReturnRef.current
-              calibReturnRef.current = null
-            }
-            applyPendingSeek()
-            if (!playbackPromptBlockedRef.current && resumeCheckedRef.current) {
-              video.play().catch(() => {})
+            if (
+              resumePosition > 0 ||
+              (!playbackPromptBlockedRef.current && resumeCheckedRef.current)
+            ) {
+              video.play().catch(() => player.actions.setShowControls(true))
             }
           })
           hls.on(HlsClass.Events.SUBTITLE_TRACKS_UPDATED, () => {
@@ -1386,12 +1401,10 @@ const Tv: React.FC = () => {
           })
         } else if (canPlayHlsNatively(video)) {
           video.src = proxiedUrl
-          if (calibReturnRef.current != null) {
-            video.currentTime = calibReturnRef.current
-            calibReturnRef.current = null
-          }
-          applyPendingSeek()
-          if (!playbackPromptBlockedRef.current && resumeCheckedRef.current) {
+          if (
+            resumePosition > 0 ||
+            (!playbackPromptBlockedRef.current && resumeCheckedRef.current)
+          ) {
             video.play().catch(() => {
               setStreamError('Failed to play stream. Try another source.')
             })
@@ -1400,12 +1413,7 @@ const Tv: React.FC = () => {
       })()
     } else {
       video.src = proxiedUrl
-      if (calibReturnRef.current != null) {
-        video.currentTime = calibReturnRef.current
-        calibReturnRef.current = null
-      }
-      applyPendingSeek()
-      if (!playbackPromptBlockedRef.current && resumeCheckedRef.current) {
+      if (resumePosition > 0 || (!playbackPromptBlockedRef.current && resumeCheckedRef.current)) {
         video.play().catch(() => {
           setStreamError('Failed to play stream. Try another source.')
         })
@@ -2094,7 +2102,10 @@ const Tv: React.FC = () => {
                   onSubtitleChange={handleSubtitleChange}
                   streams={streams}
                   resolutionIdx={qualityIdx}
-                  onResolutionChange={setQualityIdx}
+                  onResolutionChange={(idx) => {
+                    rememberPosition()
+                    setQualityIdx(idx)
+                  }}
                   onBack={handleBack}
                   videoDelayEnabled={videoDelayEnabled}
                   onVideoDelayToggle={setDelayEnabled}

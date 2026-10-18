@@ -123,6 +123,6 @@ export interface PlayerState {
   error: string | null
   fetchedEpisodeNumber?: string
   showCookieModal?: boolean
-  cookieProvider?: 'animepahe' | null
+  cookieProvider?: 'animepahe' | 'mkissa' | null
   initialEpisode?: string
 }

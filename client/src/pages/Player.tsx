@@ -53,6 +53,7 @@ import type { VideoLink, SubtitleTrack, VideoSource } from '../types/player'
 import AnimeMetaDetails from '../components/anime/AnimeMetaDetails'
 import SynopsisText from '../components/anime/SynopsisText'
 import AnimePaheCookieModal from '../components/anime/AnimePaheCookieModal'
+import MkissaVerificationModal from '../components/anime/MkissaVerificationModal'
 import QueueOptionsButton from '../components/anime/QueueOptionsButton'
 import {
   getStoredFallbackAction,
@@ -1629,7 +1630,23 @@ const Player: React.FC = () => {
       </Modal>
 
       <AnimePaheCookieModal
-        isOpen={!!state.showCookieModal}
+        isOpen={!!state.showCookieModal && state.cookieProvider !== 'mkissa'}
+        onClose={() => dispatch({ type: 'SET_STATE', payload: { showCookieModal: false } })}
+        onSuccess={() => {
+          queryClient.invalidateQueries({
+            queryKey: [
+              'video-sources',
+              showId,
+              state.currentEpisode,
+              state.selectedProvider,
+              state.currentMode,
+            ],
+          })
+        }}
+      />
+
+      <MkissaVerificationModal
+        isOpen={!!state.showCookieModal && state.cookieProvider === 'mkissa'}
         onClose={() => dispatch({ type: 'SET_STATE', payload: { showCookieModal: false } })}
         onSuccess={() => {
           queryClient.invalidateQueries({

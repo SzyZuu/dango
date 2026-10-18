@@ -1162,7 +1162,9 @@ export const dataRouter = router({
       return urls || []
     } catch (e) {
       if ((e as Error).message === 'AUTH_REQUIRED') {
-        throw authRequiredError('animepahe')
+        throw authRequiredError(
+          (e as Error & { provider?: string }).provider || input.provider || 'animepahe'
+        )
       }
       logger.error({ err: e, provider: input.provider }, 'Provider video fetch failed')
       return []

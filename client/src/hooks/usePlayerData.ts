@@ -72,7 +72,21 @@ async function fetchVideoSources(
           mode: ui.currentMode,
           provider: ui.selectedProvider,
         })
-        .catch(() => null),
+        .catch(
+          (error: {
+            message?: string
+            data?: { cause?: { code?: string; provider?: string } }
+          }) => {
+            const cause = error.data?.cause
+            if (error.message === 'AUTH_REQUIRED' && cause?.provider === 'mkissa') {
+              dispatch({
+                type: 'SET_STATE',
+                payload: { showCookieModal: true, cookieProvider: 'mkissa' },
+              })
+            }
+            return null
+          }
+        ),
       trpcClient.progress.getEpisode.query({ showId, episodeNumber }).catch(() => null),
       trpcClient.settings.getByKey.query({ key: 'preferredSource' }).catch(() => null),
       trpcClient.data.skipTimes.query({ showId, episodeNumber }).catch(() => []),

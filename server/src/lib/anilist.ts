@@ -1,4 +1,5 @@
 import { Show } from '../providers/provider.interface.js'
+import { buildQueryVariants, pickBestMatch } from '../providers/title-matching.js'
 import logger from '../logger.js'
 import { parseJsonBody } from '../utils/http.utils.js'
 import { findTmdbDefaultBackdrop } from './tmdb.js'
@@ -1837,14 +1838,37 @@ export async function searchAnilist(options: AnilistSearchOptions = {}): Promise
     }
   `
 
-  const result = await anilistRequest<{
+  const compactQuery = query?.toLowerCase().replace(/[^a-z0-9]/g, '')
+  const searchQueries = query?.trim()
+    ? buildQueryVariants(query).filter(
+        (term) => term.toLowerCase().replace(/[^a-z0-9]/g, '') === compactQuery
+      )
+    : ['']
+  const mediaById = new Map<number, AnilistMedia>()
+  let result: AnilistResponse<{
     Page: {
       pageInfo: { hasNextPage: boolean; total: number }
       media?: AnilistMedia[]
     }
-  }>(queryStr, searchVars)
+  }> = null
 
-  if (!result?.data) {
+  let searchedVariant = false
+  for (const [index, searchQuery] of searchQueries.entries()) {
+    result = await anilistRequest<{
+      Page: {
+        pageInfo: { hasNextPage: boolean; total: number }
+        media?: AnilistMedia[]
+      }
+    }>(queryStr, { ...searchVars, ...(searchQuery ? { search: searchQuery } : {}) })
+    if (!result?.data) break
+    for (const item of result.data.Page.media ?? []) {
+      if (item.id) mediaById.set(item.id, item)
+    }
+    if (index > 0) searchedVariant = true
+    if ((result.data.Page.media?.length ?? 0) >= perPage) break
+  }
+
+  if (!result?.data && mediaById.size === 0) {
     if (anilistUnavailable()) {
       const malSearch = async (): Promise<AnilistMedia[]> => {
         const store = malCacheStore()
@@ -1938,8 +1962,21 @@ export async function searchAnilist(options: AnilistSearchOptions = {}): Promise
     return []
   }
 
-  const media = result?.data?.Page?.media
+  const media = [...mediaById.values()]
   if (!media || media.length === 0) return []
+
+  if (searchedVariant) {
+    media.sort((a, b) => {
+      const score = (item: AnilistMedia) =>
+        Math.max(
+          0,
+          ...[item.title?.romaji, item.title?.english, item.title?.native]
+            .filter((title): title is string => !!title)
+            .map((title) => pickBestMatch([{ title }], [query ?? ''])?.score ?? 0)
+        )
+      return score(b) - score(a)
+    })
+  }
 
   const seen = new Set<number>()
   const results: Show[] = []
@@ -1949,5 +1986,5 @@ export async function searchAnilist(options: AnilistSearchOptions = {}): Promise
     results.push(fromAnilistMedia(m))
   }
 
-  return results
+  return results.slice(0, perPage)
 }

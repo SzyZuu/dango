@@ -221,6 +221,8 @@ export function buildQueryVariants(title: string, romaji?: string): string[] {
   if (romaji && romaji.trim()) push(romaji)
   push(title)
 
+  if (/^re\s*zero$/i.test(title.trim())) push('Re Zero')
+
   const stripped = (s: string) => s.replace(/[^\p{L}\p{N}\s]/gu, ' ')
   push(stripped(title))
   if (romaji) push(stripped(romaji))

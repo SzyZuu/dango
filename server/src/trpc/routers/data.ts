@@ -681,8 +681,8 @@ export const dataRouter = router({
             const data = await hit.provider.getEpisodes(hit.nativeId, input.mode)
             if (data?.episodes?.length) return data
           }
-        } catch {
-          // ignore
+        } catch (e) {
+          if ((e as Error).message === 'AUTH_REQUIRED') throw e
         }
         return { episodes: [] }
       }
@@ -692,7 +692,8 @@ export const dataRouter = router({
             const data = await providers['animepahe'].getEpisodes(showId, input.mode)
             return data || { episodes: [] }
           }
-        } catch {
+        } catch (e) {
+          if ((e as Error).message === 'AUTH_REQUIRED') throw e
           return { episodes: [] }
         }
       }
@@ -724,8 +725,8 @@ export const dataRouter = router({
             try {
               const data = await provider.getEpisodes(showId, input.mode)
               if (data?.episodes?.length) return data
-            } catch {
-              // ignore
+            } catch (e) {
+              if ((e as Error).message === 'AUTH_REQUIRED') throw e
             }
           }
         }
@@ -737,8 +738,8 @@ export const dataRouter = router({
         try {
           const data = await provider.getEpisodes(showId, input.mode)
           if (data?.episodes?.length) return data
-        } catch {
-          // ignore
+        } catch (e) {
+          if ((e as Error).message === 'AUTH_REQUIRED') throw e
         }
       }
       return { episodes: [] }
@@ -1107,7 +1108,8 @@ export const dataRouter = router({
             try {
               resolved =
                 (await providers[providerKey]?.resolveShowId?.(variant, romaji, input.mode)) ?? null
-            } catch {
+            } catch (err) {
+              if ((err as Error).message === 'AUTH_REQUIRED') throw err
               resolved = null
             }
             if (resolved) break

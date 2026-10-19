@@ -1281,7 +1281,7 @@ const Tv: React.FC = () => {
     video.load()
     player.actions.resetMediaState()
 
-    const proxiedUrl = `/api/tv/stream-proxy?url=${encodeURIComponent(currentUrl)}&referer=${encodeURIComponent(referer)}`
+    const proxiedUrl = `/api/tv/stream-proxy?url=${encodeURIComponent(currentUrl)}&referer=${encodeURIComponent(referer)}&provider=${encodeURIComponent(source)}`
 
     if (streams[qualityIdx]?.type === 'hls') {
       void (async () => {

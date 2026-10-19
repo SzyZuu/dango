@@ -13,13 +13,22 @@ const getPreferredMode = (): 'sub' | 'dub' => {
   return localStorage.getItem('preferredMode') === 'dub' ? 'dub' : 'sub'
 }
 
-const getPreferredProvider = (): PlayerState['selectedProvider'] => {
-  const provider = localStorage.getItem('preferredProvider')
-  if (provider && /^[a-z0-9-]+$/i.test(provider)) {
-    return provider
-  }
-  return 'megaplay'
+const PREFERRED_PROVIDER_RE = /^[a-z0-9-]+$/i
+
+const preferredProviderKey = (mature: boolean) =>
+  mature ? 'preferredProviderMature' : 'preferredProvider'
+
+export const loadPreferredProvider = (mature: boolean): string | null => {
+  const provider = localStorage.getItem(preferredProviderKey(mature))
+  return provider && PREFERRED_PROVIDER_RE.test(provider) ? provider : null
 }
+
+export const savePreferredProvider = (provider: string, mature: boolean): void => {
+  localStorage.setItem(preferredProviderKey(mature), provider)
+}
+
+const getPreferredProvider = (): PlayerState['selectedProvider'] =>
+  loadPreferredProvider(false) ?? 'megaplay'
 
 export const createInitialState = (): PlayerState => ({
   showMeta: {},

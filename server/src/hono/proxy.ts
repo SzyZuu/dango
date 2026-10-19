@@ -140,6 +140,7 @@ const GOT_SCRAPING_SUFFIXES = [
   '.nekostream.site',
   '.nukitashith.top',
   '.aniwatchtv.site',
+  '.settlar.io',
 ]
 const HANIME_HOSTS = new Set(['r2.1hanime.com', '1.1hanime.com'])
 const OPPAI_HOSTS = new Set(['myspacecat.pictures'])
@@ -432,6 +433,43 @@ export function registerProxy(app: Hono) {
       const range = c.req.header('range')
       if (range) headers['Range'] = range
 
+      const playlistResponse = (body: string) => {
+        const outHeaders = new Headers()
+        outHeaders.set('Content-Type', 'application/vnd.apple.mpegurl')
+        outHeaders.set('Access-Control-Allow-Origin', '*')
+        return new Response(body, { headers: outHeaders })
+      }
+      const rewritePlaylist = (playlistBody: string, finalUrl: string) => {
+        const baseUrl = new URL(finalUrl)
+        const proxiedMediaUrl = (targetUrl: string) =>
+          `/api/proxy?url=${encodeURIComponent(targetUrl)}&referer=${encodeURIComponent(refererStr)}` +
+          (cookieStr ? `&cookie=${encodeURIComponent(sanitizeCfClearance(cookieStr))}` : '') +
+          (c.req.query('ua') ? `&ua=${encodeURIComponent(c.req.query('ua') as string)}` : '')
+        const needsProxy = Boolean(refererStr)
+        const isProxied = (value: string) => value.includes('/api/proxy')
+        const pinned = pinVar ? pinVariant(playlistBody, variantIdx as number) : null
+        return (pinned || playlistBody)
+          .split('\n')
+          .map((line: string) => {
+            const trimmed = line.trim()
+            if (!trimmed) return line
+
+            if (trimmed.startsWith('#')) {
+              return trimmed.replace(/URI="([^"]+)"/g, (_, uri) => {
+                if (isProxied(uri)) return `URI="${uri}"`
+                const absolute = new URL(uri, baseUrl).href
+                return `URI="${needsProxy || absolute.includes('.m3u8') ? proxiedMediaUrl(absolute) : absolute}"`
+              })
+            }
+
+            if (isProxied(trimmed)) return line
+
+            const absolute = new URL(trimmed, baseUrl).href
+            return proxiedMediaUrl(absolute)
+          })
+          .join('\n')
+      }
+
       if (urlStr.includes('.m3u8')) {
         const cached = proxyCache.get<string>(cacheKey)
         if (cached) {
@@ -461,48 +499,9 @@ export function registerProxy(app: Hono) {
           return c.text('Upstream error', (resp?.statusCode || 502) as 502)
         }
 
-        const finalUrl = resp.url || urlStr
-        const baseUrl = new URL(finalUrl)
-        const proxiedMediaUrl = (targetUrl: string) =>
-          `/api/proxy?url=${encodeURIComponent(targetUrl)}&referer=${encodeURIComponent(refererStr)}` +
-          (cookieStr ? `&cookie=${encodeURIComponent(sanitizeCfClearance(cookieStr))}` : '') +
-          (c.req.query('ua') ? `&ua=${encodeURIComponent(c.req.query('ua') as string)}` : '')
-        const needsProxy = Boolean(refererStr)
-
-        const isProxied = (value: string) => value.includes('/api/proxy')
-
-        let playlistBody = resp.body as string
-        if (pinVar) {
-          const pinned = pinVariant(playlistBody, variantIdx as number)
-          if (pinned) playlistBody = pinned
-        }
-
-        const rewritten = playlistBody
-          .split('\n')
-          .map((line: string) => {
-            const trimmed = line.trim()
-            if (!trimmed) return line
-
-            if (trimmed.startsWith('#')) {
-              return trimmed.replace(/URI="([^"]+)"/g, (_, uri) => {
-                if (isProxied(uri)) return `URI="${uri}"`
-                const absolute = new URL(uri, baseUrl).href
-                return `URI="${needsProxy || absolute.includes('.m3u8') ? proxiedMediaUrl(absolute) : absolute}"`
-              })
-            }
-
-            if (isProxied(trimmed)) return line
-
-            const absolute = new URL(trimmed, baseUrl).href
-            return proxiedMediaUrl(absolute)
-          })
-          .join('\n')
-
+        const rewritten = rewritePlaylist(resp.body as string, resp.url || urlStr)
         proxyCache.set(cacheKey, rewritten)
-        const outHeaders = new Headers()
-        outHeaders.set('Content-Type', 'application/vnd.apple.mpegurl')
-        outHeaders.set('Access-Control-Allow-Origin', '*')
-        return new Response(rewritten, { headers: outHeaders })
+        return playlistResponse(rewritten)
       } else {
         if (isGotScrapingHost(urlStr)) {
           if (range) headers['Range'] = range
@@ -529,6 +528,16 @@ export function registerProxy(app: Hono) {
 
           const ct = resp.headers['content-type']
           const isVtt = urlStr.endsWith('.vtt') || urlStr.includes('.vtt?')
+          const bodyText = String(resp.body ?? '')
+          if (
+            !isVtt &&
+            ((typeof ct === 'string' && ct.includes('mpegurl')) || bodyText.startsWith('#EXTM3U'))
+          ) {
+            const cached = proxyCache.get<string>(cacheKey)
+            const rewritten = cached ?? rewritePlaylist(bodyText, resp.url || urlStr)
+            if (!cached) proxyCache.set(cacheKey, rewritten)
+            return playlistResponse(rewritten)
+          }
           const outHeaders = new Headers()
           outHeaders.set(
             'Content-Type',
@@ -700,6 +709,42 @@ export function registerProxy(app: Hono) {
       if (innerRawUrl && target === innerRawUrl) {
         headers['Referer'] = ANILIGHT_REFERER
         headers['Origin'] = ANILIGHT_ORIGIN
+      }
+      if (isGotScrapingHost(target)) {
+        try {
+          const upstream = await gotScraping({
+            url: target,
+            method: 'GET',
+            headers,
+            responseType: 'text',
+            timeout: { request: 15000 },
+            followRedirect: true,
+            throwHttpErrors: false,
+          })
+          if (upstream.statusCode !== 200) {
+            logger.warn(
+              { target, status: upstream.statusCode },
+              '[subtitle-proxy] upstream returned error status'
+            )
+            return { status: upstream.statusCode, body: '' }
+          }
+          const body = String(upstream.body ?? '').replace(/^\uFEFF/, '')
+          if (/^\s*\{[\s\S]*"error"[\s\S]*\}\s*$/.test(body.slice(0, 500))) {
+            logger.warn(
+              { target, body: body.slice(0, 200) },
+              '[subtitle-proxy] upstream JSON error'
+            )
+            return { status: 502, body: '' }
+          }
+          return { status: 200, body }
+        } catch (e) {
+          if (abort.signal.aborted) return null
+          logger.warn(
+            { target, error: (e as Error)?.message },
+            '[subtitle-proxy] upstream fetch failed'
+          )
+          return { status: 502, body: '' }
+        }
       }
       try {
         const upstream = await fetchWithRetry(

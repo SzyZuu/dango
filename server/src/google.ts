@@ -32,7 +32,7 @@ type GoogleDriveFile = {
   name: string
 }
 
-const GOOGLE_REQUEST_TIMEOUT_MS = 30000
+const GOOGLE_REQUEST_TIMEOUT_MS = 120000
 
 interface GoogleRequestConfig {
   method: 'GET' | 'POST' | 'PATCH' | 'DELETE'

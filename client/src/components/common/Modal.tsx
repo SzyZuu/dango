@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'preact/compat'
 import styles from './Modal.module.css'
 
@@ -25,6 +25,16 @@ function Actions({ children }: { children: ReactNode }) {
 
 export function Modal({ isOpen, onClose, title, children, footer, width = 'md' }: ModalProps) {
   const contentRef = useRef<HTMLDivElement>(null)
+  const [portalTarget, setPortalTarget] = useState<HTMLElement>(document.body)
+
+  useEffect(() => {
+    if (!isOpen) return
+    const sync = () =>
+      setPortalTarget((document.fullscreenElement as HTMLElement | null) ?? document.body)
+    sync()
+    document.addEventListener('fullscreenchange', sync)
+    return () => document.removeEventListener('fullscreenchange', sync)
+  }, [isOpen])
 
   useEffect(() => {
     if (!isOpen) return
@@ -59,7 +69,7 @@ export function Modal({ isOpen, onClose, title, children, footer, width = 'md' }
         {footer && <Actions>{footer}</Actions>}
       </div>
     </div>,
-    document.body
+    portalTarget
   )
 }
 

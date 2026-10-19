@@ -8,7 +8,12 @@ import type {
   SkipInterval,
   PlayerState,
 } from '../types/player'
-import { playerReducer, createInitialState, type Action } from '../reducers/playerReducer'
+import {
+  playerReducer,
+  createInitialState,
+  loadPreferredProvider,
+  type Action,
+} from '../reducers/playerReducer'
 import { trpcClient, useTRPC } from '../lib/trpc'
 import { normalizeScore } from '../lib/utils'
 import { useShowMeta } from './useShowMeta'
@@ -294,23 +299,18 @@ export const usePlayerData = (
 
   useEffect(() => {
     if (showMeta?.isAdult === undefined) return
-    const matureSet = new Set(animeOptions.filter((o) => o.mature).map((o) => o.value))
-    const matureProvider = matureSet.has(uiState.selectedProvider)
     if (hasForcedAdultProvider.current === showId) return
-    if (showMeta.isAdult && !matureProvider) {
-      const fallback = animeOptions.find((o) => o.mature)
-      if (!fallback) return
-      hasForcedAdultProvider.current = showId
-      dispatch({ type: 'SET_PROVIDER', payload: fallback.value })
-      localStorage.setItem('preferredProvider', fallback.value)
-    }
-    if (!showMeta.isAdult && matureProvider) {
-      const fallback = animeOptions.find((o) => !o.mature)
-      if (!fallback) return
-      hasForcedAdultProvider.current = showId
-      dispatch({ type: 'SET_PROVIDER', payload: fallback.value })
-      localStorage.setItem('preferredProvider', fallback.value)
-    }
+    const isMatureShow = showMeta.isAdult === true
+    const candidates = animeOptions.filter((o) => o.mature === isMatureShow)
+    if (candidates.length === 0) return
+    if (animeOptions.find((o) => o.value === uiState.selectedProvider)?.mature === isMatureShow)
+      return
+    const stored = loadPreferredProvider(isMatureShow)
+    hasForcedAdultProvider.current = showId
+    dispatch({
+      type: 'SET_PROVIDER',
+      payload: candidates.find((o) => o.value === stored)?.value ?? candidates[0].value,
+    })
   }, [showMeta?.isAdult, uiState.selectedProvider, showId, animeOptions])
 
   useEffect(() => {

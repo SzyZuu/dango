@@ -41,4 +41,5 @@ export interface TvProvider {
   servers?: string[]
   getSources?: (media: TvMediaRequest, server?: string) => Promise<TvSourcesResult | null>
   getEmbedUrl?: (media: TvMediaRequest) => Promise<string | null>
+  rewritePlaylist?: (body: string, playlistUrl: string) => string
 }

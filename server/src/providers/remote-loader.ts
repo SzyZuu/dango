@@ -225,7 +225,8 @@ function createCtx(cache: AppCache) {
         let results
         try {
           results = await searchFn(variant)
-        } catch {
+        } catch (e) {
+          if ((e as Error).message === 'AUTH_REQUIRED') throw e
           continue
         }
         if (!results || results.length === 0) continue

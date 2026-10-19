@@ -47,6 +47,7 @@ import { useAmbientLight } from '../hooks/useAmbientLight'
 import AmbientLightCanvas from '../components/player/AmbientLightCanvas'
 import AvSyncCalibrator from '../components/player/AvSyncCalibrator'
 import { usePlayerData } from '../hooks/usePlayerData'
+import { savePreferredProvider } from '../reducers/playerReducer'
 import { useQueue, useRemoveFromQueue, useClearQueue, useReorderQueue } from '../hooks/useAnimeData'
 import type { QueueItem } from '../hooks/useAnimeData'
 import type { VideoLink, SubtitleTrack, VideoSource } from '../types/player'
@@ -626,7 +627,7 @@ const Player: React.FC = () => {
               loadingVideo: true,
             },
           })
-          localStorage.setItem('preferredProvider', provider)
+          savePreferredProvider(provider, state.showMeta?.isAdult === true)
           setFallbackPrompt(null)
           toast.success(`Switched to ${provider} (direct stream)`)
           return
@@ -1917,7 +1918,7 @@ const Player: React.FC = () => {
                       loadingVideo: true,
                     },
                   })
-                  localStorage.setItem('preferredProvider', newProvider)
+                  savePreferredProvider(newProvider, state.showMeta?.isAdult === true)
                 }}
               />
               {episodeNavControls(

@@ -5,11 +5,17 @@ import { URL } from 'url'
 import { isSafeExternalUrl } from '../utils/security.utils.js'
 import type { TvMediaRequest, TvProvider } from '../providers/tv.types.js'
 
-function proxiedMediaUrl(targetUrl: string, refererStr: string): string {
-  return `/api/tv/stream-proxy?url=${encodeURIComponent(targetUrl)}&referer=${encodeURIComponent(refererStr)}`
+function proxiedMediaUrl(targetUrl: string, refererStr: string, providerStr: string): string {
+  const provider = providerStr ? `&provider=${encodeURIComponent(providerStr)}` : ''
+  return `/api/tv/stream-proxy?url=${encodeURIComponent(targetUrl)}&referer=${encodeURIComponent(refererStr)}${provider}`
 }
 
-function rewriteTvPlaylist(body: string, baseUrl: URL, refererStr: string): string {
+function rewriteTvPlaylist(
+  body: string,
+  baseUrl: URL,
+  refererStr: string,
+  providerStr: string
+): string {
   return body
     .split('\n')
     .map((line: string) => {
@@ -18,11 +24,11 @@ function rewriteTvPlaylist(body: string, baseUrl: URL, refererStr: string): stri
       if (trimmed.startsWith('#')) {
         return trimmed.replace(/URI="([^"]+)"/g, (_, uri) => {
           const absolute = new URL(uri, baseUrl).href
-          return `URI="${proxiedMediaUrl(absolute, refererStr)}"`
+          return `URI="${proxiedMediaUrl(absolute, refererStr, providerStr)}"`
         })
       }
       const absolute = new URL(trimmed, baseUrl).href
-      return proxiedMediaUrl(absolute, refererStr)
+      return proxiedMediaUrl(absolute, refererStr, providerStr)
     })
     .join('\n')
 }
@@ -73,7 +79,16 @@ export function registerTv(app: Hono, getTvProvider: (name: string) => TvProvide
   app.get('/api/tv/stream-proxy', async (c) => {
     const urlStr = c.req.query('url') ?? ''
     const refererStr = c.req.query('referer') || ''
+    const providerStr = (c.req.query('provider') || '').toLowerCase()
     if (!urlStr) return c.text('URL required', 400)
+    const providerMod = providerStr ? getTvProvider(providerStr) : undefined
+    const rewrite = (body: string, baseUrl: URL) =>
+      rewriteTvPlaylist(
+        providerMod?.rewritePlaylist?.(body, baseUrl.href) ?? body,
+        baseUrl,
+        refererStr,
+        providerStr
+      )
 
     const safeCheck = isSafeExternalUrl(urlStr)
     if (!safeCheck.safe) {
@@ -115,7 +130,7 @@ export function registerTv(app: Hono, getTvProvider: (name: string) => TvProvide
       if (urlStr.includes('.m3u8') || /mpegurl|m3u8/i.test(contentType)) {
         const body = await fetchResp.text()
         const baseUrl = new URL(fetchResp.url || urlStr)
-        const rewritten = rewriteTvPlaylist(body, baseUrl, refererStr)
+        const rewritten = rewrite(body, baseUrl)
         const bodyBuffer = Buffer.from(rewritten, 'utf8')
         outHeaders.set('Content-Type', 'application/vnd.apple.mpegurl')
         outHeaders.set('Content-Length', String(bodyBuffer.length))
@@ -139,7 +154,7 @@ export function registerTv(app: Hono, getTvProvider: (name: string) => TvProvide
           }
           const body = Buffer.concat(chunks)
           const baseUrl = new URL(fetchResp.url || urlStr)
-          const rewritten = rewriteTvPlaylist(body.toString('utf8'), baseUrl, refererStr)
+          const rewritten = rewrite(body.toString('utf8'), baseUrl)
           const bodyBuffer = Buffer.from(rewritten, 'utf8')
           outHeaders.set('Content-Type', 'application/vnd.apple.mpegurl')
           outHeaders.set('Content-Length', String(bodyBuffer.length))

@@ -92,7 +92,8 @@ jobs:
         run: |
           pnpm --filter dango-client exec tsc
           pnpm --filter dango-client exec vite build
-          pnpm --filter dango-server exec tsc
+          pnpm --filter dango-server exec tsc --noEmit
+          node server/build.mjs
         env:
           VITE_ANILIST_CLIENT_ID: ${{ secrets.ANILIST_CLIENT_ID }}
 
@@ -145,6 +146,18 @@ jobs:
           pnpm install --prod --frozen-lockfile --config.node-linker=hoisted --modules-dir "$GITHUB_WORKSPACE/release-package/node_modules"
           rm -rf release-package/node_modules/.bin release-package/node_modules/.pnpm
           node -e "for (const p of ['hono','@hono/node-server','@trpc/server','drizzle-orm','youtubei.js','fflate','cheerio','got-scraping','bgutils-js','jsdom']) require('./release-package/node_modules/' + p + '/package.json'); console.log('packaged deps OK')"
+
+      - name: Strip dev-only files from packaged node_modules
+        # .d.ts declarations and source maps are not needed at runtime;
+        # removing them trims the zip by ~20-30 MB with no behaviour change.
+        run: |
+          find release-package/node_modules -type f \( \
+            -name '*.d.ts' -o \
+            -name '*.d.ts.map' -o \
+            -name '*.js.map' \
+          \) -delete
+          echo "After cleanup:"
+          du -sh release-package/node_modules
 
       - name: Zip Release Archive
         run: |

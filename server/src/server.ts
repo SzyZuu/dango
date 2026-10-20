@@ -312,16 +312,19 @@ async function main() {
       asmr: 'Final ASMR sync on shutdown failed',
     }
 
-    for (const kind of Object.keys(KIND_SYNC) as MediaKind[]) {
-      if (!unsynced[kind]) continue
-      logger.info(`Sync on shutdown: uploading final ${kindDbLabel[kind]} changes...`)
-      unsynced[kind] = false
-      try {
-        await syncUp(kindDbs()[kind], kind, remoteFolder)
-      } catch (e) {
-        logger.error({ err: e }, kindFinalError[kind])
-      }
-    }
+    await Promise.allSettled(
+      (Object.keys(KIND_SYNC) as MediaKind[]).map(async (kind) => {
+        if (!unsynced[kind]) return
+        unsynced[kind] = false
+        logger.info(`Sync on shutdown: uploading final ${kindDbLabel[kind]} changes...`)
+        try {
+          await syncUp(kindDbs()[kind], kind, remoteFolder)
+        } catch (e) {
+          logger.error({ err: e }, kindFinalError[kind])
+          unsynced[kind] = true
+        }
+      })
+    )
 
     await waitForSync()
 

@@ -206,7 +206,12 @@ const syncMutexes: Record<MediaKind, Mutex> = {
   tv: new Mutex(),
   asmr: new Mutex(),
 }
-const isSyncingMap: Record<MediaKind, boolean> = { anime: false, manga: false, tv: false, asmr: false }
+const isSyncingMap: Record<MediaKind, boolean> = {
+  anime: false,
+  manga: false,
+  tv: false,
+  asmr: false,
+}
 let activeProvider: 'github' | 'google' | 'rclone' | 'none' = 'none'
 
 export async function waitForSync(): Promise<void> {
@@ -482,10 +487,13 @@ export async function runFullSyncSequence(
 
   // Anime runs first and sequentially — it may sync down data
   const animeRemoteVersion = await syncDownOnBoot(dbs.db, 'anime', opts.remoteFolder).catch(
-    (err) => { logger.error({ err }, 'Sync down on boot failed'); return -1 as number }
+    (err) => {
+      logger.error({ err }, 'Sync down on boot failed')
+      return -1 as number
+    }
   )
-  await syncUp(dbs.db, 'anime', opts.remoteFolder, animeRemoteVersion).catch(
-    (err) => logger.error({ err }, 'Sync up on boot failed')
+  await syncUp(dbs.db, 'anime', opts.remoteFolder, animeRemoteVersion).catch((err) =>
+    logger.error({ err }, 'Sync up on boot failed')
   )
 
   // manga / TV / ASMR are independent — check + up in parallel

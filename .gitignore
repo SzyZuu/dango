@@ -35,4 +35,3 @@ android-app/debs/
 android-app/app/src/main/jniLibs/
 /android-app/__pycache__
 
-release.mjs

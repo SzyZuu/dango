@@ -1,5 +1,3 @@
-// esbuild-based server build: transpile+minify all TS files in place.
-// No bundling — imports are preserved so node_modules stays as-is at runtime.
 import { build } from 'esbuild'
 import { readdirSync } from 'node:fs'
 import { join } from 'node:path'

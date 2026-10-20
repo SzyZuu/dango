@@ -148,8 +148,6 @@ jobs:
           node -e "for (const p of ['hono','@hono/node-server','@trpc/server','drizzle-orm','youtubei.js','fflate','cheerio','got-scraping','bgutils-js','jsdom']) require('./release-package/node_modules/' + p + '/package.json'); console.log('packaged deps OK')"
 
       - name: Strip dev-only files from packaged node_modules
-        # .d.ts declarations and source maps are not needed at runtime;
-        # removing them trims the zip by ~20-30 MB with no behaviour change.
         run: |
           find release-package/node_modules -type f \( \
             -name '*.d.ts' -o \

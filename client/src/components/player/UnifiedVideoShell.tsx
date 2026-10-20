@@ -13,6 +13,7 @@ interface UnifiedVideoShellProps {
   isInteracting?: boolean
   className?: string
   chromeDisabled?: boolean
+  onStageClick?: () => void
   children: React.ReactNode
 }
 
@@ -35,6 +36,7 @@ const UnifiedVideoShell: React.FC<UnifiedVideoShellProps> = ({
   isInteracting = false,
   className,
   chromeDisabled = false,
+  onStageClick,
   children,
 }) => {
   const { state, refs, actions } = player
@@ -112,6 +114,7 @@ const UnifiedVideoShell: React.FC<UnifiedVideoShellProps> = ({
     (e: React.MouseEvent) => {
       const target = e.target as HTMLElement | null
       if (isUiTarget(target)) return
+      onStageClick?.()
       const now = Date.now()
       const isDouble = now - lastTapRef.current < TAP_DOUBLE_MS
       lastTapRef.current = now
@@ -131,7 +134,7 @@ const UnifiedVideoShell: React.FC<UnifiedVideoShellProps> = ({
         else wake()
       }, TAP_DOUBLE_MS)
     },
-    [actions, scheduleHide, state.showControls, wake]
+    [actions, onStageClick, scheduleHide, state.showControls, wake]
   )
 
   useEffect(

@@ -28,7 +28,7 @@ import { isJasmrApi } from './hono/asmr.js'
 import type { MangaProvider } from './providers/manga/manga.types.js'
 import type { TvProvider } from './providers/tv.types.js'
 import { loadRemoteProviders } from './providers/remote-loader.js'
-import type { ProviderCatalogItem } from './providers/remote-types.js'
+import type { ProviderCatalogItem, RemoteProxyRule } from './providers/remote-types.js'
 import type { Provider } from './providers/provider.interface.js'
 import { discordRPCService } from './discord-rpc.js'
 import { discordGatewayService } from './discord-gateway.js'
@@ -62,6 +62,7 @@ const app = createHonoApp(
     getProviders: () => providers,
     getMangaProvider: (name) => mangaProviders[name],
     getTvProvider: (name) => tvProviders[name],
+    getProxyRules: () => proxyRules,
     getJasmr: () => {
       const mod = providers['jasmr']
       return isJasmrApi(mod) ? mod : undefined
@@ -74,6 +75,7 @@ const apiCache = new AppCache({ ttlSeconds: 3600, maxKeys: 5000 })
 const providers: Record<string, Provider> = {}
 const mangaProviders: Record<string, MangaProvider> = {}
 const tvProviders: Record<string, TvProvider> = {}
+let proxyRules: RemoteProxyRule[] = []
 
 let remoteCatalog: ProviderCatalogItem[] = []
 
@@ -112,6 +114,7 @@ async function refreshRemoteProviders(): Promise<ProviderCatalogItem[]> {
       if (!(key in result.tvProviders)) delete tvProviders[key]
     }
     Object.assign(tvProviders, result.tvProviders)
+    proxyRules = result.proxyRules
     remoteCatalog = result.catalog
     logger.info(
       {

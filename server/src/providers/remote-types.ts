@@ -14,6 +14,18 @@ export interface BrowseFacets {
   orders?: string[]
 }
 
+export interface RemoteProxyRule {
+  hosts?: string[]
+  suffixes?: string[]
+  referer?: string
+  origin?: string
+  originFromReferer?: boolean
+  scrape?: boolean
+  cfCookie?: boolean
+  mirrors?: string[]
+  embedPatch?: boolean
+}
+
 export interface RemoteProviderEntry {
   id: string
   label: string
@@ -28,6 +40,7 @@ export interface RemoteProviderEntry {
   tier?: RemoteTier
   modes?: ('sub' | 'dub')[]
   browse?: BrowseCaps
+  proxy?: RemoteProxyRule
   auth?: 'cookie' | 'none'
   enabledByDefault?: boolean
 }
@@ -151,9 +164,41 @@ function parseEntry(raw: unknown, index: number): RemoteProviderEntry {
     tier: p.tier as RemoteTier | undefined,
     modes,
     browse: parseBrowseCaps(p.browse, index),
+    proxy: parseProxyRule(p.proxy, index),
     auth: p.auth === 'cookie' ? 'cookie' : undefined,
     enabledByDefault: p.enabledByDefault === false ? false : true,
   }
+}
+
+function parseProxyRule(raw: unknown, index: number): RemoteProxyRule | undefined {
+  if (raw === undefined) return undefined
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error(`registry.providers[${index}].proxy must be an object`)
+  }
+  const p = raw as Record<string, unknown>
+  const rule: RemoteProxyRule = {}
+  for (const key of ['hosts', 'suffixes', 'mirrors'] as const) {
+    if (p[key] === undefined) continue
+    if (!Array.isArray(p[key]) || !(p[key] as unknown[]).every((v) => typeof v === 'string' && v)) {
+      throw new Error(`registry.providers[${index}].proxy.${key} must be a non-empty string array`)
+    }
+    rule[key] = (p[key] as string[]).map((v) => v.trim().toLowerCase())
+  }
+  for (const key of ['referer', 'origin'] as const) {
+    if (p[key] === undefined) continue
+    if (typeof p[key] !== 'string' || !/^https:\/\//i.test(p[key].trim())) {
+      throw new Error(`registry.providers[${index}].proxy.${key} must be an https URL`)
+    }
+    rule[key] = p[key].trim()
+  }
+  for (const key of ['originFromReferer', 'scrape', 'cfCookie', 'embedPatch'] as const) {
+    if (p[key] === undefined) continue
+    if (typeof p[key] !== 'boolean') {
+      throw new Error(`registry.providers[${index}].proxy.${key} must be boolean`)
+    }
+    rule[key] = p[key]
+  }
+  return rule
 }
 
 function parseBrowseCaps(raw: unknown, index: number): BrowseCaps | undefined {

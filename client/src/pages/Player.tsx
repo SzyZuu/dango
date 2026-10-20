@@ -438,9 +438,7 @@ const Player: React.FC = () => {
         const subSrc = sub.src ?? sub.url
         if (subSrc) {
           let subUrl = `/api/subtitle-proxy?url=${encodeURIComponent(subSrc)}`
-          const linkReferer = state.selectedLink?.headers?.Referer
-          const inferredReferer = subSrc.includes('anilight.live') ? 'https://anilight.live/' : ''
-          const subReferer = linkReferer || inferredReferer
+          const subReferer = state.selectedLink?.headers?.Referer
           if (subReferer) {
             subUrl += `&referer=${encodeURIComponent(subReferer)}`
           }

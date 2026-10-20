@@ -393,6 +393,7 @@ const TvPlayerControls: React.FC<TvPlayerControlsProps> = ({
       settingsPanel={settingsNode}
       overlays={overlays}
       isInteracting={!!settingsView}
+      onStageClick={closeSettings}
       className={state.isFullscreen ? styles.fullscreenFlat : ''}
     >
       {children}

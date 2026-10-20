@@ -27,7 +27,7 @@ import {
   importMangaFromMalXmlItems,
   type MalXmlMangaItem,
 } from './lib/tracker/manga-sync.service.js'
-import type { ProviderCatalogItem } from './providers/remote-types.js'
+import type { ProviderCatalogItem, RemoteProxyRule } from './providers/remote-types.js'
 import type { DatabaseWrapper } from './db.js'
 import { LibraryRepository } from './repositories/library.repository.js'
 import {
@@ -97,6 +97,7 @@ export type HonoMediaDeps = {
   getProviders: () => Record<string, Provider>
   getMangaProvider: (name: string) => MangaProvider | undefined
   getTvProvider: (name: string) => TvProvider | undefined
+  getProxyRules: () => RemoteProxyRule[]
   getJasmr: () => JasmrApi | undefined
 }
 
@@ -739,7 +740,7 @@ export function createHonoApp(
   registerMusic(app)
   registerAuth(app, getDbs, runSync)
   registerTv(app, media.getTvProvider)
-  registerProxy(app)
+  registerProxy(app, media.getProxyRules)
 
   app.onError((err: Error & { status?: number }, c) => {
     logger.error({ err, url: c.req.path, method: c.req.method }, 'Unhandled error')

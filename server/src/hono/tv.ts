@@ -33,6 +33,28 @@ function rewriteTvPlaylist(
     .join('\n')
 }
 
+function pinTvVariant(body: string, idx: number): string {
+  const lines = body.split('\n')
+  let streamIdx = -1
+  let skipUri = false
+  const out: string[] = []
+  for (const line of lines) {
+    const trimmed = line.trim()
+    if (trimmed.startsWith('#EXT-X-STREAM-INF')) {
+      streamIdx++
+      skipUri = streamIdx !== idx
+      if (!skipUri) out.push(line)
+      continue
+    }
+    if (skipUri && trimmed && !trimmed.startsWith('#')) {
+      skipUri = false
+      continue
+    }
+    out.push(line)
+  }
+  return streamIdx >= 0 && idx <= streamIdx ? out.join('\n') : body
+}
+
 function isPlaylistBody(body: Buffer): boolean {
   return (
     body.length >= 7 &&
@@ -77,18 +99,21 @@ export function registerTv(app: Hono, getTvProvider: (name: string) => TvProvide
   })
 
   app.get('/api/tv/stream-proxy', async (c) => {
-    const urlStr = c.req.query('url') ?? ''
+    const requestedUrl = c.req.query('url') ?? ''
+    const variantMatch = requestedUrl.match(/#v=(\d+)$/)
+    const variantIdx = variantMatch ? parseInt(variantMatch[1], 10) : NaN
+    const urlStr = requestedUrl.replace(/#.*$/, '')
     const refererStr = c.req.query('referer') || ''
     const providerStr = (c.req.query('provider') || '').toLowerCase()
     if (!urlStr) return c.text('URL required', 400)
     const providerMod = providerStr ? getTvProvider(providerStr) : undefined
-    const rewrite = (body: string, baseUrl: URL) =>
-      rewriteTvPlaylist(
-        providerMod?.rewritePlaylist?.(body, baseUrl.href) ?? body,
-        baseUrl,
-        refererStr,
-        providerStr
-      )
+    const rewrite = (body: string, baseUrl: URL) => {
+      const providerBody = providerMod?.rewritePlaylist?.(body, baseUrl.href) ?? body
+      const pinned = Number.isInteger(variantIdx)
+        ? pinTvVariant(providerBody, variantIdx)
+        : providerBody
+      return rewriteTvPlaylist(pinned, baseUrl, refererStr, providerStr)
+    }
 
     const safeCheck = isSafeExternalUrl(urlStr)
     if (!safeCheck.safe) {

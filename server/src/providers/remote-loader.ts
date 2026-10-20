@@ -10,7 +10,6 @@ import logger from '../logger.js'
 import { CONFIG } from '../config.js'
 import { requestContext } from '../utils/request-context.js'
 import { sanitizeCfClearance, buildCfClearanceCookie } from '../utils/cookie.utils.js'
-import { base64UrlEncode } from '../utils/megaplay.utils.js'
 import { decodeMaybeGzip, parseJsonBody } from '../utils/http.utils.js'
 import { buildQueryVariants, pickBestMatch } from './title-matching.js'
 import { anilistRequest, parseMalId, searchAnilistByTitle } from '../lib/anilist.js'
@@ -25,6 +24,7 @@ import {
   type BrowseFacets,
   type ProviderCatalogItem,
   type RemoteProviderEntry,
+  type RemoteProxyRule,
   type RemoteRegistry,
 } from './remote-types.js'
 
@@ -33,6 +33,7 @@ export interface RemoteLoadResult {
   mangaProviders: Record<string, MangaProvider>
   tvProviders: Record<string, TvProvider>
   catalog: ProviderCatalogItem[]
+  proxyRules: RemoteProxyRule[]
 }
 
 interface LoadOptions {
@@ -272,7 +273,7 @@ function createCtx(cache: AppCache) {
     crypto: {
       aes256CbcDecryptJson,
       hmacSha256Base64Url: (key: string, message: string): string =>
-        base64UrlEncode(crypto.createHmac('sha256', key).update(message).digest()),
+        crypto.createHmac('sha256', key).update(message).digest('base64url'),
     },
     scraping: {
       fetch: async (
@@ -514,7 +515,13 @@ async function loadCachedFallback(
 
 export async function loadRemoteProviders(opts: LoadOptions): Promise<RemoteLoadResult> {
   const registryUrl = (opts.registryUrl ?? CONFIG.PROVIDER_REPO_URL ?? '').trim()
-  const out: RemoteLoadResult = { providers: {}, mangaProviders: {}, tvProviders: {}, catalog: [] }
+  const out: RemoteLoadResult = {
+    providers: {},
+    mangaProviders: {},
+    tvProviders: {},
+    catalog: [],
+    proxyRules: [],
+  }
   if (!registryUrl) return out
   const cacheDir = path.join(CONFIG.ROOT, 'remote-providers')
   const cachedManifestPath = path.join(cacheDir, 'registry.json')
@@ -584,6 +591,7 @@ export async function loadRemoteProviders(opts: LoadOptions): Promise<RemoteLoad
         continue
       }
       out.catalog.push(withFacets(facets, withServers(item, provider, toCatalog(item, true))))
+      if (item.proxy) out.proxyRules.push(item.proxy)
       logger.info({ provider: item.id, version: item.version }, 'remote provider loaded')
     } else {
       const prev = prevById.get(key)
@@ -612,6 +620,7 @@ export async function loadRemoteProviders(opts: LoadOptions): Promise<RemoteLoad
             ),
             error: `serving cached ${prev.version}: ${error}`,
           })
+          if (item.proxy) out.proxyRules.push(item.proxy)
           logger.warn(
             { provider: item.id, error, fallback: prev.version },
             'remote provider update failed, serving cached version'

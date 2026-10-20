@@ -8,11 +8,7 @@ import logger from '../logger.js'
 import { buildCfClearanceCookie, sanitizeCfClearance } from '../utils/cookie.utils.js'
 import { isSafeExternalUrl } from '../utils/security.utils.js'
 import { fetchWithRetry, linkAbort, setProxyHeaders } from '../utils/http.utils.js'
-import {
-  MEGAPLAY_ORIGIN,
-  isNexabloomMasterUrl,
-  signNexabloomMasterUrl,
-} from '../utils/megaplay.utils.js'
+import type { RemoteProxyRule } from '../providers/remote-types.js'
 
 const proxyCache = new AppCache({ ttlSeconds: 30, maxKeys: 500 })
 const imageCache = new AppCache({ ttlSeconds: 86400, maxKeys: 3000 })
@@ -123,91 +119,56 @@ function rewrapVttCues(vtt: string): string {
     .join('\n\n')
 }
 
-const KWIK_DOMAINS = new Set(['kwik.cx', 'kwik.si', 'kwik.pro'])
-const ANIMEPAHE_URL = 'https://animepahe.pw/'
-const VAULT_CDN_HOSTS = new Set(['uwucdn.top', 'owocdn.top'])
-const GOT_SCRAPING_HOSTS = new Set([
-  'kwik.cx',
-  'kwik.si',
-  'kwik.pro',
-  'animepahe.pw',
-  'animepahe.ru',
-])
-const GOT_SCRAPING_SUFFIXES = [
-  '.uwucdn.top',
-  '.owocdn.top',
-  '.streamzone1.site',
-  '.nekostream.site',
-  '.nukitashith.top',
-  '.aniwatchtv.site',
-  '.settlar.io',
-]
-const HANIME_HOSTS = new Set(['r2.1hanime.com', '1.1hanime.com'])
-const OPPAI_HOSTS = new Set(['myspacecat.pictures'])
-const KAA_HOSTS = new Set([
-  'hls.krussdomi.com',
-  'subst.krussdomi.com',
-  'krussdomi.com',
-  'st1.advancedairesearchlab.xyz',
-  'st1.habibikun.xyz',
-  'st1.babybayw.xyz',
-  'st1.narutokun.xyz',
-])
-const KAA_REFERER = 'https://krussdomi.com/'
-const KAA_ORIGIN = 'https://krussdomi.com'
-const ANILIGHT_REFERER = 'https://anilight.live/'
-const ANILIGHT_ORIGIN = 'https://anilight.live'
-const ANILIGHT_HOSTS = [
-  'anilight.live',
-  'api.anilight.live',
-  'lostproject.club',
-  'streamzone1.site',
-  'nukitashi.top',
-  'vivibebe.site',
-  'vibeplayer.site',
-  'aniwatchtv.site',
-]
-const NEXABLOOM_FAMILY_SUFFIXES = [
-  '.quavex.top',
-  '.nexabloom.top',
-  '.hiddenvertex.top',
-  '.ironhorizon.top',
-  '.solarhaven.top',
-]
-const NEXABLOOM_FALLBACK_HOSTS = ['fetch.nexabloom.top']
-
-function nexabloomFallbackUrls(urlStr: string): string[] {
-  let host = ''
+function matchProxyRule(urlStr: string, rules: RemoteProxyRule[]): RemoteProxyRule | undefined {
+  let host: string
   try {
     host = new URL(urlStr).hostname.toLowerCase()
   } catch {
+    return undefined
+  }
+  return rules.find(
+    (r) => r.hosts?.some((h) => h === host) || r.suffixes?.some((s) => host.endsWith(s))
+  )
+}
+
+function resolveOrigin(
+  rule: RemoteProxyRule | undefined,
+  referer: string,
+  queryOrigin?: string
+): string {
+  return queryOrigin || (rule?.originFromReferer ? referer : '') || rule?.origin || ''
+}
+
+function mirrorUrls(urlStr: string, mirrors: string[] | undefined): string[] {
+  if (!mirrors?.length) return [urlStr]
+  let current: URL
+  try {
+    current = new URL(urlStr)
+  } catch {
     return [urlStr]
   }
-  if (!NEXABLOOM_FAMILY_SUFFIXES.some((s) => host.endsWith(s))) {
-    return [urlStr]
-  }
+  const seen = new Set([current.hostname.toLowerCase()])
   const urls = [urlStr]
-  for (const fallback of NEXABLOOM_FALLBACK_HOSTS) {
-    if (fallback === host) continue
-    try {
-      const candidate = new URL(urlStr)
-      candidate.hostname = fallback
-      urls.push(candidate.href)
-    } catch {
-      // ignore
-    }
+  for (const mirror of mirrors) {
+    const host = mirror.toLowerCase()
+    if (seen.has(host)) continue
+    seen.add(host)
+    const candidate = new URL(current.href)
+    candidate.hostname = host
+    urls.push(candidate.href)
   }
   return urls
 }
 
-async function fetchNexabloomFallback<T>(
+async function fetchWithMirrors<T>(
   urlStr: string,
+  mirrors: string[] | undefined,
   signal: AbortSignal,
   attempt: (candidate: string) => Promise<T | null>,
   isOk: (r: T) => boolean
 ): Promise<T | null> {
   let last: T | null = null
-  for (const candidate of nexabloomFallbackUrls(urlStr)) {
+  for (const candidate of mirrorUrls(urlStr, mirrors)) {
     if (signal.aborted) break
     const r = await attempt(candidate).catch(() => null)
     if (!r) continue
@@ -215,32 +176,6 @@ async function fetchNexabloomFallback<T>(
     last = r
   }
   return last
-}
-
-function isGotScrapingHost(urlStr: string): boolean {
-  try {
-    const host = new URL(urlStr).hostname.toLowerCase()
-    if (GOT_SCRAPING_HOSTS.has(host)) return true
-    if (HANIME_HOSTS.has(host)) return true
-    return GOT_SCRAPING_SUFFIXES.some((s) => host.endsWith(s))
-  } catch {
-    return false
-  }
-}
-
-function validateKwikUrl(value: unknown): URL | null {
-  if (typeof value !== 'string') return null
-  try {
-    const url = new URL(value)
-    const isSecure = url.protocol === 'https:'
-    const isKwik = KWIK_DOMAINS.has(url.hostname.toLowerCase())
-    const isEmbedPath = /^\/e\/[A-Za-z0-9_-]+$/.test(url.pathname)
-    const noAuthOrQuery = !url.username && !url.password && !url.search && !url.hash
-
-    return isSecure && isKwik && isEmbedPath && noAuthOrQuery ? url : null
-  } catch {
-    return null
-  }
 }
 
 function pinVariant(body: string, idx: number): string | null {
@@ -266,21 +201,21 @@ function pinVariant(body: string, idx: number): string | null {
   return out.join('\n')
 }
 
-function applyKwikPatches(html: string, kwikUrl: URL, cookieStr: string = ''): string | null {
-  const safeReferer = JSON.stringify(kwikUrl.href).replace(/</g, '\\u003c')
+function applyEmbedPatches(html: string, embedUrl: URL, cookieStr: string = ''): string | null {
+  const safeReferer = JSON.stringify(embedUrl.href).replace(/</g, '\\u003c')
   const safeCookie = JSON.stringify(cookieStr).replace(/</g, '\\u003c')
 
   const patched = html.replace(
     /\b(src|href|url)\s*[=:]\s*(["']?)(\/\/[^"'>)]+|\/(?!\/)[^"'>)]*)\2/gi,
     (match, attr, quote, path) => {
-      const full = path.startsWith('//') ? `https:${path}` : `${kwikUrl.origin}${path}`
+      const full = path.startsWith('//') ? `https:${path}` : `${embedUrl.origin}${path}`
       const prefix = match.startsWith('url') ? `url(` : `${attr}=`
       const suffix = match.startsWith('url') ? `)` : ''
       return `${prefix}${quote}${full}${quote}${suffix}`
     }
   )
 
-  const iconProxy = `/api/proxy?url=${encodeURIComponent(`${kwikUrl.origin}/app/js/vendor/plyr.svg`)}&referer=${encodeURIComponent(kwikUrl.href)}`
+  const iconProxy = `/api/proxy?url=${encodeURIComponent(`${embedUrl.origin}/app/js/vendor/plyr.svg`)}&referer=${encodeURIComponent(embedUrl.href)}`
   const plyrPatch = `<script>if(window.Plyr) Plyr.defaults.iconUrl=${JSON.stringify(iconProxy).replace(/</g, '\\u003c')};</script>`
 
   const hlsPatch = `<script>
@@ -370,7 +305,7 @@ function placeholderSvg(): Response | null {
 
 const PROXY_UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:126.0) Gecko/20100101 Firefox/126.0'
 
-export function registerProxy(app: Hono) {
+export function registerProxy(app: Hono, getProxyRules: () => RemoteProxyRule[]) {
   app.get('/api/proxy', async (c) => {
     const url = c.req.query('url')
     if (!url) return c.text('URL required', 400)
@@ -381,54 +316,30 @@ export function registerProxy(app: Hono) {
     }
 
     const urlStr = url as string
-    const refererStr = c.req.query('referer') || ''
+    const rule = matchProxyRule(urlStr, getProxyRules())
+    const refererStr = c.req.query('referer') || rule?.referer || ''
+    const originStr = resolveOrigin(rule, refererStr, c.req.query('origin'))
+    const uaStr = c.req.query('ua') || ''
     const cookieStr = c.req.query('cookie') || ''
+    const useScrape = c.req.query('scrape') === '1' || rule?.scrape === true
+    const useCf = c.req.query('cf') === '1' || rule?.cfCookie === true
     const variantRaw = c.req.query('variant')
     const variantIdx = variantRaw !== undefined ? parseInt(variantRaw, 10) : NaN
     const pinVar = Number.isInteger(variantIdx) && (variantIdx as number) >= 0
-    const cacheKey = `m3u8-${urlStr}-${refererStr}${pinVar ? `-v${variantIdx}` : ''}`
+    const cacheKey = `m3u8-${urlStr}-${refererStr}-${originStr}-${uaStr}${pinVar ? `-v${variantIdx}` : ''}`
 
     const abort = new AbortController()
     linkAbort(c.req.raw.signal, abort)
 
     try {
-      const isVaultCdn = Array.from(VAULT_CDN_HOSTS).some((host) => urlStr.includes(host))
-      const isHanime = Array.from(HANIME_HOSTS).some((host) => urlStr.includes(host))
-      const isOppai = Array.from(OPPAI_HOSTS).some((host) => urlStr.includes(host))
-      const isKaa =
-        refererStr.startsWith(KAA_ORIGIN) ||
-        Array.from(KAA_HOSTS).some((host) => urlStr.includes(host))
       const headers: Record<string, string> = {
-        'User-Agent': PROXY_UA,
+        'User-Agent': uaStr || PROXY_UA,
       }
       if (refererStr) headers['Referer'] = refererStr
-      if (isVaultCdn) {
-        headers['Origin'] = refererStr || ANIMEPAHE_URL
-        const cookieHeader = buildCfClearanceCookie(cookieStr)
+      if (originStr) headers['Origin'] = originStr
+      if (cookieStr) {
+        const cookieHeader = useCf ? buildCfClearanceCookie(cookieStr) : cookieStr
         if (cookieHeader) headers['Cookie'] = cookieHeader
-      }
-      if (isHanime) {
-        if (!headers['Referer']) headers['Referer'] = refererStr || 'https://nhplayer.com/'
-        headers['Origin'] = 'https://nhplayer.com'
-      }
-      if (isOppai) {
-        if (!headers['Referer']) headers['Referer'] = refererStr || 'https://oppai.stream/'
-        headers['Origin'] = 'https://oppai.stream'
-      }
-      if (isKaa) {
-        if (!headers['Referer']) headers['Referer'] = refererStr || KAA_REFERER
-        headers['Origin'] = KAA_ORIGIN
-      }
-      const isMegaplay = refererStr.startsWith(MEGAPLAY_ORIGIN) || urlStr.includes('nexabloom.top')
-      if (isMegaplay && !headers['Origin']) {
-        headers['Origin'] = MEGAPLAY_ORIGIN
-      }
-      if (urlStr.includes('weeabo0.xyz') || urlStr.includes('weeab0o.xyz')) {
-        if (!headers['Referer']) headers['Referer'] = refererStr || 'https://japaneseasmr.com/'
-        const jasmrCookieHeader = buildCfClearanceCookie(cookieStr)
-        if (jasmrCookieHeader) headers['Cookie'] = jasmrCookieHeader
-        const jasmrUa = c.req.query('ua') || ''
-        if (jasmrUa) headers['User-Agent'] = jasmrUa
       }
       const range = c.req.header('range')
       if (range) headers['Range'] = range
@@ -441,11 +352,17 @@ export function registerProxy(app: Hono) {
       }
       const rewritePlaylist = (playlistBody: string, finalUrl: string) => {
         const baseUrl = new URL(finalUrl)
-        const proxiedMediaUrl = (targetUrl: string) =>
-          `/api/proxy?url=${encodeURIComponent(targetUrl)}&referer=${encodeURIComponent(refererStr)}` +
-          (cookieStr ? `&cookie=${encodeURIComponent(sanitizeCfClearance(cookieStr))}` : '') +
-          (c.req.query('ua') ? `&ua=${encodeURIComponent(c.req.query('ua') as string)}` : '')
-        const needsProxy = Boolean(refererStr)
+        const proxiedMediaUrl = (targetUrl: string) => {
+          const params = new URLSearchParams({ url: targetUrl })
+          if (refererStr) params.set('referer', refererStr)
+          if (originStr) params.set('origin', originStr)
+          if (uaStr) params.set('ua', uaStr)
+          if (cookieStr) params.set('cookie', sanitizeCfClearance(cookieStr))
+          if (useScrape) params.set('scrape', '1')
+          if (useCf) params.set('cf', '1')
+          return `/api/proxy?${params}`
+        }
+        const needsProxy = Boolean(refererStr || originStr || uaStr || useScrape)
         const isProxied = (value: string) => value.includes('/api/proxy')
         const pinned = pinVar ? pinVariant(playlistBody, variantIdx as number) : null
         return (pinned || playlistBody)
@@ -479,12 +396,13 @@ export function registerProxy(app: Hono) {
           return new Response(cached, { headers })
         }
 
-        const resp = await fetchNexabloomFallback(
+        const resp = await fetchWithMirrors(
           urlStr,
+          rule?.mirrors,
           abort.signal,
           (candidate) =>
             gotScraping({
-              url: isNexabloomMasterUrl(candidate) ? signNexabloomMasterUrl(candidate) : candidate,
+              url: candidate,
               method: 'GET',
               headers,
               responseType: 'text',
@@ -503,11 +421,12 @@ export function registerProxy(app: Hono) {
         proxyCache.set(cacheKey, rewritten)
         return playlistResponse(rewritten)
       } else {
-        if (isGotScrapingHost(urlStr)) {
+        if (useScrape) {
           if (range) headers['Range'] = range
 
-          const resp = await fetchNexabloomFallback(
+          const resp = await fetchWithMirrors(
             urlStr,
+            rule?.mirrors,
             abort.signal,
             (candidate) =>
               gotScraping({
@@ -549,8 +468,9 @@ export function registerProxy(app: Hono) {
             headers: outHeaders,
           })
         } else {
-          const upstream = await fetchNexabloomFallback(
+          const upstream = await fetchWithMirrors(
             urlStr,
+            rule?.mirrors,
             abort.signal,
             async (candidate) => {
               const attempt = await fetchWithRetry(
@@ -603,26 +523,35 @@ export function registerProxy(app: Hono) {
   })
 
   app.get('/api/embed-proxy', async (c) => {
-    const kwikUrl = validateKwikUrl(c.req.query('url'))
-    if (!kwikUrl) return c.text('Invalid or unsupported gateway URL', 400)
+    const rawUrl = c.req.query('url')
+    if (!rawUrl) return c.text('URL required', 400)
+    const safeCheck = isSafeExternalUrl(rawUrl)
+    if (!safeCheck.safe) return c.text(safeCheck.error || 'Invalid URL', 400)
 
+    const rule = matchProxyRule(rawUrl, getProxyRules())
+    if (!rule?.embedPatch) return c.text('Invalid or unsupported gateway URL', 400)
+
+    const embedUrl = new URL(rawUrl)
     const cookieStr = c.req.query('cookie') || ''
+    const refererStr = c.req.query('referer') || rule.referer || ''
+    const originStr = resolveOrigin(rule, refererStr, c.req.query('origin'))
     const abort = new AbortController()
     linkAbort(c.req.raw.signal, abort)
 
     try {
       const headers: Record<string, string> = {
-        'User-Agent': PROXY_UA,
-        Referer: ANIMEPAHE_URL,
-        Origin: 'https://animepahe.pw',
+        'User-Agent': c.req.query('ua') || PROXY_UA,
       }
+      if (refererStr) headers['Referer'] = refererStr
+      if (originStr) headers['Origin'] = originStr
       if (cookieStr) {
-        const cookieHeader = buildCfClearanceCookie(cookieStr)
+        const cookieHeader =
+          c.req.query('cf') === '1' || rule.cfCookie ? buildCfClearanceCookie(cookieStr) : cookieStr
         if (cookieHeader) headers['Cookie'] = cookieHeader
       }
 
       const response = await gotScraping({
-        url: kwikUrl.href,
+        url: embedUrl.href,
         method: 'GET',
         headers,
         responseType: 'text',
@@ -632,7 +561,7 @@ export function registerProxy(app: Hono) {
       })
 
       const originalHtml = response.body as string
-      const patched = applyKwikPatches(originalHtml, kwikUrl, cookieStr)
+      const patched = applyEmbedPatches(originalHtml, embedUrl, cookieStr)
       if (!patched) return c.text('Failed to patch video gateway', 502)
 
       const outHeaders = new Headers()
@@ -658,26 +587,10 @@ export function registerProxy(app: Hono) {
     linkAbort(c.req.raw.signal, abort)
 
     const subUrl = url as string
-    const refererStr = c.req.query('referer') || ''
-    const isAnilight =
-      refererStr.includes('anilight.live') || ANILIGHT_HOSTS.some((host) => subUrl.includes(host))
-    const innerRawUrl = (() => {
-      try {
-        const parsed = new URL(subUrl)
-        if (
-          parsed.hostname.toLowerCase().endsWith('anilight.live') &&
-          parsed.pathname.includes('/proxy/captions')
-        ) {
-          const inner = parsed.searchParams.get('url')
-          if (inner && (inner.startsWith('http://') || inner.startsWith('https://'))) {
-            return inner
-          }
-        }
-      } catch {
-        // ignore
-      }
-      return null
-    })()
+    const rule = matchProxyRule(subUrl, getProxyRules())
+    const refererStr = c.req.query('referer') || rule?.referer || ''
+    const originStr = resolveOrigin(rule, refererStr, c.req.query('origin'))
+    const useScrape = c.req.query('scrape') === '1' || rule?.scrape === true
 
     const buildHeaders = (): Record<string, string> => {
       const headers: Record<string, string> = {
@@ -685,19 +598,8 @@ export function registerProxy(app: Hono) {
           'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         Accept: 'text/vtt,text/plain,*/*;q=0.8',
       }
-      if (refererStr) {
-        headers['Referer'] = refererStr
-      } else if (isAnilight) {
-        headers['Referer'] = ANILIGHT_REFERER
-      }
-      if (
-        refererStr.startsWith(KAA_ORIGIN) ||
-        Array.from(KAA_HOSTS).some((host) => subUrl.includes(host))
-      ) {
-        headers['Origin'] = KAA_ORIGIN
-      } else if (isAnilight) {
-        headers['Origin'] = ANILIGHT_ORIGIN
-      }
+      if (refererStr) headers['Referer'] = refererStr
+      if (originStr) headers['Origin'] = originStr
       return headers
     }
 
@@ -706,11 +608,7 @@ export function registerProxy(app: Hono) {
       retries = 1
     ): Promise<{ status: number; body: string } | null> => {
       const headers = buildHeaders()
-      if (innerRawUrl && target === innerRawUrl) {
-        headers['Referer'] = ANILIGHT_REFERER
-        headers['Origin'] = ANILIGHT_ORIGIN
-      }
-      if (isGotScrapingHost(target)) {
+      if (useScrape) {
         try {
           const upstream = await gotScraping({
             url: target,
@@ -798,17 +696,13 @@ export function registerProxy(app: Hono) {
     try {
       const headers = buildHeaders()
 
-      let result = await fetchText(subUrl, 1)
+      const result = await fetchText(subUrl, 1)
       if (abort.signal.aborted) return new Response(null, { status: 499 })
-      if ((!result || !result.body) && innerRawUrl) {
-        result = await fetchText(innerRawUrl, 0)
-        if (abort.signal.aborted) return new Response(null, { status: 499 })
-      }
       if (!result || !result.body) {
         return subtitleError('Subtitle upstream error')
       }
       const body = result.body
-      const baseForSegments = innerRawUrl || subUrl
+      const baseForSegments = subUrl
       if (/#EXTM3U/i.test(body.slice(0, 1000))) {
         const segUrls = body
           .split('\n')
@@ -891,17 +785,19 @@ export function registerProxy(app: Hono) {
     const cookie = c.req.query('cookie') || ''
     const ua = c.req.query('ua') || ''
     const strict = c.req.query('strict') === '1'
+    const rule = matchProxyRule(targetUrl, getProxyRules())
+    const refererValue = c.req.query('referer') || rule?.referer || ''
+    const originValue = resolveOrigin(rule, refererValue, c.req.query('origin'))
     const abort = new AbortController()
     linkAbort(c.req.raw.signal, abort)
 
-    let refererValue = 'https://anilist.co/'
     const headers: Record<string, string> = {
       'User-Agent':
         ua ||
         'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
     }
 
-    const cacheKey = `${targetUrl}|${cookie}|${ua}`
+    const cacheKey = `${targetUrl}|${cookie}|${ua}|${refererValue}|${originValue}`
     const cached = imageCache.get<{ body: Buffer; contentType: string }>(cacheKey)
     if (cached) {
       const hit = new Headers()
@@ -913,26 +809,12 @@ export function registerProxy(app: Hono) {
     }
 
     try {
-      if (targetUrl.includes('animepahe')) {
-        refererValue = 'https://animepahe.pw/'
-        headers['Cookie'] = `cf_clearance=${sanitizeCfClearance(cookie)}`
-      } else if (targetUrl.includes('anilist.co')) {
-        refererValue = 'https://anilist.co/'
-      } else if (targetUrl.includes('gogocdn.net')) {
-        refererValue = 'https://gogoanime.lu/'
-      } else if (targetUrl.includes('animeya.cc')) {
-        refererValue = 'https://animeya.cc/'
-      } else if (targetUrl.includes('myspacecat.pictures')) {
-        refererValue = 'https://oppai.stream/'
-      } else if (targetUrl.includes('weeabo0.xyz')) {
-        refererValue = 'https://japaneseasmr.com/'
-        const jasmrCookieHeader = buildCfClearanceCookie(cookie)
-        if (jasmrCookieHeader) headers['Cookie'] = jasmrCookieHeader
-        const uaParam = ua || ''
-        if (uaParam) headers['User-Agent'] = uaParam
+      if (refererValue) headers['Referer'] = refererValue
+      if (originValue) headers['Origin'] = originValue
+      if (c.req.query('cf') === '1' || rule?.cfCookie) {
+        const cookieHeader = buildCfClearanceCookie(cookie)
+        if (cookieHeader) headers['Cookie'] = cookieHeader
       }
-
-      headers['Referer'] = refererValue
 
       let body: Buffer | null = null
       let contentType = 'image/webp'

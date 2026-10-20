@@ -200,13 +200,22 @@ class Mutex {
   }
 }
 
-const syncMutex = new Mutex()
-let isSyncing = false
+const syncMutexes: Record<MediaKind, Mutex> = {
+  anime: new Mutex(),
+  manga: new Mutex(),
+  tv: new Mutex(),
+  asmr: new Mutex(),
+}
+const isSyncingMap: Record<MediaKind, boolean> = { anime: false, manga: false, tv: false, asmr: false }
 let activeProvider: 'github' | 'google' | 'rclone' | 'none' = 'none'
 
 export async function waitForSync(): Promise<void> {
-  await syncMutex.lock()
-  syncMutex.unlock()
+  await Promise.all(
+    (Object.values(syncMutexes) as Mutex[]).map(async (m) => {
+      await m.lock()
+      m.unlock()
+    })
+  )
 }
 
 export function getActiveProvider() {
@@ -324,7 +333,7 @@ export async function syncDownOnBoot(
   db: DatabaseWrapper,
   kind: MediaKind,
   remoteFolderName: string
-): Promise<void> {
+): Promise<number> {
   const def = KIND_SYNC[kind]
   let localVersion = await getKindManifestVersion(kind)
 
@@ -339,14 +348,15 @@ export async function syncDownOnBoot(
     }
   }
 
-  if (activeProvider === 'none') return
+  if (activeProvider === 'none') return -1
 
-  await syncMutex.lock()
-  if (isSyncing) {
-    syncMutex.unlock()
-    return
+  const mutex = syncMutexes[kind]
+  await mutex.lock()
+  if (isSyncingMap[kind]) {
+    mutex.unlock()
+    return -1
   }
-  isSyncing = true
+  isSyncingMap[kind] = true
 
   try {
     notifySyncStart(`Initial ${def.mid}sync check (${activeProvider})`)
@@ -357,23 +367,23 @@ export async function syncDownOnBoot(
 
     if (remoteVersion > localVersion) {
       if (activeProvider === 'github') {
-        if (!githubSyncService.isAuthenticated()) return
+        if (!githubSyncService.isAuthenticated()) return remoteVersion
         notifySyncStart(`Importing GitHub ${def.mid}sync data (Remote v${remoteVersion})`)
         const importedVersion = await def.githubDown(db)
         await setKindManifestVersion(kind, importedVersion || remoteVersion)
         notifySyncEnd()
         log.info(`GitHub ${def.mid}sync down complete.`)
-        return
+        return remoteVersion
       }
 
       if (activeProvider === 'google') {
-        if (!googleDriveService.isAuthenticated()) return
+        if (!googleDriveService.isAuthenticated()) return remoteVersion
         notifySyncStart(`Importing Google ${def.mid}sync data (Remote v${remoteVersion})`)
         const importedVersion = await def.googleDown(db)
         await setKindManifestVersion(kind, importedVersion || remoteVersion)
         notifySyncEnd()
         log.info(`Google ${def.mid}sync down complete.`)
-        return
+        return remoteVersion
       }
 
       if (activeProvider === 'rclone') {
@@ -382,38 +392,45 @@ export async function syncDownOnBoot(
         await setKindManifestVersion(kind, importedVersion || remoteVersion)
         notifySyncEnd()
         log.info(`Rclone ${def.mid}sync down complete.`)
-        return
+        return remoteVersion
       }
     } else {
       log.info(`Local ${def.mid}DB is up to date.`)
     }
+    return remoteVersion
   } catch (err) {
     notifySyncEnd()
     log.error({ err }, `${cap(`${def.mid}sync`)} boot error.`)
+    return -1
   } finally {
-    isSyncing = false
-    syncMutex.unlock()
+    isSyncingMap[kind] = false
+    mutex.unlock()
   }
 }
 
 export async function syncUp(
   db: DatabaseWrapper,
   kind: MediaKind,
-  remoteFolderName: string
+  remoteFolderName: string,
+  knownRemoteVersion?: number
 ): Promise<void> {
   const def = KIND_SYNC[kind]
   if (activeProvider === 'none') return
 
-  await syncMutex.lock()
-  if (isSyncing) {
-    syncMutex.unlock()
+  const mutex = syncMutexes[kind]
+  await mutex.lock()
+  if (isSyncingMap[kind]) {
+    mutex.unlock()
     return
   }
-  isSyncing = true
+  isSyncingMap[kind] = true
 
   try {
     const localVersion = await getKindManifestVersion(kind)
-    const { version: remoteVersion } = await getRemoteManifestVersion(remoteFolderName, kind)
+    const remoteVersion =
+      knownRemoteVersion !== undefined && knownRemoteVersion >= 0
+        ? knownRemoteVersion
+        : (await getRemoteManifestVersion(remoteFolderName, kind)).version
 
     if (localVersion > remoteVersion) {
       notifySyncStart(`Syncing ${def.mid}up (Local v${localVersion})`)
@@ -436,8 +453,8 @@ export async function syncUp(
     notifySyncEnd()
     log.error({ err }, `${cap(`${def.mid}sync`)} up failed.`)
   } finally {
-    isSyncing = false
-    syncMutex.unlock()
+    isSyncingMap[kind] = false
+    mutex.unlock()
   }
 }
 
@@ -463,32 +480,32 @@ export async function runFullSyncSequence(
     }
   }
 
-  await syncDownOnBoot(dbs.db, 'anime', opts.remoteFolder)
+  // Anime runs first and sequentially — it may sync down data
+  const animeRemoteVersion = await syncDownOnBoot(dbs.db, 'anime', opts.remoteFolder).catch(
+    (err) => { logger.error({ err }, 'Sync down on boot failed'); return -1 as number }
+  )
+  await syncUp(dbs.db, 'anime', opts.remoteFolder, animeRemoteVersion).catch(
+    (err) => logger.error({ err }, 'Sync up on boot failed')
+  )
 
-  try {
-    await syncUp(dbs.db, 'anime', opts.remoteFolder)
-  } catch (err) {
-    logger.error({ err }, 'Sync up on boot failed')
-  }
-
-  const kinds: { kind: MediaKind; db: DatabaseWrapper }[] = [
+  // manga / TV / ASMR are independent — check + up in parallel
+  const secondary: { kind: MediaKind; db: DatabaseWrapper }[] = [
     { kind: 'manga', db: dbs.mangaDb },
     { kind: 'tv', db: dbs.tvDb },
     { kind: 'asmr', db: dbs.asmrDb },
   ]
-  for (const { kind, db } of kinds) {
-    const def = KIND_SYNC[kind]
-    try {
-      await syncDownOnBoot(db, kind, opts.remoteFolder)
-    } catch (err) {
-      logger.error({ err }, `${def.Head}sync down on boot failed`)
-    }
-    try {
-      await syncUp(db, kind, opts.remoteFolder)
-    } catch (err) {
-      logger.error({ err }, `${def.Head}sync up on boot failed`)
-    }
-  }
+  await Promise.allSettled(
+    secondary.map(async ({ kind, db }) => {
+      const def = KIND_SYNC[kind]
+      const remoteVersion = await syncDownOnBoot(db, kind, opts.remoteFolder).catch((err) => {
+        logger.error({ err }, `${def.Head}sync down on boot failed`)
+        return -1 as number
+      })
+      await syncUp(db, kind, opts.remoteFolder, remoteVersion).catch((err) =>
+        logger.error({ err }, `${def.Head}sync up on boot failed`)
+      )
+    })
+  )
 }
 
 export async function performWriteTransactionAsync(

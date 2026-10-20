@@ -288,7 +288,7 @@ const flushProviderSummary = (color, prefix) => {
   pendingProviderSummary = false
   console.log(
     `${color}[${prefix}]${colors.reset} ${colors.system}Providers ready${colors.reset} ` +
-      `${colors.client}${providerFields.count} anime, ${providerFields.mangaCount} manga, ${providerFields.tvCount} tv${colors.reset}`
+      `${colors.client}${providerFields.count} anime, ${providerFields.mangaCount} manga, ${providerFields.tvCount} tv, ${providerFields.asmrCount} asmr${colors.reset}`
   )
 }
 

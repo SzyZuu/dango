@@ -51,7 +51,6 @@ import {
   type SyncPayload,
 } from './sync-payload.js'
 import { getMalImportStatus, prepareMalImport, executeMalImport } from './lib/mal-import.js'
-import { registerMusic } from './hono/music.js'
 import { registerAuth, type RunSyncSequence } from './hono/auth.js'
 import { type JasmrApi } from './hono/asmr.js'
 import { registerTv } from './hono/tv.js'
@@ -737,7 +736,6 @@ export function createHonoApp(
     return restoreLegacyDatabase(c, dbs, buffer, dbAdmin)
   })
 
-  registerMusic(app)
   registerAuth(app, getDbs, runSync)
   registerTv(app, media.getTvProvider)
   registerProxy(app, media.getProxyRules)

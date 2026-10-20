@@ -1,32 +1,37 @@
 import { build } from 'esbuild'
-import { readdirSync } from 'node:fs'
+import { rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = fileURLToPath(new URL('.', import.meta.url))
-
-function walk(dir) {
-  const out = []
-  for (const e of readdirSync(dir, { withFileTypes: true })) {
-    const full = join(dir, e.name)
-    if (e.isDirectory()) out.push(...walk(full))
-    else if (e.name.endsWith('.ts') && !e.name.endsWith('.d.ts')) out.push(full)
-  }
-  return out
-}
-
-const entryPoints = walk(join(root, 'src'))
+rmSync(join(root, 'dist'), { recursive: true, force: true })
 
 await build({
-  entryPoints,
+  entryPoints: [join(root, 'src', 'server.ts')],
+  outfile: join(root, 'dist', 'server.js'),
+  platform: 'node',
+  format: 'esm',
+  target: 'node22',
+  bundle: true,
+  minify: true,
+  external: ['got-scraping'],
+  banner: {
+    js: "import { createRequire as __createRequire } from 'node:module'; const require = __createRequire(import.meta.url);",
+  },
+})
+
+await build({
+  entryPoints: [
+    join(root, 'src', 'shipped-defaults.ts'),
+    join(root, 'src', 'config.ts'),
+  ],
   outdir: join(root, 'dist'),
   outbase: join(root, 'src'),
   platform: 'node',
   format: 'esm',
   target: 'node22',
-  minify: true,
   bundle: false,
-  sourcemap: false,
+  minify: true,
 })
 
-console.log(`esbuild: transpiled+minified ${entryPoints.length} files → dist/`)
+console.log('esbuild: bundled server.js + emitted shipped-defaults & config → dist/')

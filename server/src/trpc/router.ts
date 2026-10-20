@@ -15,8 +15,6 @@ import { tvProgressRouter } from './routers/tv-progress.js'
 import { tvRouter } from './routers/tv.js'
 import { mangaRouter } from './routers/manga.js'
 import { asmrRouter } from './routers/asmr.js'
-import { musicRouter } from './routers/music.js'
-import { radioRouter } from './routers/radio.js'
 import { trackerRouter } from './routers/tracker.js'
 import { insightsRouter } from './routers/insights.js'
 import { authRouter } from './routers/auth.js'
@@ -40,8 +38,6 @@ export const appRouter = router({
   tv: tvRouter,
   manga: mangaRouter,
   asmr: asmrRouter,
-  music: musicRouter,
-  radio: radioRouter,
   tracker: trackerRouter,
   insights: insightsRouter,
   auth: authRouter,

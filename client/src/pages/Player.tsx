@@ -1407,8 +1407,6 @@ const Player: React.FC = () => {
         return
       }
 
-      const progress = currentTime / duration
-
       if (duration - currentTime <= 60) {
         const activeQueueIndex = queue.findIndex(
           (item) =>
@@ -1438,7 +1436,7 @@ const Player: React.FC = () => {
         }
       }
 
-      setShowNextEpisodePrompt(hasNextEpisode && progress >= 0.8)
+      setShowNextEpisodePrompt(hasNextEpisode && isProgressCompleted(currentTime, duration))
       setHasReachedEpisodeEnd(currentTime >= Math.max(duration * 0.98, duration - 10))
     }
 

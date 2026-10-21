@@ -4,30 +4,14 @@ import AnimePopup from './AnimePopup'
 import MediaCard, { type MediaCardDisplay } from '../common/MediaCard'
 import mediaStyles from '../common/MediaCard.module.css'
 import { formatTime } from '../../lib/utils'
+import { COMPLETION_THRESHOLD } from '../../lib/playbackCompletion'
 import type { AnimeShow as Anime } from '../../types/player'
-
-interface AnimeCardConfig {
-  elements?: {
-    poster?: {
-      typeBadge?: boolean
-      episodeBadge?: boolean
-      removeButton?: boolean
-      adultBadge?: boolean
-    }
-    info?: {
-      title?: boolean
-      mobileBadges?: boolean
-      progress?: boolean
-      meta?: boolean
-    }
-  }
-}
 
 interface AnimeCardProps {
   anime: Anime
   continueWatching?: boolean
   onRemove?: (id: string) => void
-  config?: AnimeCardConfig
+  config?: MediaCardDisplay
   layout?: 'vertical' | 'horizontal'
 }
 
@@ -35,9 +19,8 @@ const AnimeCard: React.FC<AnimeCardProps> = memo(
   ({ anime, continueWatching = false, onRemove, config, layout = 'vertical' }) => {
     const ct = anime.currentTime || 0
     const dur = anime.duration || 0
-    const WATCHED_THRESHOLD = 0.8
-    const hasProgress = ct > 5 && dur > 5 && ct < dur * WATCHED_THRESHOLD
-    const showFullBar = ct > 0 && (dur <= 5 || ct >= dur * WATCHED_THRESHOLD)
+    const hasProgress = ct > 5 && dur > 5 && ct < dur * COMPLETION_THRESHOLD
+    const showFullBar = ct > 0 && (dur <= 5 || ct >= dur * COMPLETION_THRESHOLD)
 
     const episodeToPlay = anime.episodeNumber
 
@@ -131,7 +114,7 @@ const AnimeCard: React.FC<AnimeCardProps> = memo(
         }
         showProgress={continueWatching}
         metaRow={metaRow}
-        display={config as MediaCardDisplay | undefined}
+        display={config}
         layout={layout}
         onRemove={onRemove}
         showRemoveButton={

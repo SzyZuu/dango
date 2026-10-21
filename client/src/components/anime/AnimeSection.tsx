@@ -2,24 +2,8 @@ import React from 'react'
 import AnimeCard from './AnimeCard'
 import AnimeCardSkeleton from '../common/AnimeCardSkeleton'
 import MediaSection from '../common/MediaSection'
+import type { MediaCardDisplay } from '../common/MediaCard'
 import type { AnimeShow as Anime } from '../../types/player'
-
-interface AnimeSectionConfig {
-  elements?: {
-    poster?: {
-      typeBadge?: boolean
-      episodeBadge?: boolean
-      removeButton?: boolean
-      adultBadge?: boolean
-    }
-    info?: {
-      title?: boolean
-      mobileBadges?: boolean
-      progress?: boolean
-      meta?: boolean
-    }
-  }
-}
 
 interface AnimeSectionProps {
   title: string
@@ -31,7 +15,7 @@ interface AnimeSectionProps {
   loading?: boolean
   emptyState?: React.ReactNode
   carousel?: boolean
-  cardConfig?: AnimeSectionConfig
+  cardConfig?: MediaCardDisplay
   layout?: 'vertical' | 'horizontal'
   onReachThreshold?: () => void
   scrollThreshold?: number

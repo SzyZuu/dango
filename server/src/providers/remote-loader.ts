@@ -589,7 +589,10 @@ export async function loadRemoteProviders(opts: LoadOptions): Promise<RemoteLoad
   const allowUnsigned =
     opts.allowUnsigned ??
     (process.env.DANGO_ALLOW_UNSIGNED_PROVIDERS === '1' || looksLikePath(registryUrl))
-  for (const item of registry.providers) {
+  for (const rawItem of registry.providers) {
+    // an embedBase entry is a tv embed provider (the url builder is tmdb/season/episode
+    // shaped), so it is validated and bucketed as one whatever the registry says
+    const item = rawItem.embedBase ? { ...rawItem, kind: 'tv' as const } : rawItem
     const key = item.id.toLowerCase()
     if (item.enabledByDefault === false && (!explicitFilter || !enabledSet.has(key))) {
       out.catalog.push(toCatalog(item, false, 'disabled by default'))
@@ -599,6 +602,9 @@ export async function loadRemoteProviders(opts: LoadOptions): Promise<RemoteLoad
       out.catalog.push(toCatalog(item, false, 'not in enabledProviders'))
       continue
     }
+    // keep the proxy rules even if the provider itself fails to load, otherwise
+    // requests for that host go out without a Referer and get 403'd
+    if (item.proxy) out.proxyRules.push(item.proxy)
     const { provider, facets, error } = await loadEntry(
       item,
       registryUrl,
@@ -613,11 +619,10 @@ export async function loadRemoteProviders(opts: LoadOptions): Promise<RemoteLoad
         continue
       }
       out.catalog.push(withFacets(facets, withServers(item, provider, toCatalog(item, true))))
-      if (item.proxy) out.proxyRules.push(item.proxy)
       logger.info({ provider: item.id, version: item.version }, 'remote provider loaded')
     } else {
       const prev = prevById.get(key)
-      if (prev && prev.version !== item.version) {
+      if (prev) {
         const fb = await loadCachedFallback(item, prev, cacheDir, ctx)
         if (fb.provider && !fb.error) {
           if (!assignProvider(out, item, key, fb.provider)) {
@@ -632,7 +637,6 @@ export async function loadRemoteProviders(opts: LoadOptions): Promise<RemoteLoad
             ),
             error: `serving cached ${prev.version}: ${error}`,
           })
-          if (item.proxy) out.proxyRules.push(item.proxy)
           logger.warn(
             { provider: item.id, error, fallback: prev.version },
             'remote provider update failed, serving cached version'
@@ -650,9 +654,10 @@ export async function loadRemoteProviders(opts: LoadOptions): Promise<RemoteLoad
       registry.providers.map((item) => `${item.id}-${item.version}.mjs`.toLowerCase())
     )
     const expectedInstances = new Set(
-      registry.providers.map((item) =>
-        `${item.kind ?? 'anime'}:${item.id}-${item.version}-${(item.sha256 ?? 'nosha').slice(0, 12)}`.toLowerCase()
-      )
+      registry.providers.map((item) => {
+        const kind = item.embedBase ? 'tv' : (item.kind ?? 'anime')
+        return `${kind}:${item.id}-${item.version}-${(item.sha256 ?? 'nosha').slice(0, 12)}`.toLowerCase()
+      })
     )
     for (const key of instanceCache.keys()) {
       if (!expectedInstances.has(key.toLowerCase())) instanceCache.delete(key)

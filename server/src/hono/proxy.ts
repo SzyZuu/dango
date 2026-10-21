@@ -139,7 +139,7 @@ function resolveOrigin(
   return queryOrigin || (rule?.originFromReferer ? referer : '') || rule?.origin || ''
 }
 
-function mirrorUrls(urlStr: string, mirrors: string[] | undefined): string[] {
+export function mirrorUrls(urlStr: string, mirrors: string[] | undefined): string[] {
   if (!mirrors?.length) return [urlStr]
   let current: URL
   try {
@@ -201,7 +201,11 @@ function pinVariant(body: string, idx: number): string | null {
   return out.join('\n')
 }
 
-function applyEmbedPatches(html: string, embedUrl: URL, cookieStr: string = ''): string | null {
+export function applyEmbedPatches(
+  html: string,
+  embedUrl: URL,
+  cookieStr: string = ''
+): string | null {
   const safeReferer = JSON.stringify(embedUrl.href).replace(/</g, '\\u003c')
   const safeCookie = JSON.stringify(cookieStr).replace(/</g, '\\u003c')
 
@@ -277,7 +281,12 @@ function applyEmbedPatches(html: string, embedUrl: URL, cookieStr: string = ''):
     .replace(/(<script[^>]+hls(?:\.min)?\.js[^>]*><\/script>)/i, `$1${hlsPatch}`)
     .replace(/<\/body>/i, `${endBridgePatch}</body>`)
 
-  return final === html ? null : final
+  if (final === html) {
+    // nothing to patch: still a page (a gateway without a </body>), so serve it
+    // as-is. a non-html body is not a gateway at all and stays null -> 502.
+    return /<\s*(html|body)\b/i.test(html) ? html : null
+  }
+  return final
 }
 
 function placeholderSvg(): Response | null {
@@ -589,6 +598,7 @@ export function registerProxy(app: Hono, getProxyRules: () => RemoteProxyRule[])
     const refererStr = c.req.query('referer') || rule?.referer || ''
     const originStr = resolveOrigin(rule, refererStr, c.req.query('origin'))
     const useScrape = c.req.query('scrape') === '1' || rule?.scrape === true
+    const cookieStr = c.req.query('cookie') || ''
 
     const buildHeaders = (): Record<string, string> => {
       const headers: Record<string, string> = {
@@ -598,6 +608,13 @@ export function registerProxy(app: Hono, getProxyRules: () => RemoteProxyRule[])
       }
       if (refererStr) headers['Referer'] = refererStr
       if (originStr) headers['Origin'] = originStr
+      if (cookieStr) {
+        const cookieHeader =
+          c.req.query('cf') === '1' || rule?.cfCookie
+            ? buildCfClearanceCookie(cookieStr)
+            : cookieStr
+        if (cookieHeader) headers['Cookie'] = cookieHeader
+      }
       return headers
     }
 
@@ -817,16 +834,23 @@ export function registerProxy(app: Hono, getProxyRules: () => RemoteProxyRule[])
       let body: Buffer | null = null
       let contentType = 'image/webp'
       for (let attempt = 0; attempt < 3 && !body; attempt++) {
-        const resp = await gotScraping({
-          url: targetUrl,
-          method: 'GET',
-          headers,
-          responseType: 'buffer',
-          followRedirect: true,
-          throwHttpErrors: false,
-          timeout: { request: 30000 },
-        })
-        if (resp.statusCode === 200 && resp.rawBody?.length) {
+        const resp = await fetchWithMirrors(
+          targetUrl,
+          rule?.mirrors,
+          abort.signal,
+          async (candidate) =>
+            gotScraping({
+              url: candidate,
+              method: 'GET',
+              headers,
+              responseType: 'buffer',
+              followRedirect: true,
+              throwHttpErrors: false,
+              timeout: { request: 30000 },
+            }),
+          (r) => r.statusCode === 200 && !!r.rawBody?.length
+        )
+        if (resp && resp.statusCode === 200 && resp.rawBody?.length) {
           body = Buffer.from(resp.rawBody)
           contentType = String(resp.headers['content-type'] || 'image/webp')
         } else {

@@ -1,13 +1,12 @@
 import React, { useRef, useEffect, useMemo, useCallback, useState, useLayoutEffect } from 'react'
 import { useParams, useNavigate, useLocation } from 'react-router'
-import toast from 'react-hot-toast'
 import { useQueryClient } from '@tanstack/react-query'
 import styles from './Player.module.css'
 import layoutStyles from './PlayerPageLayout.module.css'
 import shellStyles from '../components/player/UnifiedPlayer.module.css'
 import Icon from '../components/common/Icon'
 import { fixThumbnailUrl } from '../lib/utils'
-import { isProgressCompleted, isShowFinale, storeAutoplayEnabled } from '../lib/playbackCompletion'
+import { isProgressCompleted, storeAutoplayEnabled } from '../lib/playbackCompletion'
 import { type SubtitleStyleSettings } from '../lib/subtitleStyle'
 import { Modal } from '../components/common/Modal'
 import { Button } from '../components/common/Button'
@@ -38,6 +37,8 @@ import AmbientLightCanvas from '../components/player/AmbientLightCanvas'
 import AvSyncCalibrator from '../components/player/AvSyncCalibrator'
 import { usePlayerData } from '../hooks/usePlayerData'
 import { usePlayerShortcuts } from '../hooks/usePlayerShortcuts'
+import { useEpisodeEndFlow, matchesQueueItem } from '../hooks/useEpisodeEndFlow'
+import { useNextEpisodePrompt } from '../hooks/useNextEpisodePrompt'
 import { useProviderFallback } from '../hooks/useProviderFallback'
 import { useMediaSource } from '../hooks/useMediaSource'
 import { useSubtitleTracks } from '../hooks/useSubtitleTracks'
@@ -45,7 +46,6 @@ import { useSubtitleCueLayout } from '../hooks/useSubtitleCueLayout'
 import { useSubtitleOverlay } from '../hooks/useSubtitleOverlay'
 import { savePreferredProvider } from '../reducers/playerReducer'
 import { useQueue, useRemoveFromQueue, useClearQueue, useReorderQueue } from '../hooks/useAnimeData'
-import type { QueueItem } from '../hooks/useAnimeData'
 import type { VideoLink } from '../types/player'
 import AnimeMetaDetails from '../components/anime/AnimeMetaDetails'
 import SynopsisText from '../components/anime/SynopsisText'
@@ -187,36 +187,20 @@ const Player: React.FC = () => {
   const delayCanvasActive = videoDelayEnabled && !upscalerActive
   const canvasPresentationActive = upscalerActive || delayCanvasActive
 
-  const [showNextEpisodePrompt, setShowNextEpisodePrompt] = useState(false)
-  const [hasReachedEpisodeEnd, setHasReachedEpisodeEnd] = useState(false)
   const [isEpisodeDrawerOpen, setIsEpisodeDrawerOpen] = useState(false)
-  const hasDismissedShowCompletedRef = useRef(false)
-  const [queueCountdown, setQueueCountdown] = useState<number | null>(null)
-  const [pendingQueueTransition, setPendingQueueTransition] = useState<{
-    nextItem: QueueItem | null
-    playedItem: QueueItem | null
-  } | null>(null)
   const episodeParamRef = useRef(episodeNumber)
 
   useEffect(() => {
     if (episodeParamRef.current !== episodeNumber) {
       episodeParamRef.current = episodeNumber
-      setPendingQueueTransition(null)
-      setQueueCountdown(null)
-      hasDismissedShowCompletedRef.current = false
       stopCalibration()
     }
   }, [episodeNumber, stopCalibration])
-
-  useEffect(() => {
-    if (!hasReachedEpisodeEnd) {
-      hasDismissedShowCompletedRef.current = false
-    }
-  }, [hasReachedEpisodeEnd])
+  const invalidateContinueWatching = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
+  }, [queryClient])
   const { data: queue = [], isLoading: isQueueLoading } = useQueue()
   const removeQueue = useRemoveFromQueue()
-  const removeQueueRef = useRef(removeQueue)
-  removeQueueRef.current = removeQueue
   const clearQueue = useClearQueue()
   const reorderQueue = useReorderQueue()
   const { isTheaterMode, toggleTheaterMode, handleLayoutClick } = useTheaterMode()
@@ -252,10 +236,57 @@ const Player: React.FC = () => {
       : null
   const hasNextEpisode = currentEpisodeIndex > -1 && currentEpisodeIndex < state.episodes.length - 1
   const isCompleted = isProgressCompleted(state.resumeTime, state.resumeDuration)
-  const effectiveIsCompleted = isCompleted || hasReachedEpisodeEnd
-  const isShowCompleted =
-    effectiveIsCompleted &&
-    isShowFinale(state.episodes, state.currentEpisode ?? undefined, state.showMeta.status)
+
+  const {
+    hasReachedEpisodeEnd,
+    effectiveIsCompleted,
+    isShowCompleted,
+    queueCountdown,
+    pendingQueueTransition,
+    handleQueueTransition,
+    handleNextEpisode,
+    handleNShortcut,
+    handlePreviousEpisode,
+    markShowCompletedDismissed,
+    resetReachedEpisodeEnd,
+    setReachedEpisodeEnd,
+    cancelQueueTransition,
+  } = useEpisodeEndFlow({
+    videoRef: refs.videoRef,
+    testClipActive,
+    selectedSourceType: state.selectedSource?.type,
+    onEnded: actions.onEnded,
+    queue,
+    removeFromQueue: removeQueue.mutate,
+    showId,
+    showMetaId: state.showMeta?.id,
+    showMetaStatus: state.showMeta.status,
+    currentEpisode: state.currentEpisode,
+    episodes: state.episodes,
+    isAutoplayEnabled: state.isAutoplayEnabled,
+    isCompleted,
+    showResumeModal: state.showResumeModal,
+    nextEpisode,
+    previousEpisode,
+    navigate,
+    invalidateContinueWatching,
+    dispatch,
+  })
+
+  const { showNextEpisodePrompt } = useNextEpisodePrompt({
+    videoRef: refs.videoRef,
+    queue,
+    showId,
+    showMetaId: state.showMeta?.id,
+    currentEpisode: state.currentEpisode,
+    selectedSourceType: state.selectedSource?.type,
+    hasNextEpisode,
+    nextEpisode,
+    prefetchEpisodeSources,
+    setReachedEpisodeEnd,
+    matchesQueueItem,
+  })
+
   const shouldShowModal = state.showResumeModal && (isShowCompleted || !effectiveIsCompleted)
   const isEpisodeCompleted = effectiveIsCompleted && !isShowCompleted
   const shouldShowNextEpisodeModal =
@@ -308,195 +339,6 @@ const Player: React.FC = () => {
     showControls: actions.setShowControls,
     onFatalError: handleVideoSourceError,
   })
-
-  const matchesQueueItem = (item: QueueItem, id: string | undefined, metaId: string | undefined) =>
-    item.showId === id || (!!metaId && item.showId === metaId)
-
-  const handlePlaybackFinished = useCallback(() => {
-    actions.onEnded()
-
-    const itemToRemove = queue.find(
-      (item) =>
-        matchesQueueItem(item, showId, state.showMeta?.id) &&
-        item.episodeNumber === state.currentEpisode
-    )
-
-    if (queue.length > 0) {
-      const activeQueueIndex = queue.findIndex(
-        (item) =>
-          matchesQueueItem(item, showId, state.showMeta?.id) &&
-          item.episodeNumber === state.currentEpisode
-      )
-
-      const nextItem = activeQueueIndex >= 0 ? queue[activeQueueIndex + 1] || null : queue[0]
-
-      setPendingQueueTransition({ nextItem, playedItem: itemToRemove || null })
-      setQueueCountdown(2)
-    } else if (itemToRemove) {
-      removeQueueRef.current.mutate({
-        showId: itemToRemove.showId,
-        episodeNumber: itemToRemove.episodeNumber,
-      })
-    }
-
-    let didAutoplayNavigate = false
-    if (state.isAutoplayEnabled && queue.length === 0) {
-      const currentIndex = state.episodes.findIndex((ep) => ep === state.currentEpisode)
-      if (currentIndex > -1 && currentIndex < state.episodes.length - 1) {
-        const nextEpisode = state.episodes[currentIndex + 1]
-        queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
-        navigate(`/watch/${showId}/${nextEpisode}`)
-        didAutoplayNavigate = true
-      }
-    }
-
-    if (
-      !didAutoplayNavigate &&
-      queue.length === 0 &&
-      !pendingQueueTransition &&
-      !hasDismissedShowCompletedRef.current
-    ) {
-      if (isShowFinale(state.episodes, state.currentEpisode ?? undefined, state.showMeta.status)) {
-        dispatch({ type: 'SET_STATE', payload: { showResumeModal: true } })
-      }
-    }
-  }, [
-    actions,
-    navigate,
-    queue,
-    showId,
-    state.showMeta?.id,
-    state.showMeta?.status,
-    state.currentEpisode,
-    state.episodes,
-    state.isAutoplayEnabled,
-    pendingQueueTransition,
-    dispatch,
-    queryClient,
-  ])
-
-  const handleQueueTransition = useCallback(() => {
-    if (queue.length === 0) return
-
-    actions.onEnded()
-
-    const itemToRemove = queue.find(
-      (item) =>
-        matchesQueueItem(item, showId, state.showMeta?.id) &&
-        item.episodeNumber === state.currentEpisode
-    )
-    const activeQueueIndex = queue.findIndex(
-      (item) =>
-        matchesQueueItem(item, showId, state.showMeta?.id) &&
-        item.episodeNumber === state.currentEpisode
-    )
-    const nextItem = activeQueueIndex >= 0 ? queue[activeQueueIndex + 1] || null : queue[0]
-
-    if (itemToRemove) {
-      removeQueue.mutate({
-        showId: itemToRemove.showId,
-        episodeNumber: itemToRemove.episodeNumber,
-      })
-    }
-
-    if (nextItem) {
-      navigate(`/watch/${nextItem.showId}/${nextItem.episodeNumber}`)
-    } else if (itemToRemove) {
-      dispatch({ type: 'SET_STATE', payload: { showResumeModal: true } })
-    }
-  }, [
-    actions,
-    navigate,
-    queue,
-    removeQueue,
-    showId,
-    state.showMeta?.id,
-    state.currentEpisode,
-    dispatch,
-  ])
-
-  const handleNextEpisode = useCallback(() => {
-    if (nextEpisode) {
-      queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
-      setHasReachedEpisodeEnd(false)
-      navigate(`/watch/${showId}/${nextEpisode}`)
-    }
-    dispatch({ type: 'SET_STATE', payload: { showResumeModal: false } })
-  }, [nextEpisode, navigate, showId, dispatch, queryClient])
-
-  const handleNShortcut = useCallback(() => {
-    if (queue.length > 0) {
-      handleQueueTransition()
-    } else if (nextEpisode) {
-      handleNextEpisode()
-    } else {
-      toast.error('No next episode available')
-    }
-  }, [queue.length, handleQueueTransition, handleNextEpisode, nextEpisode])
-
-  const handlePreviousEpisode = () => {
-    if (previousEpisode) {
-      navigate(`/watch/${showId}/${previousEpisode}`)
-    }
-  }
-
-  useEffect(() => {
-    const videoElement = refs.videoRef.current
-    if (!videoElement) return
-    const handleVideoEnd = () => {
-      if (testClipActive) return
-      handlePlaybackFinished()
-    }
-    videoElement.addEventListener('ended', handleVideoEnd)
-    return () => {
-      if (videoElement) {
-        videoElement.removeEventListener('ended', handleVideoEnd)
-      }
-    }
-  }, [handlePlaybackFinished, refs.videoRef, testClipActive])
-
-  useEffect(() => {
-    const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== window.location.origin) return
-      if (state.selectedSource?.type !== 'iframe') return
-      if (event.data?.type !== 'ANI_WEB_MEDIA_ENDED') return
-
-      handlePlaybackFinished()
-    }
-
-    window.addEventListener('message', handleMessage)
-    return () => window.removeEventListener('message', handleMessage)
-  }, [handlePlaybackFinished, state.selectedSource?.type])
-
-  useEffect(() => {
-    if (!pendingQueueTransition || queueCountdown === null) return
-
-    if (queueCountdown <= 0) {
-      const { nextItem, playedItem } = pendingQueueTransition
-      setPendingQueueTransition(null)
-      setQueueCountdown(null)
-
-      if (playedItem) {
-        removeQueueRef.current.mutate({
-          showId: playedItem.showId,
-          episodeNumber: playedItem.episodeNumber,
-        })
-      }
-
-      if (nextItem) {
-        navigate(`/watch/${nextItem.showId}/${nextItem.episodeNumber}`)
-      } else if (playedItem) {
-        dispatch({ type: 'SET_STATE', payload: { showResumeModal: true } })
-      }
-      return
-    }
-
-    const timer = window.setTimeout(() => {
-      setQueueCountdown((value) => (value === null ? null : value - 1))
-    }, 1000)
-
-    return () => window.clearTimeout(timer)
-  }, [pendingQueueTransition, queueCountdown, navigate, dispatch])
 
   useEffect(() => {
     if (shouldPauseForModal && player.state.isFullscreen) {
@@ -627,16 +469,22 @@ const Player: React.FC = () => {
 
   const handleCloseModal = useCallback(() => {
     if (isShowCompleted) {
-      hasDismissedShowCompletedRef.current = true
+      markShowCompletedDismissed()
     }
     if (shouldShowNextEpisodeModal) {
-      setHasReachedEpisodeEnd(false)
+      resetReachedEpisodeEnd()
     }
     dispatch({ type: 'SET_STATE', payload: { showResumeModal: false } })
-  }, [dispatch, isShowCompleted, shouldShowNextEpisodeModal])
+  }, [
+    dispatch,
+    isShowCompleted,
+    shouldShowNextEpisodeModal,
+    markShowCompletedDismissed,
+    resetReachedEpisodeEnd,
+  ])
 
   const handleReplayCompleted = useCallback(() => {
-    setHasReachedEpisodeEnd(false)
+    resetReachedEpisodeEnd()
     if (refs.videoRef.current) {
       try {
         refs.videoRef.current.currentTime = 0
@@ -646,7 +494,7 @@ const Player: React.FC = () => {
       }
     }
     dispatch({ type: 'SET_STATE', payload: { showResumeModal: false } })
-  }, [dispatch, refs])
+  }, [dispatch, refs, resetReachedEpisodeEnd])
 
   const handleMoveToCompletedAndNavigate = useCallback(async () => {
     try {
@@ -691,24 +539,6 @@ const Player: React.FC = () => {
     </div>
   )
 
-  useEffect(() => {
-    if (!hasReachedEpisodeEnd) return
-    if (state.showResumeModal) return
-    if (queue.length > 0) return
-    if (pendingQueueTransition) return
-    if (hasDismissedShowCompletedRef.current) return
-    if (isShowCompleted) {
-      dispatch({ type: 'SET_STATE', payload: { showResumeModal: true } })
-    }
-  }, [
-    hasReachedEpisodeEnd,
-    isShowCompleted,
-    state.showResumeModal,
-    queue.length,
-    pendingQueueTransition,
-    dispatch,
-  ])
-
   const handleAutoplayChange = (checked: boolean) => {
     dispatch({ type: 'SET_STATE', payload: { isAutoplayEnabled: checked } })
     storeAutoplayEnabled(checked)
@@ -720,79 +550,6 @@ const Player: React.FC = () => {
 
   const showManualWatchedButton =
     state.selectedProvider !== 'megaplay' || state.selectedSource?.type === 'iframe'
-  const prefetchNextEpisodeRef = useRef(prefetchEpisodeSources)
-  prefetchNextEpisodeRef.current = prefetchEpisodeSources
-  const prefetchedForRef = useRef<string>('')
-
-  useEffect(() => {
-    const videoElement = refs.videoRef.current
-
-    setShowNextEpisodePrompt(false)
-    setHasReachedEpisodeEnd(false)
-
-    if (!videoElement || state.selectedSource?.type === 'iframe') return
-
-    const handleThresholds = () => {
-      const duration = videoElement.duration
-      const currentTime = videoElement.currentTime
-
-      if (!duration || Number.isNaN(duration)) {
-        setShowNextEpisodePrompt(false)
-        setHasReachedEpisodeEnd(false)
-        return
-      }
-
-      if (duration - currentTime <= 60) {
-        const activeQueueIndex = queue.findIndex(
-          (item) =>
-            matchesQueueItem(item, showId, state.showMeta?.id) &&
-            item.episodeNumber === state.currentEpisode
-        )
-        const nextQueueItem =
-          queue.length > 0
-            ? activeQueueIndex >= 0
-              ? queue[activeQueueIndex + 1] || null
-              : queue[0]
-            : null
-
-        const prefetchKey = nextQueueItem
-          ? `${nextQueueItem.showId}:${nextQueueItem.episodeNumber}`
-          : hasNextEpisode
-            ? `${showId}:${nextEpisode}`
-            : ''
-
-        if (prefetchKey && prefetchedForRef.current !== prefetchKey) {
-          prefetchedForRef.current = prefetchKey
-          if (nextQueueItem) {
-            prefetchNextEpisodeRef.current(nextQueueItem.episodeNumber, nextQueueItem.showId)
-          } else {
-            prefetchNextEpisodeRef.current(nextEpisode ?? '')
-          }
-        }
-      }
-
-      setShowNextEpisodePrompt(hasNextEpisode && isProgressCompleted(currentTime, duration))
-      setHasReachedEpisodeEnd(currentTime >= Math.max(duration * 0.98, duration - 10))
-    }
-
-    handleThresholds()
-    videoElement.addEventListener('timeupdate', handleThresholds)
-    videoElement.addEventListener('loadedmetadata', handleThresholds)
-
-    return () => {
-      videoElement.removeEventListener('timeupdate', handleThresholds)
-      videoElement.removeEventListener('loadedmetadata', handleThresholds)
-    }
-  }, [
-    refs.videoRef,
-    hasNextEpisode,
-    state.currentEpisode,
-    state.selectedSource,
-    nextEpisode,
-    showId,
-    queue,
-    state.showMeta?.id,
-  ])
 
   const handleMarkEpisodeWatched = useCallback(async () => {
     if (!showId || !state.currentEpisode || !state.showMeta.name || isMarkingWatched) return
@@ -1131,8 +888,7 @@ const Player: React.FC = () => {
                         refs.videoRef.current &&
                         refs.videoRef.current.currentTime < refs.videoRef.current.duration - 1
                       ) {
-                        setPendingQueueTransition(null)
-                        setQueueCountdown(null)
+                        cancelQueueTransition()
                       }
                     }}
                     onVolumeChange={actions.onVolumeChange}

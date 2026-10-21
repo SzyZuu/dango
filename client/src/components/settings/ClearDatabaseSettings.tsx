@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button } from '../common/Button'
 import { Modal } from '../common/Modal'
+import { fetchWithLocalHeaders } from '../../lib/fetchApi'
 import styles from './ClearDatabaseSettings.module.css'
 
 const ClearDatabaseSettings: React.FC = () => {
@@ -28,7 +29,7 @@ const ClearDatabaseSettings: React.FC = () => {
     setIsClearing(true)
     setStatusMessage('')
     try {
-      const res = await fetch('/api/database/clear', {
+      const res = await fetchWithLocalHeaders('/api/database/clear', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ confirm: true }),

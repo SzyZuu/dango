@@ -16,6 +16,7 @@ import ServerPortSettings from '../components/settings/ServerPortSettings'
 import ThemeSettings from '../components/settings/ThemeSettings'
 import Icon from '../components/common/Icon'
 import { trpcClient } from '../lib/trpc'
+import { fetchWithLocalHeaders } from '../lib/fetchApi'
 import { useLowEndMode } from '../contexts/LowEndModeContext'
 import ToggleSwitch from '../components/common/ToggleSwitch'
 import {
@@ -221,7 +222,7 @@ const Settings: React.FC = () => {
     formData.append('dbfile', file)
 
     try {
-      const response = await fetch('/api/restore-db', {
+      const response = await fetchWithLocalHeaders('/api/restore-db', {
         method: 'POST',
         body: formData,
       })

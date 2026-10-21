@@ -79,7 +79,7 @@ export default function Manga() {
     () =>
       serverProviders
         .filter((o) => o.kind === 'manga')
-        .map((o) => ({ value: o.value, label: o.label })),
+        .map((o) => ({ value: o.id, label: o.label })),
     [serverProviders]
   )
   const urlProvider = (searchParams.get('provider') as MangaProviderName) || ''

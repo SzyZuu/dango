@@ -164,7 +164,7 @@ export default function Mature() {
   const providerOptions = useMemo(
     () => [
       ...META_PROVIDER_OPTIONS,
-      ...matureStreamingOptions.map((o) => ({ value: o.value, label: o.label })),
+      ...matureStreamingOptions.map((o) => ({ value: o.id, label: o.label })),
     ],
     [matureStreamingOptions]
   )

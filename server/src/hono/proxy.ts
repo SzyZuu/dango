@@ -326,7 +326,7 @@ export function registerProxy(app: Hono, getProxyRules: () => RemoteProxyRule[])
     const variantRaw = c.req.query('variant')
     const variantIdx = variantRaw !== undefined ? parseInt(variantRaw, 10) : NaN
     const pinVar = Number.isInteger(variantIdx) && (variantIdx as number) >= 0
-    const cacheKey = `m3u8-${urlStr}-${refererStr}-${originStr}-${uaStr}${pinVar ? `-v${variantIdx}` : ''}`
+    const cacheKey = `m3u8-${urlStr}-${refererStr}-${originStr}-${uaStr}-${sanitizeCfClearance(cookieStr)}-${useScrape ? 'scrape' : 'raw'}-${useCf ? 'cf' : 'nocf'}${pinVar ? `-v${variantIdx}` : ''}`
 
     const abort = new AbortController()
     linkAbort(c.req.raw.signal, abort)
@@ -422,8 +422,6 @@ export function registerProxy(app: Hono, getProxyRules: () => RemoteProxyRule[])
         return playlistResponse(rewritten)
       } else {
         if (useScrape) {
-          if (range) headers['Range'] = range
-
           const resp = await fetchWithMirrors(
             urlStr,
             rule?.mirrors,
@@ -871,15 +869,20 @@ export function registerProxy(app: Hono, getProxyRules: () => RemoteProxyRule[])
     }
 
     try {
-      const response = await fetch(targetUrl, {
-        method: 'GET',
-        headers: {
-          'User-Agent':
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      const response = await fetchWithRetry(
+        targetUrl,
+        {
+          method: 'GET',
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          },
+          redirect: 'follow',
         },
-        redirect: 'follow',
-      })
+        { retries: 2, timeoutMs: 15000 }
+      )
+      void response.body?.cancel().catch(() => {})
 
       return c.json({
         finalUrl: response.url,

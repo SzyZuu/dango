@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { Modal } from '../common/Modal'
 import styles from './LanAuthModal.module.css'
 import { Button } from '../common/Button'
+import { fetchWithLocalHeaders } from '../../lib/fetchApi'
 import toast from 'react-hot-toast'
 
 interface LanAuthModalProps {
@@ -28,7 +29,7 @@ const LanAuthModal: React.FC<LanAuthModalProps> = ({ isOpen, onClose, onSuccess 
 
     setIsSubmitting(true)
     try {
-      const res = await fetch('/api/auth/app-login', {
+      const res = await fetchWithLocalHeaders('/api/auth/app-login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),

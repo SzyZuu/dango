@@ -21,7 +21,7 @@ const TRENDING_SORTS = [
 function useDefaultMangaProvider(): string {
   const { options } = useProviders()
   return useMemo(
-    () => options.filter((o) => o.kind === 'manga').map((o) => o.value)[0] ?? '',
+    () => options.filter((o) => o.kind === 'manga').map((o) => o.id)[0] ?? '',
     [options]
   )
 }

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { Button } from '../common/Button'
+import { fetchWithLocalHeaders } from '../../lib/fetchApi'
 import styles from './LanAuthSettings.module.css'
 
 const LanAuthSettings: React.FC = () => {
@@ -13,7 +14,7 @@ const LanAuthSettings: React.FC = () => {
   useEffect(() => {
     const checkStatus = async () => {
       try {
-        const res = await fetch('/api/auth/app-status')
+        const res = await fetchWithLocalHeaders('/api/auth/app-status')
         const data = await res.json()
         setHasPassword(data.hasPassword)
       } catch {
@@ -38,7 +39,7 @@ const LanAuthSettings: React.FC = () => {
 
     setIsSubmitting(true)
     try {
-      const res = await fetch('/api/auth/app-setup', {
+      const res = await fetchWithLocalHeaders('/api/auth/app-setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password }),
@@ -65,7 +66,7 @@ const LanAuthSettings: React.FC = () => {
   const handleRemove = async () => {
     setIsSubmitting(true)
     try {
-      const res = await fetch('/api/auth/app-setup', {
+      const res = await fetchWithLocalHeaders('/api/auth/app-setup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ password: '' }),
@@ -92,7 +93,7 @@ const LanAuthSettings: React.FC = () => {
   const handleLogout = async () => {
     setIsSubmitting(true)
     try {
-      await fetch('/api/auth/app-logout', { method: 'POST' })
+      await fetchWithLocalHeaders('/api/auth/app-logout', { method: 'POST' })
       setStatus('Logged out')
       window.location.reload()
     } catch {

@@ -40,12 +40,10 @@ const useVideoPlayer = ({
   const trpc = useTRPC()
   const videoRef = useRef<HTMLVideoElement>(null)
   const playerContainerRef = useRef<HTMLDivElement>(null)
-  const progressBarRef = useRef<HTMLDivElement>(null)
   const inactivityTimer = useRef<number | null>(null)
   const wasPlayingBeforeScrub = useRef(false)
   const debouncedUpdateTimer = useRef<NodeJS.Timeout | null>(null)
   const lastThrottledUpdateTime = useRef(0)
-  const normalPlaybackRateRef = useRef(1)
   const speedBoostRef = useRef({
     mouse: false,
     keyboard: false,
@@ -76,15 +74,10 @@ const useVideoPlayer = ({
   const [duration, setDuration] = useState(0)
   const [showControls, setShowControls] = useState(true)
   const [isScrubbing, setIsScrubbing] = useState(false)
-  const [hoverTime, setHoverTime] = useState<{ time: number; position: number | null }>({
-    time: 0,
-    position: null,
-  })
   const [isAutoSkipEnabled, setIsAutoSkipEnabled] = useState(
     localStorage.getItem('autoSkipEnabled') === 'true'
   )
   const [currentSkipInterval, setCurrentSkipInterval] = useState<SkipInterval | null>(null)
-  const [showCCMenu, setShowCCMenu] = useState(false)
   const [initialSubtitleStyle] = useState(loadSubtitleStyle)
   const [subtitleFontSize, setSubtitleFontSize] = useState(initialSubtitleStyle.fontSize)
   const [subtitlePosition, setSubtitlePosition] = useState(initialSubtitleStyle.position)
@@ -240,7 +233,7 @@ const useVideoPlayer = ({
     if (!video) return
 
     const shouldBoost = speedBoostRef.current.mouse || speedBoostRef.current.keyboard
-    video.playbackRate = shouldBoost ? 2 : normalPlaybackRateRef.current
+    video.playbackRate = shouldBoost ? 2 : 1
   }, [])
 
   const setMouseSpeedBoost = useCallback(
@@ -590,7 +583,6 @@ const useVideoPlayer = ({
       localStorage.setItem('playerVolume', String(newVolume))
     }
   }, [])
-  const onProgress = useCallback(() => {}, [])
   const onTimeUpdate = useCallback(() => {
     const video = videoRef.current
     if (!video) return
@@ -643,7 +635,6 @@ const useVideoPlayer = ({
     const handleScrubEnd = () => {
       if (isScrubbing) {
         setIsScrubbing(false)
-        setHoverTime({ time: 0, position: null })
         if (wasPlayingBeforeScrub.current) {
           videoRef.current?.play()
         }
@@ -677,15 +668,12 @@ const useVideoPlayer = ({
       onLoadedMetadata,
       formatTime,
       onVolumeChange,
-      onProgress,
       onTimeUpdate,
       onEnded,
       setShowControls,
       setIsScrubbing,
-      setHoverTime,
       setIsAutoSkipEnabled,
       setCurrentSkipInterval,
-      setShowCCMenu,
       setSubtitleFontSize,
       setSubtitlePosition,
       setSubtitleBgOpacity,
@@ -716,7 +704,6 @@ const useVideoPlayer = ({
       onPause,
       onLoadedMetadata,
       onVolumeChange,
-      onProgress,
       onTimeUpdate,
       onEnded,
       setIsFullscreen,
@@ -730,7 +717,7 @@ const useVideoPlayer = ({
   )
 
   return {
-    refs: { videoRef, playerContainerRef, progressBarRef },
+    refs: { videoRef, playerContainerRef },
     state: {
       isPlaying,
       isMuted,
@@ -739,10 +726,8 @@ const useVideoPlayer = ({
       duration,
       showControls,
       isScrubbing,
-      hoverTime,
       isAutoSkipEnabled,
       currentSkipInterval,
-      showCCMenu,
       subtitleFontSize,
       subtitlePosition,
       subtitleBgOpacity,

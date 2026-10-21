@@ -1,7 +1,7 @@
 import React from 'react'
 import styles from './Player.module.css'
 import type { VideoLink, VideoSource } from '../../types/player'
-import { SUB_LABEL, TIER_LABEL, TIER_ORDER, type ProviderOption } from './providers'
+import { SUB_LABEL, TIER_LABEL, TIER_ORDER, type ProviderOption } from '../../types/providers'
 
 interface ProviderSelectorProps {
   selectedProvider: string
@@ -33,7 +33,7 @@ export const ProviderSelector: React.FC<ProviderSelectorProps> = ({
           return (
             <optgroup key={tier} label={TIER_LABEL[tier]}>
               {group.map((option) => (
-                <option key={option.value} value={option.value}>
+                <option key={option.id} value={option.id}>
                   {option.sub ? `${option.label} (${SUB_LABEL[option.sub]})` : option.label}
                 </option>
               ))}

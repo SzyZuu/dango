@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import styles from './TitlePreferenceToggle.module.css'
 import { useTitlePreference } from '../../contexts/TitlePreferenceContext'
 import type { TitlePreference } from '../../contexts/TitlePreferenceContext'
-import { trpcClient } from '../../lib/trpc'
+import { useUpdateSetting } from '../../hooks/useSettings'
 
 const preferences: readonly TitlePreference[] = ['name', 'nativeName', 'englishName']
 const preferenceLabels: Record<TitlePreference, string> = {
@@ -13,6 +13,7 @@ const preferenceLabels: Record<TitlePreference, string> = {
 
 const TitlePreferenceToggle: React.FC = () => {
   const { titlePreference: selectedPreference, setTitlePreference, loading } = useTitlePreference()
+  const updateSetting = useUpdateSetting()
   const [currentLabel, setCurrentLabel] = useState(preferenceLabels[selectedPreference])
   const [isAnimating, setIsAnimating] = useState(false)
   const labelRef = useRef<HTMLSpanElement>(null)
@@ -53,7 +54,7 @@ const TitlePreferenceToggle: React.FC = () => {
         labelRef.current.style.opacity = '1'
       }
       try {
-        await trpcClient.settings.set.mutate({ key: 'titlePreference', value: newPreference })
+        await updateSetting.mutateAsync({ key: 'titlePreference', value: newPreference })
       } catch (err) {
         console.error('Error saving title preference:', err)
       } finally {

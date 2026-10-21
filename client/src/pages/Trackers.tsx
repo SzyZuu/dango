@@ -1,10 +1,11 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
-import { useSidebar } from '../hooks/useSidebar'
+import { useSidebar } from '../contexts/SidebarContext'
 import { useContentType } from '../contexts/ContentTypeContext'
 import { useAnilistAuthCallback } from '../hooks/useAnilistAuthCallback'
 import { trpcClient } from '../lib/trpc'
+import { fetchWithLocalHeaders } from '../lib/fetchApi'
 import { Button } from '../components/common/Button'
 import Icon from '../components/common/Icon'
 
@@ -235,7 +236,10 @@ const Trackers: React.FC = () => {
       const formData = new FormData()
       formData.append('xmlfile', fileInput.files[0])
       formData.append('erase', String(eraseManga))
-      const res = await fetch('/api/import/mal-xml-manga', { method: 'POST', body: formData })
+      const res = await fetchWithLocalHeaders('/api/import/mal-xml-manga', {
+        method: 'POST',
+        body: formData,
+      })
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Import failed')
       setMalMangaXmlResult({ imported: data.imported ?? 0, skipped: data.skipped ?? 0 })
@@ -333,7 +337,7 @@ const Trackers: React.FC = () => {
       formData.append('useOfflineDb', String(useOfflineDb))
       formData.append('skipFallback', String(skipFallback))
 
-      const response = await fetch('/api/import/mal-xml', {
+      const response = await fetchWithLocalHeaders('/api/import/mal-xml', {
         method: 'POST',
         body: formData,
         signal: controller.signal,

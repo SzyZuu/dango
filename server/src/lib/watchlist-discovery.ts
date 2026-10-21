@@ -280,4 +280,5 @@ export function startWatchlistDiscovery(getDb: () => DatabaseWrapper): void {
   discoveryIntervalId = setInterval(() => {
     if (!discoveryStopped) runDiscovery(false)
   }, BACKGROUND_DISCOVERY_INTERVAL_MS)
+  discoveryIntervalId.unref()
 }

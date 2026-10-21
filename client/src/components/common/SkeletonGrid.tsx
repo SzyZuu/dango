@@ -1,5 +1,5 @@
 import React from 'react'
-import AnimeCardSkeleton from '../anime/AnimeCardSkeleton'
+import AnimeCardSkeleton from './AnimeCardSkeleton'
 
 interface SkeletonGridProps {
   count?: number

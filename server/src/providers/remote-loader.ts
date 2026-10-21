@@ -18,6 +18,7 @@ import { kitsuMetaByAnilistId } from '../lib/kitsu.js'
 import type { Provider } from './provider.interface.js'
 import type { MangaProvider } from './manga/manga.types.js'
 import type { TvProvider } from './tv.types.js'
+import { isJasmrApi, type JasmrApi } from './asmr/asmr.types.js'
 import { getTmdbKey, TMDB_BASE, TMDB_IMAGE } from '../lib/tmdb.js'
 import {
   parseRegistry,
@@ -32,6 +33,7 @@ export interface RemoteLoadResult {
   providers: Record<string, Provider>
   mangaProviders: Record<string, MangaProvider>
   tvProviders: Record<string, TvProvider>
+  asmrProviders: Record<string, JasmrApi>
   catalog: ProviderCatalogItem[]
   proxyRules: RemoteProxyRule[]
 }
@@ -345,6 +347,39 @@ function isValidTvProvider(p: unknown): p is TvProvider {
   return !!o && (typeof o.getSources === 'function' || typeof o.getEmbedUrl === 'function')
 }
 
+function validateProviderShape(kind: RemoteProviderEntry['kind'], p: unknown): boolean {
+  if (kind === 'manga') return isValidMangaProvider(p)
+  if (kind === 'tv') return isValidTvProvider(p)
+  if (kind === 'asmr') return isJasmrApi(p)
+  return isValidVideoProvider(p)
+}
+
+function assignProvider(
+  out: RemoteLoadResult,
+  item: RemoteProviderEntry,
+  key: string,
+  provider: unknown
+): boolean {
+  if (item.kind === 'manga') {
+    if (!isValidMangaProvider(provider)) return false
+    out.mangaProviders[key] = provider
+    return true
+  }
+  if (item.kind === 'tv') {
+    if (!isValidTvProvider(provider)) return false
+    out.tvProviders[key] = provider
+    return true
+  }
+  if (item.kind === 'asmr') {
+    if (!isJasmrApi(provider)) return false
+    out.asmrProviders[key] = provider
+    return true
+  }
+  if (!isValidVideoProvider(provider)) return false
+  out.providers[key] = provider
+  return true
+}
+
 function makeEmbedProvider(id: string, base: string): TvProvider {
   const root = base.trim().replace(/\/+$/, '')
   return {
@@ -478,13 +513,7 @@ async function instantiateModule(
       error: `factory failed: ${(err as Error).message}`,
     }
   }
-  if (
-    item.kind === 'manga'
-      ? !isValidMangaProvider(provider)
-      : item.kind === 'tv'
-        ? !isValidTvProvider(provider)
-        : !isValidVideoProvider(provider)
-  ) {
+  if (!validateProviderShape(item.kind, provider)) {
     return { provider: null, error: 'invalid provider shape' }
   }
   return { provider, facets: extractBrowseFacets(mod) }
@@ -517,6 +546,7 @@ export async function loadRemoteProviders(opts: LoadOptions): Promise<RemoteLoad
     providers: {},
     mangaProviders: {},
     tvProviders: {},
+    asmrProviders: {},
     catalog: [],
     proxyRules: [],
   }
@@ -577,13 +607,7 @@ export async function loadRemoteProviders(opts: LoadOptions): Promise<RemoteLoad
       allowUnsigned
     )
     if (provider && !error) {
-      if (item.kind === 'manga' && isValidMangaProvider(provider)) {
-        out.mangaProviders[key] = provider
-      } else if (item.kind === 'tv' && isValidTvProvider(provider)) {
-        out.tvProviders[key] = provider
-      } else if (item.kind !== 'manga' && item.kind !== 'tv' && isValidVideoProvider(provider)) {
-        out.providers[key] = provider
-      } else {
+      if (!assignProvider(out, item, key, provider)) {
         out.catalog.push(toCatalog(item, false, 'invalid provider shape for kind'))
         logger.warn({ provider: item.id }, 'remote provider kind mismatch, skipped')
         continue
@@ -596,17 +620,7 @@ export async function loadRemoteProviders(opts: LoadOptions): Promise<RemoteLoad
       if (prev && prev.version !== item.version) {
         const fb = await loadCachedFallback(item, prev, cacheDir, ctx)
         if (fb.provider && !fb.error) {
-          if (item.kind === 'manga' && isValidMangaProvider(fb.provider)) {
-            out.mangaProviders[key] = fb.provider
-          } else if (item.kind === 'tv' && isValidTvProvider(fb.provider)) {
-            out.tvProviders[key] = fb.provider
-          } else if (
-            item.kind !== 'manga' &&
-            item.kind !== 'tv' &&
-            isValidVideoProvider(fb.provider)
-          ) {
-            out.providers[key] = fb.provider
-          } else {
+          if (!assignProvider(out, item, key, fb.provider)) {
             fb.error = 'cached fallback failed validation'
           }
         }

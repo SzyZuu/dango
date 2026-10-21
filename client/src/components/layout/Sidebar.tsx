@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, NavLink } from 'react-router'
-import { useSidebar } from '../../hooks/useSidebar'
+import { useSidebar } from '../../contexts/SidebarContext'
 import { useMatureConsent } from '../../hooks/useMatureConsent'
 import { useContentType } from '../../contexts/ContentTypeContext'
 import styles from './Sidebar.module.css'

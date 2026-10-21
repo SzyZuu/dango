@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { useParams, useNavigate, useSearchParams } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { trpcClient } from '../lib/trpc'
+import { fetchApi } from '../lib/fetchApi'
 import { clearDiscordPresence } from '../lib/trpcBeacon'
 import toast from 'react-hot-toast'
 import Icon from '../components/common/Icon'
@@ -31,7 +32,7 @@ import {
 } from '../lib/playbackCompletion'
 import { loadHls, canPlayHlsNatively } from '../lib/hls'
 import { formatTime } from '../lib/utils'
-import { bindHlsAudioTracks, type HlsAudioHost } from '../lib/hlsAudio'
+import { bindHlsAudioTracks, type HlsAudioHost } from '../components/tv/hlsAudio'
 import { pickSubtitleIndex, subtitleKey } from '../lib/subtitles'
 import { isConstrainedDevice } from '../lib/deviceProfile'
 import {
@@ -186,7 +187,7 @@ const Tv: React.FC = () => {
       providerOptions
         .filter((o) => (o.kind ?? 'tv') === 'tv')
         .map((o) => ({
-          id: o.value,
+          id: o.id,
           label: o.label,
           tier: o.tier === 'embed' ? 'embed' : 'direct',
           servers: o.servers,
@@ -239,8 +240,7 @@ const Tv: React.FC = () => {
       return
     }
     let cancelled = false
-    fetch(`/api/resolve?url=${encodeURIComponent(embedFallbackUrl)}`)
-      .then((r) => r.json())
+    fetchApi(`/api/resolve?url=${encodeURIComponent(embedFallbackUrl)}`)
       .then((d: { finalUrl?: string }) => {
         if (!cancelled && d.finalUrl) setEmbedResolvedUrl(d.finalUrl)
       })
@@ -1057,16 +1057,13 @@ const Tv: React.FC = () => {
   useEffect(() => {
     if (!isEmbedProvider || !details || !id) return
     const type = isMovie ? 'movie' : 'tv'
-    fetch(`/api/tv/embed/${source}/${type}/${id}?season=${season}&episode=${episode}`)
-      .then((r) => r.json())
+    fetchApi(`/api/tv/embed/${source}/${type}/${id}?season=${season}&episode=${episode}`)
       .then((data: { url?: string }) => {
         if (!data.url) return
         setIframeUrl(data.url)
-        return fetch(`/api/resolve?url=${encodeURIComponent(data.url)}`)
-          .then((r) => r.json())
-          .then((resolved) => {
-            if (resolved.finalUrl) setIframeUrl(resolved.finalUrl)
-          })
+        return fetchApi(`/api/resolve?url=${encodeURIComponent(data.url)}`).then((resolved) => {
+          if (resolved.finalUrl) setIframeUrl(resolved.finalUrl)
+        })
       })
       .catch(() => {})
   }, [source, details, id, season, episode, isMovie, isEmbedProvider])

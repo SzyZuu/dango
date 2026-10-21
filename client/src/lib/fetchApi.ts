@@ -6,8 +6,9 @@ export const fetchWithLocalHeaders = async (
   url: RequestInfo | URL,
   init?: RequestInit
 ): Promise<Response> => {
-  const headers: Record<string, string> = {
-    'Content-Type': 'application/json',
+  const headers: Record<string, string> = {}
+  if (!init?.body || !(init.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json'
   }
   const target = typeof url === 'string' ? url : url.toString()
   const isLocalEndpoint =

@@ -1,6 +1,6 @@
 import React from 'react'
 import AnimeCard from './AnimeCard'
-import AnimeCardSkeleton from './AnimeCardSkeleton'
+import AnimeCardSkeleton from '../common/AnimeCardSkeleton'
 import MediaSection from '../common/MediaSection'
 import type { AnimeShow as Anime } from '../../types/player'
 
@@ -80,27 +80,16 @@ const AnimeSection: React.FC<AnimeSectionProps> = ({
       loadingSkeleton={<AnimeCardSkeleton layout={currentLayout} />}
       skeletonCount={7}
     >
-      {carousel
-        ? animeList.map((anime) => (
-            <AnimeCard
-              key={anime._id}
-              anime={anime}
-              continueWatching={continueWatching}
-              onRemove={onRemove}
-              config={cardConfig}
-              layout={currentLayout}
-            />
-          ))
-        : animeList.map((anime) => (
-            <AnimeCard
-              key={anime._id}
-              anime={anime}
-              continueWatching={continueWatching}
-              onRemove={onRemove}
-              config={cardConfig}
-              layout={currentLayout}
-            />
-          ))}
+      {animeList.map((anime) => (
+        <AnimeCard
+          key={anime._id}
+          anime={anime}
+          continueWatching={continueWatching}
+          onRemove={onRemove}
+          config={cardConfig}
+          layout={currentLayout}
+        />
+      ))}
     </MediaSection>
   )
 }

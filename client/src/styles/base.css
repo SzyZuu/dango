@@ -187,6 +187,40 @@ main {
   }
 }
 
+/* ===== FILTER CHIPS ===== */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1-5);
+  padding: var(--space-1) var(--space-2-5);
+  border-radius: var(--radius-full);
+  border: 1px solid var(--border-primary);
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  white-space: nowrap;
+}
+
+.badge-primary {
+  border-color: color-mix(in srgb, var(--accent) 35%, transparent);
+  background: var(--accent-subtle);
+  color: var(--accent-light);
+}
+
+.badge-secondary {
+  border-color: var(--border-secondary);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+}
+
+.badge-danger {
+  border-color: color-mix(in srgb, var(--color-danger) 35%, transparent);
+  background: color-mix(in srgb, var(--color-danger) 12%, transparent);
+  color: var(--color-danger);
+}
+
 /* ===== SECTION ===== */
 .section-title {
   font-size: 1.75rem;

@@ -20,7 +20,7 @@ import {
   initializeTvDatabase,
   initializeAsmrDatabase,
 } from './db/ddl.js'
-import { isJasmrApi } from './providers/asmr/asmr.types.js'
+import type { JasmrApi } from './providers/asmr/asmr.types.js'
 import type { MangaProvider } from './providers/manga/manga.types.js'
 import type { TvProvider } from './providers/tv.types.js'
 import { loadRemoteProviders } from './providers/remote-loader.js'
@@ -59,10 +59,7 @@ const app = createHonoApp(
     getMangaProvider: (name) => mangaProviders[name],
     getTvProvider: (name) => tvProviders[name],
     getProxyRules: () => proxyRules,
-    getJasmr: () => {
-      const mod = providers['jasmr']
-      return isJasmrApi(mod) ? mod : undefined
-    },
+    getJasmr: () => asmrProviders['jasmr'],
   }
 )
 
@@ -71,6 +68,7 @@ const apiCache = new AppCache({ ttlSeconds: 3600, maxKeys: 5000 })
 const providers: Record<string, Provider> = {}
 const mangaProviders: Record<string, MangaProvider> = {}
 const tvProviders: Record<string, TvProvider> = {}
+const asmrProviders: Record<string, JasmrApi> = {}
 let proxyRules: RemoteProxyRule[] = []
 
 let remoteCatalog: ProviderCatalogItem[] = []
@@ -110,6 +108,10 @@ async function refreshRemoteProviders(): Promise<ProviderCatalogItem[]> {
       if (!(key in result.tvProviders)) delete tvProviders[key]
     }
     Object.assign(tvProviders, result.tvProviders)
+    for (const key of Object.keys(asmrProviders)) {
+      if (!(key in result.asmrProviders)) delete asmrProviders[key]
+    }
+    Object.assign(asmrProviders, result.asmrProviders)
     proxyRules = result.proxyRules
     remoteCatalog = result.catalog
     logger.info(
@@ -117,7 +119,7 @@ async function refreshRemoteProviders(): Promise<ProviderCatalogItem[]> {
         count: result.catalog.filter((c) => c.kind === 'anime' && c.loaded).length,
         mangaCount: Object.keys(result.mangaProviders).length,
         tvCount: Object.keys(result.tvProviders).length,
-        asmrCount: result.catalog.filter((c) => c.kind === 'asmr' && c.loaded).length,
+        asmrCount: Object.keys(result.asmrProviders).length,
       },
       'remote providers refreshed'
     )

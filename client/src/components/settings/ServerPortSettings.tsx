@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { Button } from '../common/Button'
 import { trpcClient } from '../../lib/trpc'
+import { fetchApi } from '../../lib/fetchApi'
 import styles from './LanAuthSettings.module.css'
 
 const ServerPortSettings: React.FC = () => {
@@ -10,8 +11,7 @@ const ServerPortSettings: React.FC = () => {
   const [status, setStatus] = useState('')
 
   useEffect(() => {
-    fetch('/api/auth/app-status')
-      .then((res) => res.json())
+    fetchApi('/api/auth/app-status')
       .then((data) => setPort(String(data.port ?? 3000)))
       .catch(() => setStatus('Failed to load current port'))
       .finally(() => setIsLoading(false))

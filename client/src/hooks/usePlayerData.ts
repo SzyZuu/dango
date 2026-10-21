@@ -308,13 +308,12 @@ export const usePlayerData = (
     const isMatureShow = showMeta.isAdult === true
     const candidates = animeOptions.filter((o) => o.mature === isMatureShow)
     if (candidates.length === 0) return
-    if (animeOptions.find((o) => o.value === uiState.selectedProvider)?.mature === isMatureShow)
-      return
+    if (animeOptions.find((o) => o.id === uiState.selectedProvider)?.mature === isMatureShow) return
     const stored = loadPreferredProvider(isMatureShow)
     hasForcedAdultProvider.current = showId ?? null
     dispatch({
       type: 'SET_PROVIDER',
-      payload: candidates.find((o) => o.value === stored)?.value ?? candidates[0].value,
+      payload: candidates.find((o) => o.id === stored)?.id ?? candidates[0].id,
     })
   }, [showMeta?.isAdult, uiState.selectedProvider, showId, animeOptions])
 

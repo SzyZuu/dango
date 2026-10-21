@@ -76,11 +76,11 @@ const Player: React.FC = () => {
     [providerOptions]
   )
   const DIRECT_PROVIDER_ORDER: string[] = useMemo(
-    () => animeOptions.map((option) => option.value),
+    () => animeOptions.map((option) => option.id),
     [animeOptions]
   )
   const MATURE_PROVIDERS = useMemo(
-    () => new Set(animeOptions.filter((option) => option.mature).map((option) => option.value)),
+    () => new Set(animeOptions.filter((option) => option.mature).map((option) => option.id)),
     [animeOptions]
   )
 
@@ -275,7 +275,9 @@ const Player: React.FC = () => {
     storeFallbackAction(value === 'ask' ? null : value)
   }, [])
   const fallbackChoiceRef = useRef(fallbackChoice)
-  fallbackChoiceRef.current = fallbackChoice
+  useEffect(() => {
+    fallbackChoiceRef.current = fallbackChoice
+  }, [fallbackChoice])
   const videoSourcesRef = useRef(state.videoSources)
   videoSourcesRef.current = state.videoSources
   const handleVideoSourceErrorRef = useRef<() => void>(() => {})
@@ -1821,7 +1823,6 @@ const Player: React.FC = () => {
                         setQueueCountdown(null)
                       }
                     }}
-                    onProgress={actions.onProgress}
                     onVolumeChange={actions.onVolumeChange}
                     onWaiting={actions.onWaiting}
                     onPlaying={actions.onPlaying}

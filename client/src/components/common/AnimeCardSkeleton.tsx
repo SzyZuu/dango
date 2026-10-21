@@ -1,7 +1,6 @@
 import React from 'react'
 import styles from './AnimeCardSkeleton.module.css'
 import { useLowEndMode } from '../../contexts/LowEndModeContext'
-
 interface AnimeCardSkeletonProps {
   layout?: 'vertical' | 'horizontal'
 }

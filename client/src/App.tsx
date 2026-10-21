@@ -7,7 +7,8 @@ import Footer from './components/layout/Footer'
 import { useDiscordPageStatus } from './hooks/useDiscordRPC'
 import { useLocalStorage } from './hooks/useLocalStorage'
 import { useVirtualKeyboard } from './hooks/useVirtualKeyboard'
-import { useAnimePaheCookie } from './hooks/useAnimePaheCookie'
+import { fetchApi } from './lib/fetchApi'
+import { useAnimePaheCookie } from './contexts/AnimePaheCookieContext'
 import AnimePaheCookieModal from './components/anime/AnimePaheCookieModal'
 const Home = lazy(() => import('./pages/Home'))
 const Watchlist = lazy(() => import('./pages/Watchlist'))
@@ -31,13 +32,13 @@ const AnimeInfoPage = lazy(() => import('./pages/AnimeInfoPage'))
 const PlayerRedirect = lazy(() => import('./pages/PlayerRedirect'))
 const VirtualKeyboard = lazy(() => import('./components/common/VirtualKeyboard'))
 
-import { useSidebar } from './hooks/useSidebar'
+import { useSidebar } from './contexts/SidebarContext'
 import { useDangoAnimation } from './hooks/useDangoAnimation'
 import { Toaster } from 'react-hot-toast'
 import TopProgressBar from './components/common/TopProgressBar'
 import ErrorBoundary from './components/common/ErrorBoundary'
 import { LanAuthProvider } from './contexts/LanAuthProvider'
-import { useLanAuth } from './hooks/useLanAuth'
+import { useLanAuth } from './contexts/LanAuthContext'
 import LanAuthModal from './components/modals/LanAuthModal'
 
 function App() {
@@ -59,8 +60,7 @@ function App() {
   const [lanLocked, setLanLocked] = useState(false)
 
   useEffect(() => {
-    fetch('/api/auth/app-status')
-      .then((res) => res.json())
+    fetchApi('/api/auth/app-status')
       .then((data) => {
         if (data.hasPassword && !data.isAuthenticated) {
           setLanLocked(true)

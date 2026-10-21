@@ -1,4 +1,4 @@
-import { createContext } from 'react'
+import { createContext, useContext } from 'react'
 
 export interface LanAuthContextType {
   isOpen: boolean
@@ -7,3 +7,11 @@ export interface LanAuthContextType {
 }
 
 export const LanAuthContext = createContext<LanAuthContextType | undefined>(undefined)
+
+export const useLanAuth = () => {
+  const context = useContext(LanAuthContext)
+  if (!context) {
+    throw new Error('useLanAuth must be used within a LanAuthProvider')
+  }
+  return context
+}

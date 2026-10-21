@@ -1,4 +1,4 @@
-import { createContext } from 'react'
+import { createContext, useContext } from 'react'
 
 export interface AnimePaheCookieContextType {
   isOpen: boolean
@@ -10,3 +10,11 @@ export interface AnimePaheCookieContextType {
 export const AnimePaheCookieContext = createContext<AnimePaheCookieContextType | undefined>(
   undefined
 )
+
+export const useAnimePaheCookie = () => {
+  const context = useContext(AnimePaheCookieContext)
+  if (!context) {
+    throw new Error('useAnimePaheCookie must be used within an AnimePaheCookieProvider')
+  }
+  return context
+}

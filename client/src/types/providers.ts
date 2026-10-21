@@ -1,14 +1,8 @@
-export interface ProviderOption {
-  value: string
-  label: string
-  mature: boolean
-  kind?: 'anime' | 'manga' | 'asmr' | 'tv'
-  sub?: SubType
-  tier?: ProviderTier
-  browse?: BrowseCaps
-  facets?: BrowseFacets
-  servers?: string[]
-}
+export type ProviderKind = 'anime' | 'manga' | 'asmr' | 'tv'
+
+export type SubType = 'soft' | 'hard' | 'mixed'
+
+export type ProviderTier = 'direct' | 'embed' | 'cookie'
 
 export interface BrowseCaps {
   genre?: boolean
@@ -23,9 +17,23 @@ export interface BrowseFacets {
   orders?: string[]
 }
 
-export type SubType = 'soft' | 'hard' | 'mixed'
-
-export type ProviderTier = 'direct' | 'embed' | 'cookie'
+export interface ProviderOption {
+  id: string
+  label: string
+  version: string
+  mature: boolean
+  kind?: ProviderKind
+  sub?: SubType
+  tier?: ProviderTier
+  browse?: BrowseCaps
+  facets?: BrowseFacets
+  modes?: ('sub' | 'dub')[]
+  servers?: string[]
+  enabledByDefault?: boolean
+  loaded: boolean
+  remote: boolean
+  error?: string
+}
 
 export const SUB_LABEL: Record<SubType, string> = {
   soft: 'Softsub',

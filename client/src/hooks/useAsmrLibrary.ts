@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { buildAsmrId } from '../lib/asmr'
 import { trpcClient, useTRPC } from '../lib/trpc'
 import { qk } from '../lib/queryKeys'
+import { invalidateLibrary } from '../lib/libraryInvalidation'
 
 export type AsmrLibraryStatus = 'Listening' | 'Completed' | 'On-Hold' | 'Dropped' | 'Planned'
 
@@ -106,8 +107,7 @@ export const useRemoveAsmrBookmark = () => {
     trpc.asmrLibrary.remove.mutationOptions({
       onSuccess: () => {
         toast.success('Removed from listening list')
-        queryClient.invalidateQueries({ queryKey: [qk.asmrLibrary] })
-        queryClient.invalidateQueries({ queryKey: [qk.asmrContinueListening] })
+        invalidateLibrary(queryClient, 'asmr')
         void queryClient.invalidateQueries(trpc.asmrLibrary.pathFilter())
         void queryClient.invalidateQueries(trpc.asmrProgress.pathFilter())
       },
@@ -125,8 +125,7 @@ export const useUpdateAsmrStatus = () => {
     trpc.asmrLibrary.setStatus.mutationOptions({
       onSuccess: () => {
         toast.success('Status updated')
-        queryClient.invalidateQueries({ queryKey: [qk.asmrLibrary] })
-        queryClient.invalidateQueries({ queryKey: [qk.asmrContinueListening] })
+        invalidateLibrary(queryClient, 'asmr')
         void queryClient.invalidateQueries(trpc.asmrLibrary.pathFilter())
         void queryClient.invalidateQueries(trpc.asmrProgress.pathFilter())
       },
@@ -142,10 +141,8 @@ export const useSaveAsmrProgress = () => {
   const queryClient = useQueryClient()
   return useMutation(
     trpc.asmrProgress.save.mutationOptions({
-      onSuccess: (_data, variables) => {
-        queryClient.invalidateQueries({ queryKey: [qk.asmrProgress, variables.workId] })
-        queryClient.invalidateQueries({ queryKey: [qk.asmrContinueListening] })
-        queryClient.invalidateQueries({ queryKey: [qk.asmrLibrary] })
+      onSuccess: () => {
+        invalidateLibrary(queryClient, 'asmr', true)
         void queryClient.invalidateQueries(trpc.asmrLibrary.pathFilter())
         void queryClient.invalidateQueries(trpc.asmrProgress.pathFilter())
       },
@@ -160,9 +157,7 @@ export const useRemoveAsmrProgress = () => {
     trpc.asmrProgress.remove.mutationOptions({
       onSuccess: () => {
         toast.success('Progress reset')
-        queryClient.invalidateQueries({ queryKey: [qk.asmrProgress] })
-        queryClient.invalidateQueries({ queryKey: [qk.asmrContinueListening] })
-        queryClient.invalidateQueries({ queryKey: [qk.asmrLibrary] })
+        invalidateLibrary(queryClient, 'asmr', true)
         void queryClient.invalidateQueries(trpc.asmrLibrary.pathFilter())
         void queryClient.invalidateQueries(trpc.asmrProgress.pathFilter())
       },
@@ -180,8 +175,7 @@ export const useBatchUpdateAsmrStatus = () => {
     trpc.asmrLibrary.batchStatus.mutationOptions({
       onSuccess: (data) => {
         toast.success(`Status updated for ${data.updated ?? 0} items`)
-        queryClient.invalidateQueries({ queryKey: [qk.asmrLibrary] })
-        queryClient.invalidateQueries({ queryKey: [qk.asmrContinueListening] })
+        invalidateLibrary(queryClient, 'asmr')
         void queryClient.invalidateQueries(trpc.asmrLibrary.pathFilter())
         void queryClient.invalidateQueries(trpc.asmrProgress.pathFilter())
       },
@@ -200,8 +194,7 @@ export const useBatchRemoveAsmr = () => {
       onSuccess: (data) => {
         const count = data.removed ?? 0
         toast.success(`Removed ${count} ${count === 1 ? 'item' : 'items'} from listening list`)
-        queryClient.invalidateQueries({ queryKey: [qk.asmrLibrary] })
-        queryClient.invalidateQueries({ queryKey: [qk.asmrContinueListening] })
+        invalidateLibrary(queryClient, 'asmr')
         void queryClient.invalidateQueries(trpc.asmrLibrary.pathFilter())
         void queryClient.invalidateQueries(trpc.asmrProgress.pathFilter())
       },
@@ -220,9 +213,7 @@ export const useBatchRemoveAsmrProgress = () => {
       onSuccess: (data) => {
         const count = data.removed ?? 0
         toast.success(`Reset progress for ${count} ${count === 1 ? 'item' : 'items'}`)
-        queryClient.invalidateQueries({ queryKey: [qk.asmrProgress] })
-        queryClient.invalidateQueries({ queryKey: [qk.asmrContinueListening] })
-        queryClient.invalidateQueries({ queryKey: [qk.asmrLibrary] })
+        invalidateLibrary(queryClient, 'asmr', true)
         void queryClient.invalidateQueries(trpc.asmrLibrary.pathFilter())
         void queryClient.invalidateQueries(trpc.asmrProgress.pathFilter())
       },

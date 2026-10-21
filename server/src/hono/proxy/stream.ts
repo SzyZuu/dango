@@ -2,7 +2,12 @@ import type { Context } from 'hono'
 import { gotScraping } from 'got-scraping'
 import { buildCfClearanceCookie, sanitizeCfClearance } from '../../utils/cookie.utils.js'
 import { isSafeExternalUrl } from '../../utils/security.utils.js'
-import { fetchWithRetry, linkAbort, setProxyHeaders } from '../../utils/http.utils.js'
+import {
+  fetchWithRetry,
+  linkAbort,
+  setProxyHeaders,
+  UPSTREAM_RETRY,
+} from '../../utils/http.utils.js'
 import type { RemoteProxyRule } from '../../providers/remote-types.js'
 import logger from '../../logger.js'
 import { fetchWithMirrors, matchProxyRule, PROXY_UA, resolveOrigin } from './rules.js'
@@ -113,6 +118,7 @@ export async function proxyStream(c: Context, getProxyRules: () => RemoteProxyRu
             timeout: { request: 30000 },
             followRedirect: true,
             throwHttpErrors: false,
+            retry: UPSTREAM_RETRY,
           }),
         (attempt) => attempt.statusCode === 200 || attempt.statusCode === 206
       )
@@ -139,6 +145,7 @@ export async function proxyStream(c: Context, getProxyRules: () => RemoteProxyRu
               timeout: { request: 30000 },
               followRedirect: true,
               throwHttpErrors: false,
+              retry: UPSTREAM_RETRY,
             }),
           (attempt) => attempt.statusCode === 200 || attempt.statusCode === 206
         )

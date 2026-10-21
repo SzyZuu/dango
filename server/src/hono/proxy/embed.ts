@@ -1,5 +1,6 @@
 import type { Context } from 'hono'
 import { gotScraping } from 'got-scraping'
+import { UPSTREAM_RETRY } from '../../utils/http.utils.js'
 import { buildCfClearanceCookie } from '../../utils/cookie.utils.js'
 import { isSafeExternalUrl } from '../../utils/security.utils.js'
 import { linkAbort } from '../../utils/http.utils.js'
@@ -156,6 +157,7 @@ export async function proxyEmbed(c: Context, getProxyRules: () => RemoteProxyRul
       timeout: { request: 30000 },
       followRedirect: true,
       throwHttpErrors: false,
+      retry: UPSTREAM_RETRY,
     })
 
     const originalHtml = response.body as string

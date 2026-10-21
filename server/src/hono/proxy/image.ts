@@ -2,7 +2,7 @@ import type { Context } from 'hono'
 import { gotScraping } from 'got-scraping'
 import { buildCfClearanceCookie } from '../../utils/cookie.utils.js'
 import { isSafeExternalUrl } from '../../utils/security.utils.js'
-import { linkAbort } from '../../utils/http.utils.js'
+import { linkAbort, UPSTREAM_RETRY, withRetry } from '../../utils/http.utils.js'
 import type { RemoteProxyRule } from '../../providers/remote-types.js'
 import logger from '../../logger.js'
 import { fetchWithMirrors, matchProxyRule, resolveOrigin } from './rules.js'
@@ -55,29 +55,32 @@ export async function proxyImage(c: Context, getProxyRules: () => RemoteProxyRul
 
     let body: Buffer | null = null
     let contentType = 'image/webp'
-    for (let attempt = 0; attempt < 3 && !body; attempt++) {
-      const resp = await fetchWithMirrors(
-        targetUrl,
-        rule?.mirrors,
-        abort.signal,
-        async (candidate) =>
-          gotScraping({
-            url: candidate,
-            method: 'GET',
-            headers,
-            responseType: 'buffer',
-            followRedirect: true,
-            throwHttpErrors: false,
-            timeout: { request: 30000 },
-          }),
-        (r) => r.statusCode === 200 && !!r.rawBody?.length
-      )
-      if (resp && resp.statusCode === 200 && resp.rawBody?.length) {
-        body = Buffer.from(resp.rawBody)
-        contentType = String(resp.headers['content-type'] || 'image/webp')
-      } else {
-        if (attempt < 2) await new Promise((r) => setTimeout(r, 400 * (attempt + 1)))
-      }
+    const resp = await withRetry(
+      async () => {
+        const r = await fetchWithMirrors(
+          targetUrl,
+          rule?.mirrors,
+          abort.signal,
+          async (candidate) =>
+            gotScraping({
+              url: candidate,
+              method: 'GET',
+              headers,
+              responseType: 'buffer',
+              followRedirect: true,
+              throwHttpErrors: false,
+              timeout: { request: 30000 },
+              retry: UPSTREAM_RETRY,
+            }),
+          (r) => r.statusCode === 200 && !!r.rawBody?.length
+        )
+        return r && r.statusCode === 200 && r.rawBody?.length ? r : null
+      },
+      { retries: 2, baseDelayMs: 400, signal: abort.signal }
+    )
+    if (resp) {
+      body = Buffer.from(resp.rawBody as Buffer)
+      contentType = String(resp.headers['content-type'] || 'image/webp')
     }
 
     if (body) {

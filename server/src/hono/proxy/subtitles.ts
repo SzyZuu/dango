@@ -2,7 +2,7 @@ import type { Context } from 'hono'
 import { gotScraping } from 'got-scraping'
 import { buildCfClearanceCookie } from '../../utils/cookie.utils.js'
 import { isSafeExternalUrl } from '../../utils/security.utils.js'
-import { fetchWithRetry, linkAbort } from '../../utils/http.utils.js'
+import { fetchWithRetry, linkAbort, UPSTREAM_RETRY } from '../../utils/http.utils.js'
 import type { RemoteProxyRule } from '../../providers/remote-types.js'
 import logger from '../../logger.js'
 import { matchProxyRule, resolveOrigin } from './rules.js'
@@ -163,6 +163,7 @@ export async function proxySubtitles(c: Context, getProxyRules: () => RemoteProx
           timeout: { request: 15000 },
           followRedirect: true,
           throwHttpErrors: false,
+          retry: UPSTREAM_RETRY,
         })
         if (upstream.statusCode !== 200) {
           logger.warn(

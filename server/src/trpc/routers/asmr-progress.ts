@@ -9,7 +9,7 @@ import {
   type AsmrProgressRow,
 } from '../../repositories/asmr.repository.js'
 import { createProgressRouter } from './progress-factory.js'
-import { defineSchema, reqObj, reqStr, strOrNull } from '../validation.js'
+import { defineSchema, idFieldInput, reqObj, reqStr, strOrNull } from '../validation.js'
 
 const getAdultNonListWorkIds = (db: DatabaseWrapper) =>
   adultNonListIds(
@@ -22,10 +22,7 @@ const getAdultNonListWorkIds = (db: DatabaseWrapper) =>
 
 export type AsmrProgressWorkInput = { workId: string }
 
-const asmrProgressWorkInput = () =>
-  defineSchema<AsmrProgressWorkInput, AsmrProgressWorkInput>((value) => ({
-    workId: reqStr(reqObj(value), 'workId'),
-  }))
+const asmrProgressWorkInput = () => idFieldInput('workId')
 
 export type AsmrProgressSaveInput = {
   workId: string

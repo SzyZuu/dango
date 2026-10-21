@@ -92,7 +92,9 @@ export const dataPlayerRouter = router({
               if (data?.episodes?.length) return data
             }
           } catch (e) {
-            if ((e as Error).message === 'AUTH_REQUIRED') throw e
+            if ((e as Error).message === 'AUTH_REQUIRED') {
+              throw authRequiredError(String(input.provider || 'animepahe'))
+            }
           }
           return { episodes: [] }
         }
@@ -103,7 +105,7 @@ export const dataPlayerRouter = router({
               return data || { episodes: [] }
             }
           } catch (e) {
-            if ((e as Error).message === 'AUTH_REQUIRED') throw e
+            if ((e as Error).message === 'AUTH_REQUIRED') throw authRequiredError('animepahe')
             return { episodes: [] }
           }
         }
@@ -136,7 +138,9 @@ export const dataPlayerRouter = router({
                 const data = await provider.getEpisodes(showId, input.mode)
                 if (data?.episodes?.length) return data
               } catch (e) {
-                if ((e as Error).message === 'AUTH_REQUIRED') throw e
+                if ((e as Error).message === 'AUTH_REQUIRED') {
+                  throw authRequiredError(providerName || 'animepahe')
+                }
               }
             }
           }
@@ -149,7 +153,9 @@ export const dataPlayerRouter = router({
             const data = await provider.getEpisodes(showId, input.mode)
             if (data?.episodes?.length) return data
           } catch (e) {
-            if ((e as Error).message === 'AUTH_REQUIRED') throw e
+            if ((e as Error).message === 'AUTH_REQUIRED') {
+              throw authRequiredError(providerName || 'animepahe')
+            }
           }
         }
         return { episodes: [] }

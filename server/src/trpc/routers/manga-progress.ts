@@ -9,7 +9,7 @@ import {
   type MangaProgressRow,
 } from '../../repositories/manga.repository.js'
 import { createProgressRouter } from './progress-factory.js'
-import { defineSchema, optStr, reqObj, reqStr } from '../validation.js'
+import { defineSchema, idFieldInput, optStr, reqObj, reqStr } from '../validation.js'
 
 const MANGA_ADULT_RATINGS = ['erotica', 'pornographic']
 
@@ -24,10 +24,7 @@ const getAdultNonListMangaIds = (db: DatabaseWrapper) =>
 
 export type MangaIdInput = { mangaId: string }
 
-const mangaIdInput = () =>
-  defineSchema<MangaIdInput, MangaIdInput>((value) => ({
-    mangaId: reqStr(reqObj(value), 'mangaId'),
-  }))
+const mangaIdInput = () => idFieldInput('mangaId')
 
 export type MangaProgressSaveInput = {
   mangaId: string

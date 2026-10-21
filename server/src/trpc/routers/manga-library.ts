@@ -8,17 +8,14 @@ import {
   MangaProgressRepository,
 } from '../../repositories/manga.repository.js'
 import { createLibraryRouter } from './library-factory.js'
-import { badRequest, defineSchema, optStr, reqObj, reqStr } from '../validation.js'
+import { badRequest, defineSchema, idFieldInput, optStr, reqObj } from '../validation.js'
 
 function normalizeId(provider: string, mangaId: string, idRaw?: string): string {
   if (idRaw && idRaw.includes(':')) return idRaw
   return buildMangaId(provider, mangaId || idRaw || '')
 }
 
-const mangaLibraryIdInput = () =>
-  defineSchema<{ id: string }, { id: string }>((value) => ({
-    id: reqStr(reqObj(value), 'id'),
-  }))
+const mangaLibraryIdInput = () => idFieldInput('id')
 
 export type MangaLibraryAddInput = {
   provider?: string

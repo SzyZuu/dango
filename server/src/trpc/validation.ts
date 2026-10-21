@@ -49,6 +49,13 @@ export function reqStr(obj: Record<string, unknown>, name: string): string {
 
 export function optStr(obj: Record<string, unknown>, name: string): string | undefined {
   const value = obj[name]
+  if (typeof value !== 'string') return undefined
+  return value
+}
+
+// the loose reader for the fields that may arrive as a number
+export function optText(obj: Record<string, unknown>, name: string): string | undefined {
+  const value = obj[name]
   if (value === undefined || value === null) return undefined
   return String(value)
 }
@@ -125,6 +132,13 @@ export const keyInput = () =>
 
 export const idInput = () =>
   defineSchema<{ id: string }, { id: string }>((value) => ({ id: reqStr(reqObj(value), 'id') }))
+
+// the same shape for a differently named id field (mangaId, workId, mediaId)
+export const idFieldInput = <K extends string>(name: K) =>
+  defineSchema<{ [P in K]: string }, { [P in K]: string }>((value) => {
+    const out = { [name]: reqStr(reqObj(value), name) } as { [P in K]: string }
+    return out
+  })
 
 export const showIdInput = () =>
   defineSchema<{ showId: string }, { showId: string }>((value) => ({

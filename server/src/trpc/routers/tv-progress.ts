@@ -11,17 +11,14 @@ import {
   type TvProgressRow,
 } from '../../repositories/tv.repository.js'
 import { createProgressRouter } from './progress-factory.js'
-import { defineSchema, reqObj, reqStr, strOrNull } from '../validation.js'
+import { defineSchema, idFieldInput, reqObj, reqStr, strOrNull } from '../validation.js'
 
 const getAdultNonListMediaIds = (db: DatabaseWrapper) =>
   adultNonListIds(db, 'tv_progress', 'tv_library', 'mediaId', 'COALESCE(l.adult, p.adult) = 1')
 
 export type TvProgressMediaInput = { mediaId: string }
 
-const tvProgressMediaInput = () =>
-  defineSchema<TvProgressMediaInput, TvProgressMediaInput>((value) => ({
-    mediaId: reqStr(reqObj(value), 'mediaId'),
-  }))
+const tvProgressMediaInput = () => idFieldInput('mediaId')
 
 export type TvProgressLatestInput = { mediaId: string; season?: unknown; episode?: unknown }
 

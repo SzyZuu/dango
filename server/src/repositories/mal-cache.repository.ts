@@ -10,7 +10,10 @@ export const MAL_CACHE_MAX_ROWS = 5000
 const DEFAULT_TTL_SECONDS = 6 * 3600
 
 function cacheFile(): string {
-  return path.join(CONFIG.ROOT, CONFIG.IS_DEV ? 'mal-cache.dev.db' : 'mal-cache.db')
+  return (
+    process.env.DANGO_MAL_CACHE_PATH ??
+    path.join(CONFIG.ROOT, CONFIG.IS_DEV ? 'mal-cache.dev.db' : 'mal-cache.db')
+  )
 }
 
 let handle: DatabaseWrapper | null = null

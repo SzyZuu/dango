@@ -78,6 +78,15 @@ jobs:
         env:
           NODE_ENV: development
 
+      - name: Run Tests
+        # client vitest + server node:test. exec calls avoid pnpm's
+        # verify-deps-before-run, which re-prunes devDependencies here.
+        run: |
+          pnpm --filter dango-client exec vitest run
+          pnpm --filter dango-server exec node --import tsx --test "src/**/*.test.ts"
+        env:
+          NODE_ENV: development
+
       - name: Generate Shipped Defaults
         run: node server/scripts/generate-shipped-defaults.cjs
         env:

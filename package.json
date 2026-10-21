@@ -23,7 +23,7 @@
     "client": "pnpm --filter dango-client run start",
     "server": "pnpm --filter dango-server run start",
     "preview": "node orchestrator.js prod",
-    "test": "pnpm --filter dango-client run test",
+    "test": "pnpm -r --if-present run test",
     "lint": "pnpm run format:check && pnpm -r --if-present run lint && pnpm run typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

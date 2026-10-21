@@ -13,6 +13,50 @@ import {
 const BACKGROUND_DISCOVERY_INTERVAL_MS = 5 * 60 * 1000
 const NUDGE_THROTTLE_MS = 120 * 1000
 const SLOW_MAX_RUN_MS = 5 * 60 * 1000
+const FINISHED_MAX_AGE_SECONDS = 30 * 24 * 60 * 60
+
+type AiredEntry = { mediaId: number; episode: number; airingAt: number }
+
+// the per-show episode map, deduped, with the notification for the unwatched ones
+async function addDiscoveredNotifications(
+  db: DatabaseWrapper,
+  schedules: AiredEntry[],
+  reverseMap: Map<number, string>,
+  nowUnix: number,
+  maxAgeSeconds?: number
+): Promise<void> {
+  const episodesByShow = new Map<string, { episodeKey: string }[]>()
+  const seenEpisodeKeys = new Set<string>()
+  for (const entry of schedules) {
+    if (entry.airingAt > nowUnix) continue
+    if (maxAgeSeconds !== undefined && nowUnix - entry.airingAt > maxAgeSeconds) continue
+    const watchlistId = reverseMap.get(entry.mediaId)
+    if (!watchlistId) continue
+    const episodeKey = String(Math.round(entry.episode))
+    const dedupeKey = `${watchlistId}:${episodeKey}`
+    if (seenEpisodeKeys.has(dedupeKey)) continue
+    seenEpisodeKeys.add(dedupeKey)
+    const list = episodesByShow.get(watchlistId)
+    if (list) list.push({ episodeKey })
+    else episodesByShow.set(watchlistId, [{ episodeKey }])
+  }
+
+  for (const [watchlistId, episodes] of episodesByShow) {
+    const [watchedEps, dismissedEps] = await Promise.all([
+      WatchedEpisodesRepository.getWatchedEpisodeNumbers(db, watchlistId),
+      NotificationsRepository.getDismissedByShow(db, watchlistId),
+    ])
+
+    const watchedSet = new Set(watchedEps.map((e) => e.toString()))
+    const dismissedSet = new Set(dismissedEps.map((e) => e.episodeNumber.toString()))
+
+    for (const { episodeKey } of episodes) {
+      if (!watchedSet.has(episodeKey) && !dismissedSet.has(episodeKey)) {
+        await NotificationsRepository.addDiscovered(db, watchlistId, episodeKey)
+      }
+    }
+  }
+}
 
 let discoveryIntervalId: ReturnType<typeof setInterval> | null = null
 let lastExternalDiscoveryAt = 0
@@ -190,71 +234,16 @@ export function startWatchlistDiscovery(getDb: () => DatabaseWrapper): void {
           monthEnd
         )
 
-        const finishedEpisodesByShow = new Map<string, { episodeKey: string; airingAt: number }[]>()
-        const seenFinishedKeys = new Set<string>()
-        for (const entry of finishedSchedules) {
-          if (entry.airingAt > nowUnix) continue
-          const watchlistId = reverseMap.get(entry.mediaId)
-          if (!watchlistId) continue
-          const episodeKey = String(Math.round(entry.episode))
-          const dedupeKey = `${watchlistId}:${episodeKey}`
-          if (seenFinishedKeys.has(dedupeKey)) continue
-          seenFinishedKeys.add(dedupeKey)
-          const list = finishedEpisodesByShow.get(watchlistId)
-          if (list) list.push({ episodeKey, airingAt: entry.airingAt })
-          else finishedEpisodesByShow.set(watchlistId, [{ episodeKey, airingAt: entry.airingAt }])
-        }
-
-        for (const [watchlistId, episodes] of finishedEpisodesByShow) {
-          const [watchedEps, dismissedEps] = await Promise.all([
-            WatchedEpisodesRepository.getWatchedEpisodeNumbers(db, watchlistId),
-            NotificationsRepository.getDismissedByShow(db, watchlistId),
-          ])
-
-          const watchedSet = new Set(watchedEps.map((e) => e.toString()))
-          const dismissedSet = new Set(dismissedEps.map((e) => e.episodeNumber.toString()))
-
-          for (const { episodeKey, airingAt } of episodes) {
-            if (nowUnix - airingAt > 30 * 24 * 60 * 60) continue
-            if (!watchedSet.has(episodeKey) && !dismissedSet.has(episodeKey)) {
-              await NotificationsRepository.addDiscovered(db, watchlistId, episodeKey)
-            }
-          }
-        }
+        await addDiscoveredNotifications(
+          db,
+          finishedSchedules,
+          reverseMap,
+          nowUnix,
+          FINISHED_MAX_AGE_SECONDS
+        )
       }
 
-      const episodesByShow = new Map<string, { episodeKey: string; airingAt: number }[]>()
-      const seenEpisodeKeys = new Set<string>()
-      for (const entry of schedules) {
-        if (entry.airingAt > nowUnix) continue
-
-        const watchlistId = reverseMap.get(entry.mediaId)
-        if (!watchlistId) continue
-
-        const episodeKey = String(Math.round(entry.episode))
-        const dedupeKey = `${watchlistId}:${episodeKey}`
-        if (seenEpisodeKeys.has(dedupeKey)) continue
-        seenEpisodeKeys.add(dedupeKey)
-        const list = episodesByShow.get(watchlistId)
-        if (list) list.push({ episodeKey, airingAt: entry.airingAt })
-        else episodesByShow.set(watchlistId, [{ episodeKey, airingAt: entry.airingAt }])
-      }
-
-      for (const [watchlistId, episodes] of episodesByShow) {
-        const [watchedEps, dismissedEps] = await Promise.all([
-          WatchedEpisodesRepository.getWatchedEpisodeNumbers(db, watchlistId),
-          NotificationsRepository.getDismissedByShow(db, watchlistId),
-        ])
-
-        const watchedSet = new Set(watchedEps.map((e) => e.toString()))
-        const dismissedSet = new Set(dismissedEps.map((e) => e.episodeNumber.toString()))
-
-        for (const { episodeKey } of episodes) {
-          if (!watchedSet.has(episodeKey) && !dismissedSet.has(episodeKey)) {
-            await NotificationsRepository.addDiscovered(db, watchlistId, episodeKey)
-          }
-        }
-      }
+      await addDiscoveredNotifications(db, schedules, reverseMap, nowUnix)
 
       await NotificationsRepository.cleanupWatchedNotifications(db)
     } catch (e) {

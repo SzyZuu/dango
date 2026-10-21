@@ -4,7 +4,8 @@ import { fetchWithRetry, linkAbort, setProxyHeaders } from '../utils/http.utils.
 import { URL } from 'url'
 import { isSafeExternalUrl } from '../utils/security.utils.js'
 import { pinVariant } from './playlist.js'
-import type { TvMediaRequest, TvProvider } from '../providers/tv.types.js'
+import { buildTvMediaRequest } from '../lib/tv-media.js'
+import type { TvProvider } from '../providers/tv.types.js'
 
 function proxiedMediaUrl(targetUrl: string, refererStr: string, providerStr: string): string {
   const provider = providerStr ? `&provider=${encodeURIComponent(providerStr)}` : ''
@@ -58,16 +59,12 @@ export function registerTv(app: Hono, getTvProvider: (name: string) => TvProvide
     if (!mod || typeof mod.getEmbedUrl !== 'function') {
       return c.json({ url: null, error: `Unknown TV provider ${provider}` })
     }
-    const media: TvMediaRequest = {
+    const media = buildTvMediaRequest({
       tmdbId: numericTmdbId,
       type: mediaType,
       season: parseInt(String(c.req.query('season') || '1'), 10) || 1,
       episode: parseInt(String(c.req.query('episode') || '1'), 10) || 1,
-      title: '',
-      year: '',
-      imdbId: '',
-      totalSeasons: 1,
-    }
+    })
     try {
       const url = await mod.getEmbedUrl(media)
       if (!url) return c.json({ url: null, error: 'No embed url' })

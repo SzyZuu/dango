@@ -14,8 +14,8 @@ import {
   type TmdbSeason,
 } from '../../lib/tmdb.js'
 import { fetchWithRetry, parseJsonBody } from '../../utils/http.utils.js'
+import { buildTvMediaRequest } from '../../lib/tv-media.js'
 import logger from '../../logger.js'
-import type { TvMediaRequest } from '../../providers/tv.types.js'
 
 async function resolveTvMeta(
   mediaType: 'movie' | 'tv',
@@ -421,7 +421,7 @@ export const tvRouter = router({
       imdbId: input.imdbId || '',
       totalSeasons: input.totalSeasons || '1',
     })
-    const media: TvMediaRequest = {
+    const media = buildTvMediaRequest({
       tmdbId: numericTmdbId,
       type: mediaType,
       season,
@@ -430,7 +430,7 @@ export const tvRouter = router({
       year: meta.year,
       imdbId: meta.imdbId,
       totalSeasons: parseInt(meta.totalSeasons, 10) || 1,
-    }
+    })
     try {
       const result = await mod.getSources(media, server)
       if (!result || !Array.isArray(result.sources) || result.sources.length === 0) {

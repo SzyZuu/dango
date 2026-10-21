@@ -1,5 +1,6 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { trpcClient, useTRPC } from '../lib/trpc'
+import type { RouterOutputs } from '../lib/trpc'
 
 export type MangaProviderName = string
 
@@ -73,7 +74,7 @@ export interface MangaBrowseParams {
 
 export const useMangaBrowse = (params: MangaBrowseParams, enabled: boolean = true) => {
   const { provider, query, page, sort, status, type, rating, mature } = params
-  return useQuery({
+  return useQuery<MangaBrowseResult>({
     queryKey: ['mangaBrowse', provider, query, page, sort, status, type, rating, mature],
     queryFn: () => {
       return trpcClient.manga.search.query({
@@ -169,9 +170,10 @@ export interface MangaTrendingItem {
 
 export const useMangaTrending = () => {
   const trpc = useTRPC()
-  return useQuery({
+  const query = useQuery({
     ...trpc.manga.trending.queryOptions(),
     staleTime: 10 * 60 * 1000,
     retry: 1,
   })
+  return { ...query, data: query.data as RouterOutputs['manga']['trending'] | undefined }
 }

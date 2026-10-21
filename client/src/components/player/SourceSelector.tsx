@@ -25,7 +25,7 @@ export const ProviderSelector: React.FC<ProviderSelectorProps> = ({
       <select
         className={styles.providerSelect}
         value={selectedProvider}
-        onChange={(e) => onProviderChange(e.target.value)}
+        onChange={(e) => onProviderChange(e.currentTarget.value)}
       >
         {TIER_ORDER.map((tier) => {
           const group = visibleProviders.filter((option) => (option.tier ?? 'direct') === tier)
@@ -87,7 +87,7 @@ const SourceSelector: React.FC<SourceSelectorProps> = ({
           aria-label="Fallback embed quality"
           value={selectedLink?.link ?? selectedSource.links[0]?.link ?? ''}
           onChange={(e) => {
-            const link = selectedSource.links.find((l) => l.link === e.target.value)
+            const link = selectedSource.links.find((l) => l.link === e.currentTarget.value)
             if (link) onLinkChange(link)
           }}
         >

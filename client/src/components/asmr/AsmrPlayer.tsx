@@ -381,7 +381,7 @@ const AsmrPlayer: React.FC<AsmrPlayerProps> = ({
   const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
     const audio = audioRef.current
     if (!audio || !duration) return
-    const time = parseFloat(e.target.value)
+    const time = parseFloat(e.currentTarget.value)
     audio.currentTime = time
     setCurrentTime(time)
   }
@@ -395,7 +395,7 @@ const AsmrPlayer: React.FC<AsmrPlayerProps> = ({
     }
   }
 
-  const handleTimeUpdate = (e: React.SyntheticEvent<HTMLAudioElement>) => {
+  const handleTimeUpdate = (e: React.TargetedEvent<HTMLAudioElement>) => {
     const t = e.currentTarget.currentTime
     timeRef.current = t
     setCurrentTime(t)
@@ -408,7 +408,7 @@ const AsmrPlayer: React.FC<AsmrPlayerProps> = ({
     flushSaveRef.current()
   }
 
-  const handleLoadedMetadata = (e: React.SyntheticEvent<HTMLAudioElement>) => {
+  const handleLoadedMetadata = (e: React.TargetedEvent<HTMLAudioElement>) => {
     const d = e.currentTarget.duration
     durationRef.current = Number.isFinite(d) ? d : 0
     setDuration(e.currentTarget.duration)
@@ -562,7 +562,7 @@ const AsmrPlayer: React.FC<AsmrPlayerProps> = ({
           step={0.01}
           value={volume}
           onChange={(e) => {
-            const v = parseFloat(e.target.value)
+            const v = parseFloat(e.currentTarget.value)
             setVolume(v)
             localStorage.setItem('asmrVolume', String(v))
           }}
@@ -680,7 +680,7 @@ const AsmrPlayer: React.FC<AsmrPlayerProps> = ({
                       <img
                         ref={(el) => attachImgRef(el, src)}
                         src={src}
-                        alt={`${t ? t(title) : title} — work image`}
+                        alt={`${t ? t(title) : title} - work image`}
                         loading="lazy"
                         decoding="async"
                         draggable={false}

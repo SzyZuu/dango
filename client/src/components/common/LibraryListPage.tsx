@@ -1,4 +1,4 @@
-import React, { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { useNavigate } from 'react-router'
 import Icon from './Icon'
 import Pagination from './Pagination'
@@ -348,7 +348,7 @@ function LibraryListPage<T extends LibraryListEntry>({
             <input
               type="checkbox"
               checked={rememberSkip}
-              onChange={(e) => setRememberSkip(e.target.checked)}
+              onChange={(e) => setRememberSkip(e.currentTarget.checked)}
             />
             Don&apos;t ask again
           </label>

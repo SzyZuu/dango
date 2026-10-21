@@ -48,7 +48,7 @@ const ClearDatabaseSettings: React.FC = () => {
       const tvCount = (deletedTv?.tv_library ?? 0) + (deletedTv?.tv_progress ?? 0)
       const asmrCount = (deletedAsmr?.asmr_library ?? 0) + (deletedAsmr?.asmr_progress ?? 0)
       setStatusMessage(
-        `Library cleared — ${deleted.watchlist ?? 0} watchlist entries, ${mangaCount} manga rows, ${tvCount} TV rows, ${asmrCount} ASMR rows and ${total} total rows removed.`
+        `Library cleared - ${deleted.watchlist ?? 0} watchlist entries, ${mangaCount} manga rows, ${tvCount} TV rows, ${asmrCount} ASMR rows and ${total} total rows removed.`
       )
       queryClient.invalidateQueries({ queryKey: ['watchlist'] })
       queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
@@ -92,7 +92,7 @@ const ClearDatabaseSettings: React.FC = () => {
             <input
               type="checkbox"
               checked={acknowledged}
-              onChange={(e) => setAcknowledged(e.target.checked)}
+              onChange={(e) => setAcknowledged(e.currentTarget.checked)}
               disabled={isClearing}
             />
             <span>I understand this permanently deletes my library</span>

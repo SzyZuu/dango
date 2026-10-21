@@ -60,7 +60,7 @@ export function optNum(obj: Record<string, unknown>, name: string): number | und
   return Number.isFinite(num) ? num : undefined
 }
 
-export function optBool(obj: Record<string, unknown>, name: string): boolean | undefined {
+function optBool(obj: Record<string, unknown>, name: string): boolean | undefined {
   const value = obj[name]
   if (typeof value !== 'boolean') return undefined
   return value
@@ -103,14 +103,6 @@ export function readPageLimit(obj: Record<string, unknown>): { page?: number; li
   return out
 }
 
-function reqEpNum(obj: Record<string, unknown>, name: string): string {
-  const value = obj[name]
-  if ((typeof value !== 'string' && typeof value !== 'number') || String(value).length === 0) {
-    throw new Error(`${name} must be a string`)
-  }
-  return String(value)
-}
-
 export function reqStrArray(
   obj: Record<string, unknown>,
   name: string,
@@ -144,7 +136,7 @@ export type EpisodeProgressInput = { showId: string; episodeNumber: string }
 export const episodeProgressInput = () =>
   defineSchema<EpisodeProgressInput, EpisodeProgressInput>((value) => {
     const obj = reqObj(value)
-    return { showId: reqStr(obj, 'showId'), episodeNumber: reqEpNum(obj, 'episodeNumber') }
+    return { showId: reqStr(obj, 'showId'), episodeNumber: reqId(obj, 'episodeNumber') }
   })
 
 export const idsInput = () =>
@@ -223,7 +215,7 @@ export const queueAddInput = () =>
     return {
       ...readMeta(obj),
       showId: reqStr(obj, 'showId'),
-      episodeNumber: reqEpNum(obj, 'episodeNumber'),
+      episodeNumber: reqId(obj, 'episodeNumber'),
     }
   })
 
@@ -244,7 +236,7 @@ export type QueueRemoveInput = { showId: string; episodeNumber: string }
 export const queueRemoveInput = () =>
   defineSchema<QueueRemoveInput, QueueRemoveInput>((value) => {
     const obj = reqObj(value)
-    return { showId: reqStr(obj, 'showId'), episodeNumber: reqEpNum(obj, 'episodeNumber') }
+    return { showId: reqStr(obj, 'showId'), episodeNumber: reqId(obj, 'episodeNumber') }
   })
 
 export type QueueRemoveManyInput = { showId: string; episodeNumbers?: string[] }
@@ -303,7 +295,7 @@ export const progressUpdateInput = () =>
     const obj = reqObj(value)
     const out: ProgressUpdateInput = {
       showId: reqStr(obj, 'showId'),
-      episodeNumber: reqEpNum(obj, 'episodeNumber'),
+      episodeNumber: reqId(obj, 'episodeNumber'),
     }
     const currentTime = optNum(obj, 'currentTime')
     if (currentTime !== undefined) out.currentTime = currentTime
@@ -343,5 +335,5 @@ export type NotificationDismissInput = { showId: string; episodeNumber: string }
 export const notificationDismissInput = () =>
   defineSchema<NotificationDismissInput, NotificationDismissInput>((value) => {
     const obj = reqObj(value)
-    return { showId: reqStr(obj, 'showId'), episodeNumber: reqEpNum(obj, 'episodeNumber') }
+    return { showId: reqStr(obj, 'showId'), episodeNumber: reqId(obj, 'episodeNumber') }
   })

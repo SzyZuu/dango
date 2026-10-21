@@ -111,7 +111,7 @@ const UnifiedVideoShell: React.FC<UnifiedVideoShellProps> = ({
   useEffect(() => () => clearHideTimer(), [clearHideTimer])
 
   const handleStageClick = useCallback(
-    (e: React.MouseEvent) => {
+    (e: React.MouseEvent<HTMLElement>) => {
       const target = e.target as HTMLElement | null
       if (isUiTarget(target)) return
       onStageClick?.()

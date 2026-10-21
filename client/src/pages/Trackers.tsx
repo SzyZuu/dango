@@ -95,8 +95,6 @@ const Trackers: React.FC = () => {
 
   const hasShipped = !!SHIPPED_ANILIST_CLIENT_ID
   const savedTrim = (savedClientId || '').trim()
-  const _isUsingShipped = !savedTrim && hasShipped
-  const _effectiveClientId = savedTrim || SHIPPED_ANILIST_CLIENT_ID
 
   const handleAniListLogin = async () => {
     const inputTrim = clientIdInput.trim()
@@ -124,21 +122,6 @@ const Trackers: React.FC = () => {
     window.location.href = `https://anilist.co/api/v2/oauth/authorize?client_id=${encodeURIComponent(clientId)}&response_type=token&state=${state}`
   }
 
-  const _handleUseShipped = async () => {
-    setClientIdInput('')
-    if (!savedTrim) {
-      toast.success('Using Dango app client')
-      return
-    }
-    try {
-      await trpcClient.settings.set.mutate({ key: CLIENT_ID_SETTING, value: '' })
-      queryClient.invalidateQueries({ queryKey: ['anilistClientId'] })
-      toast.success('Reverted to Dango app client — hidden ID will be used')
-    } catch (e) {
-      toast.error((e as Error).message)
-    }
-  }
-
   const disconnectMutation = useMutation({
     mutationFn: async () => {
       return trpcClient.tracker.anilistDisconnect.mutate()
@@ -160,7 +143,7 @@ const Trackers: React.FC = () => {
       queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
       setSyncSummary(summary)
       toast.success(
-        `Sync complete — pushed ${summary.pushed}, pulled ${summary.pulled}, merged ${summary.merged}, unchanged ${summary.unchanged}`,
+        `Sync complete - pushed ${summary.pushed}, pulled ${summary.pulled}, merged ${summary.merged}, unchanged ${summary.unchanged}`,
         { duration: 6000 }
       )
     },
@@ -184,7 +167,7 @@ const Trackers: React.FC = () => {
       const warningSuffix =
         (summary.warnings?.length ?? 0) > 0 ? `, ${summary.warnings!.length} warning(s)` : ''
       toast.success(
-        `Manga sync complete — pushed ${summary.pushed}, pulled ${summary.pulled}, merged ${summary.merged}, unchanged ${summary.unchanged}${warningSuffix}`,
+        `Manga sync complete - pushed ${summary.pushed}, pulled ${summary.pulled}, merged ${summary.merged}, unchanged ${summary.unchanged}${warningSuffix}`,
         { duration: 6000 }
       )
     },
@@ -320,8 +303,8 @@ const Trackers: React.FC = () => {
   const abortRef = useRef<AbortController | null>(null)
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setSelectedFileName(e.target.files[0].name)
+    if (e.currentTarget.files && e.currentTarget.files.length > 0) {
+      setSelectedFileName(e.currentTarget.files[0].name)
     } else {
       setSelectedFileName('')
     }
@@ -445,7 +428,7 @@ const Trackers: React.FC = () => {
         }}
       >
         ⚠ Syncing writes directly to your AniList entries, and dango may not always handle
-        anime/manga lists correctly — always keep a backup of your lists before syncing.
+        anime/manga lists correctly - always keep a backup of your lists before syncing.
       </div>
 
       {!showMangaTrackers && (
@@ -495,7 +478,7 @@ const Trackers: React.FC = () => {
                   )}
                 </p>
                 <div className={styles.fieldLabel}>
-                  AniList client ID — defaults to Dango's app{' '}
+                  AniList client ID - defaults to Dango's app{' '}
                   <a
                     href="https://anilist.co/settings/developer"
                     target="_blank"
@@ -509,7 +492,7 @@ const Trackers: React.FC = () => {
                     type="text"
                     placeholder="Client ID"
                     value={clientIdInput}
-                    onChange={(e) => setClientIdInput(e.target.value)}
+                    onChange={(e) => setClientIdInput(e.currentTarget.value)}
                     className={styles.input}
                   />
                   <button
@@ -537,7 +520,7 @@ const Trackers: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      No shipped client in this build — create your own app at{' '}
+                      No shipped client in this build - create your own app at{' '}
                       <a
                         href="https://anilist.co/settings/developer"
                         target="_blank"
@@ -587,7 +570,7 @@ const Trackers: React.FC = () => {
                       type="text"
                       placeholder="Enter AniList username"
                       value={publicUsername}
-                      onChange={(e) => setPublicUsername(e.target.value)}
+                      onChange={(e) => setPublicUsername(e.currentTarget.value)}
                       className={styles.input}
                       disabled={importMutation.isPending}
                       onKeyDown={(e) => {
@@ -608,7 +591,7 @@ const Trackers: React.FC = () => {
                       <input
                         type="checkbox"
                         checked={eraseWatchlist}
-                        onChange={(e) => setEraseWatchlist(e.target.checked)}
+                        onChange={(e) => setEraseWatchlist(e.currentTarget.checked)}
                         className={styles.checkbox}
                         disabled={importMutation.isPending}
                       />
@@ -665,7 +648,7 @@ const Trackers: React.FC = () => {
                     marginTop: '8px',
                   }}
                 >
-                  AniList <code>Rewatching (REPEATING)</code> is not tracked — entries with this
+                  AniList <code>Rewatching (REPEATING)</code> is not tracked - entries with this
                   status are ignored.
                 </p>
               </>
@@ -724,7 +707,7 @@ const Trackers: React.FC = () => {
                         type="text"
                         placeholder="Enter AniList username"
                         value={mangaUsername}
-                        onChange={(e) => setMangaUsername(e.target.value)}
+                        onChange={(e) => setMangaUsername(e.currentTarget.value)}
                         className={styles.input}
                         disabled={mangaImportMutation.isPending}
                         onKeyDown={(e) => {
@@ -738,7 +721,7 @@ const Trackers: React.FC = () => {
                         <input
                           type="checkbox"
                           checked={eraseManga}
-                          onChange={(e) => setEraseManga(e.target.checked)}
+                          onChange={(e) => setEraseManga(e.currentTarget.checked)}
                           className={styles.checkbox}
                           disabled={mangaImportMutation.isPending}
                         />
@@ -849,7 +832,7 @@ const Trackers: React.FC = () => {
                     marginTop: '8px',
                   }}
                 >
-                  AniList <code>Rereading (REPEATING)</code> is not tracked — entries with this
+                  AniList <code>Rereading (REPEATING)</code> is not tracked - entries with this
                   status are ignored.
                 </p>
               </>
@@ -897,7 +880,7 @@ const Trackers: React.FC = () => {
                     type="text"
                     placeholder="Enter MAL username"
                     value={malUsername}
-                    onChange={(e) => setMalUsername(e.target.value)}
+                    onChange={(e) => setMalUsername(e.currentTarget.value)}
                     className={styles.input}
                     disabled={malUsernameImport.isPending}
                     onKeyDown={(e) => {
@@ -946,7 +929,7 @@ const Trackers: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={eraseWatchlist}
-                  onChange={(e) => setEraseWatchlist(e.target.checked)}
+                  onChange={(e) => setEraseWatchlist(e.currentTarget.checked)}
                   className={styles.checkbox}
                   disabled={importing || malUsernameImport.isPending}
                 />
@@ -962,7 +945,7 @@ const Trackers: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={useOfflineDb}
-                  onChange={(e) => setUseOfflineDb(e.target.checked)}
+                  onChange={(e) => setUseOfflineDb(e.currentTarget.checked)}
                   className={styles.checkbox}
                   disabled={importing || malUsernameImport.isPending}
                 />
@@ -970,7 +953,7 @@ const Trackers: React.FC = () => {
                 <div className={styles.optionText}>
                   <span className={styles.optionTitle}>Use offline database (fast)</span>
                   <span className={styles.optionDesc}>
-                    Match by MAL ID locally first — instant and avoids AniList rate limits.
+                    Match by MAL ID locally first - instant and avoids AniList rate limits.
                   </span>
                 </div>
               </label>
@@ -978,7 +961,7 @@ const Trackers: React.FC = () => {
                 <input
                   type="checkbox"
                   checked={skipFallback}
-                  onChange={(e) => setSkipFallback(e.target.checked)}
+                  onChange={(e) => setSkipFallback(e.currentTarget.checked)}
                   className={styles.checkbox}
                   disabled={importing || malUsernameImport.isPending}
                 />
@@ -1106,7 +1089,7 @@ const Trackers: React.FC = () => {
                 type="text"
                 placeholder="Enter MAL username"
                 value={malMangaUsername}
-                onChange={(e) => setMalMangaUsername(e.target.value)}
+                onChange={(e) => setMalMangaUsername(e.currentTarget.value)}
                 className={styles.input}
                 disabled={malMangaUsernameImport.isPending}
                 onKeyDown={(e) => {
@@ -1122,7 +1105,7 @@ const Trackers: React.FC = () => {
                   id="malMangaFile"
                   accept=".xml,application/xml"
                   className={styles.fileInput}
-                  onChange={(e) => setMalMangaFileName(e.target.files?.[0]?.name ?? '')}
+                  onChange={(e) => setMalMangaFileName(e.currentTarget.files?.[0]?.name ?? '')}
                   disabled={malMangaXmlBusy}
                 />
                 <div className={styles.fileDisplay}>
@@ -1143,7 +1126,7 @@ const Trackers: React.FC = () => {
               <input
                 type="checkbox"
                 checked={eraseManga}
-                onChange={(e) => setEraseManga(e.target.checked)}
+                onChange={(e) => setEraseManga(e.currentTarget.checked)}
                 className={styles.checkbox}
                 disabled={malMangaUsernameImport.isPending || malMangaXmlBusy}
               />

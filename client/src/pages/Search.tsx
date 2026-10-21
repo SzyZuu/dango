@@ -360,7 +360,7 @@ export default function Search() {
                       fontWeight: 400,
                     }}
                   >
-                    AniList only — ignored by fallback providers
+                    AniList only - ignored by fallback providers
                   </span>
                 )}
               </label>

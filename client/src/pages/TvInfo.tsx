@@ -49,7 +49,7 @@ export default function TvInfo() {
   const [showDetails, setShowDetails] = useState(false)
   const [selectedSeason, setSelectedSeason] = useState(1)
 
-  const mediaId = buildTvId(type, tmdbId)
+  const mediaId = buildTvId(type, tmdbId ?? '')
   const numericId = Number(tmdbId)
 
   const { data: libraryCheck } = useTvLibraryCheck(details ? mediaId : undefined)
@@ -265,7 +265,7 @@ export default function TvInfo() {
                 <span>Season</span>
                 <select
                   value={selectedSeason}
-                  onChange={(e) => setSelectedSeason(parseInt(e.target.value, 10) || 1)}
+                  onChange={(e) => setSelectedSeason(parseInt(e.currentTarget.value, 10) || 1)}
                   className={styles.seasonSelect}
                 >
                   {seasonOptions.map((s) => (

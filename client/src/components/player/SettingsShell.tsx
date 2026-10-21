@@ -15,7 +15,7 @@ interface SettingsShellProps {
   titleTag?: 'h3' | 'span'
   showBack?: boolean
   onBack: () => void
-  panelRef?: React.RefObject<HTMLDivElement | null>
+  panelRef?: React.ForwardedRef<HTMLDivElement>
   onPanelClick?: (e: React.MouseEvent<HTMLDivElement>) => void
   children: React.ReactNode
 }

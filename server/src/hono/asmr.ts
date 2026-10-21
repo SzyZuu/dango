@@ -1,9 +1,15 @@
 export interface JasmrApi {
-  browse(o: { query?: string; page?: number; sort?: string; rating?: string }): Promise<unknown>
+  browse(o: { query?: string; page?: number; sort?: string; rating?: string }): Promise<{
+    shows: unknown[]
+    hasNext: boolean
+  }>
   getEpisodes(showId: string): Promise<{ description?: string } | null>
-  getStreamUrls(showId: string, episode: string): Promise<{ links: unknown[] }[] | null>
-  getImages(showId: string): Promise<unknown>
-  getChapters(showId: string): Promise<unknown>
+  getStreamUrls(
+    showId: string,
+    episode: string
+  ): Promise<{ links: { resolutionStr: string; link: string; hls: boolean }[] }[] | null>
+  getImages(showId: string): Promise<string[]>
+  getChapters(showId: string): Promise<{ time: number; label: string }[]>
 }
 
 export function isJasmrApi(mod: unknown): mod is JasmrApi {

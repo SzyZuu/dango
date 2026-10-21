@@ -1,4 +1,3 @@
-import React from 'react'
 import { useParams, useNavigate } from 'react-router'
 import Icon from '../common/Icon'
 import { useState, useMemo, useEffect } from 'react'

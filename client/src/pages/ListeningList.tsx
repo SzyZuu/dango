@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router'
 import MediaCard from '../components/common/MediaCard'
 import LibraryListPage from '../components/common/LibraryListPage'
@@ -73,7 +73,7 @@ export default function ListeningList() {
 
   const entries: GridEntry[] = useMemo(() => {
     if (isCL) {
-      return (clQuery.data?.data ?? []).map((item: ContinueListeningItem) => {
+      return (clQuery.data?.data ?? []).map((item) => {
         const current = item.currentTime ?? 0
         const total = item.duration ?? 0
         const rj = item.rjCode || item.id
@@ -81,13 +81,13 @@ export default function ListeningList() {
           key: item.id,
           libId: item.id,
           rjCode: rj,
-          title: item.title,
+          title: item.title || '',
           thumbnail: item.thumbnail || '',
-          status: item.status,
+          status: item.watchlistStatus ?? '',
           isAdult: !!item.isAdult,
           trackLabel: `Track ${(item.trackIndex ?? 0) + 1}`,
           progressPercent: total > 0 ? Math.min(100, (current / total) * 100) : 0,
-          progressLabel: continueLabel(item),
+          progressLabel: continueLabel(item as ContinueListeningItem),
           detailTarget: `/asmr/${encodeURIComponent(rj)}`,
         }
       })

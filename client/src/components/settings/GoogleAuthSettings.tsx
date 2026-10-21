@@ -32,7 +32,8 @@ const GoogleAuthSettings: React.FC = () => {
   const fetchUser = async () => {
     try {
       const userData = await trpcClient.auth.user.query()
-      setUser(userData?.email ? (userData as User) : null)
+      const user = userData as User | null
+      setUser(user?.email ? user : null)
     } catch {
       setUser(null)
     }

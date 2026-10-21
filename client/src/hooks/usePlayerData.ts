@@ -132,7 +132,9 @@ async function fetchVideoSources(
 
     const resumeTime = progress?.currentTime || 0
     const resumeDuration = progress?.duration || 0
-    const rawSkips = Array.isArray(skipTimesData) ? skipTimesData : skipTimesData?.results || []
+    const rawSkips = Array.isArray(skipTimesData)
+      ? skipTimesData
+      : (skipTimesData as { results?: RawSkipInterval[] } | undefined)?.results || []
 
     const skipIntervals: SkipInterval[] = rawSkips
       .map((item: RawSkipInterval) => ({
@@ -141,7 +143,7 @@ async function fetchVideoSources(
         start_time: item.interval?.start_time ?? item.start_time ?? 0,
         end_time: item.interval?.end_time ?? item.end_time ?? 0,
       }))
-      .filter((i: SkipInterval) => i.end_time > 0)
+      .filter((i) => i.end_time > 0) as SkipInterval[]
 
     if (!sources || sources.length === 0) {
       if (!silentToast) {
@@ -164,7 +166,7 @@ async function fetchVideoSources(
     if (error.message === 'AUTH_REQUIRED') {
       dispatch({
         type: 'SET_STATE',
-        payload: { showCookieModal: true, cookieProvider: error.provider },
+        payload: { showCookieModal: true, cookieProvider: error.provider as 'animepahe' | 'mkissa' | undefined },
       })
       return {
         videoSources: [],
@@ -306,7 +308,7 @@ export const usePlayerData = (
     if (animeOptions.find((o) => o.value === uiState.selectedProvider)?.mature === isMatureShow)
       return
     const stored = loadPreferredProvider(isMatureShow)
-    hasForcedAdultProvider.current = showId
+    hasForcedAdultProvider.current = showId ?? null
     dispatch({
       type: 'SET_PROVIDER',
       payload: candidates.find((o) => o.value === stored)?.value ?? candidates[0].value,
@@ -377,7 +379,7 @@ export const usePlayerData = (
     if (!showId || !showMeta) return
     await toggleWatchlistMutation({
       wasIn: !!playerData?.inWatchlist,
-      showMeta: showMeta as DetailedShowMeta,
+      showMeta: showMeta as unknown as DetailedShowMeta,
     })
   }, [showId, showMeta, playerData?.inWatchlist, toggleWatchlistMutation])
 
@@ -410,7 +412,7 @@ export const usePlayerData = (
     await updateWatchlistStatusMutation({ status: 'Completed' })
   }, [updateWatchlistStatusMutation])
 
-  const { mutateAsync: markEpisodeWatchedMutation } = useMutation({
+  const { mutateAsync: markEpisodeWatchedMutation, isPending: isMarkingWatched } = useMutation({
     mutationFn: async ({
       episodeNumber,
       duration,
@@ -423,7 +425,7 @@ export const usePlayerData = (
       episodes: string[]
     }) => {
       await trpcClient.progress.updateProgress.mutate({
-        showId,
+        showId: showId ?? '',
         episodeNumber,
         currentTime: duration,
         duration: duration,
@@ -432,14 +434,14 @@ export const usePlayerData = (
         nativeName: showMeta.names?.native,
         englishName: showMeta.names?.english,
         genres: showMeta.genres?.map((genre) => genre.name),
-        popularityScore: normalizeScore(showMeta.score ?? showMeta.stats?.averageScore),
+        popularityScore: normalizeScore(showMeta.score) ?? undefined,
         type: showMeta.type,
         status: showMeta.status,
         episodeCount: episodes.length,
         isAdult: showMeta.isAdult,
       })
     },
-    onSuccess: (data, variables) => {
+    onSuccess: (_data, variables) => {
       toast.success(`Episode ${variables.episodeNumber} marked as watched`)
       queryClient.invalidateQueries({ queryKey: ['player-data', showId] })
       queryClient.invalidateQueries({ queryKey: ['show-meta', showId] })
@@ -459,7 +461,7 @@ export const usePlayerData = (
       await markEpisodeWatchedMutation({
         episodeNumber,
         duration,
-        showMeta: showMeta as DetailedShowMeta,
+        showMeta: showMeta as unknown as DetailedShowMeta,
         episodes: playerData?.episodes || [],
       })
     },
@@ -556,7 +558,7 @@ export const usePlayerData = (
     handleToggleDetails,
     markEpisodeWatched,
     prefetchEpisodeSources,
-    isMarkingWatched: markEpisodeWatchedMutation.isPending,
+    isMarkingWatched,
     isUpdatingWatchlistStatus,
   }
 }

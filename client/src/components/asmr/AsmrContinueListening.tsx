@@ -65,7 +65,7 @@ const AsmrContinueListening: React.FC<{
               key={item.id}
               item={{
                 id: item.id,
-                title: item.title,
+                title: item.title || '',
                 thumbnail: item.thumbnail || '',
                 chapterBadge: `Track ${(item.trackIndex ?? 0) + 1}`,
                 isAdult: !!item.isAdult,
@@ -77,7 +77,7 @@ const AsmrContinueListening: React.FC<{
                 total > 0
                   ? {
                       percent: Math.min(100, (current / total) * 100),
-                      label: progressLabel(item) ?? '',
+                      label: progressLabel(item as ContinueListeningItem) ?? '',
                     }
                   : undefined
               }
@@ -93,7 +93,7 @@ const AsmrContinueListening: React.FC<{
                   info: { title: true, mobileBadges: true, progress: true, meta: false },
                 },
               }}
-              onRemove={() => setResetTarget({ workId: item.id, title: item.title })}
+              onRemove={() => setResetTarget({ workId: item.id, title: item.title || '' })}
               rawThumbnail
             />
           )

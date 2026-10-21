@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router'
 import Icon from '../components/common/Icon'
 import { Button } from '../components/common/Button'
@@ -169,7 +169,7 @@ export default function MangaInfoPage() {
                 className={styles.detailSelect}
                 value={currentStatus}
                 onChange={(e) =>
-                  libId && updateStatus.mutate({ id: libId, status: e.target.value })
+                  libId && updateStatus.mutate({ id: libId, status: e.currentTarget.value })
                 }
                 aria-label="Reading status"
               >

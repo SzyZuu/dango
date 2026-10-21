@@ -1,5 +1,6 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
-import { trpcClient } from '../lib/trpc'
+import { trpcClient, useTRPC } from '../lib/trpc'
+import type { RouterOutputs } from '../lib/trpc'
 
 export interface AsmrEpisodeAvailability {
   sub?: number
@@ -97,13 +98,14 @@ export const useAsmrBrowse = (query: string, page: number, sort: string, rating:
 }
 
 export const useAsmrWork = (rjCode: string | null) => {
-  return useQuery<AsmrWorkDetail>({
-    queryKey: ['asmrWork', rjCode],
-    queryFn: () => trpcClient.asmr.work.query({ rj: rjCode as string }),
+  const trpc = useTRPC()
+  const query = useQuery({
+    ...trpc.asmr.work.queryOptions({ rj: rjCode as string }),
     enabled: !!rjCode,
     staleTime: STALE_5_MIN,
     refetchOnMount: 'always',
   })
+  return { ...query, data: query.data as RouterOutputs['asmr']['work'] | undefined }
 }
 
 const SPOTLIGHT_MONTH_PAGES = 15

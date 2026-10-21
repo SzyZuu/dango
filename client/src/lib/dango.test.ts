@@ -94,7 +94,7 @@ describe('gazeAt', () => {
     expect(gazeAt(p.x, p.y, rect, OFFSETS[0]).x).toBe(1)
   })
 
-  it('never wraps past the reach — a cursor to the left keeps them looking left', () => {
+  it('never wraps past the reach - a cursor to the left keeps them looking left', () => {
     const p = eyeAt(0, -5000, -5000)
     expect(gazeAt(p.x, p.y, rect, OFFSETS[0])).toEqual({ x: -1, y: -1 })
     const q = eyeAt(0, 5000, 5000)

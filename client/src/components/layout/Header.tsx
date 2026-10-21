@@ -32,7 +32,7 @@ const fetchSyncProfile = async (): Promise<UserProfile | null> => {
       if (github.authenticated && github.user) {
         return {
           name: github.user.name || github.user.login,
-          picture: github.user.avatarUrl,
+          picture: github.user.avatarUrl ?? undefined,
           provider: 'github',
         }
       }
@@ -179,7 +179,7 @@ const Header: React.FC = () => {
     }
   }
 
-  const handleMobileSearchBlur = (e: React.FocusEvent) => {
+  const handleMobileSearchBlur = (e: React.FocusEvent<HTMLInputElement>) => {
     if (!mobileSearchRef.current?.contains(e.relatedTarget as Node)) {
       setMobileSearchOpen(false)
     }
@@ -272,7 +272,7 @@ const Header: React.FC = () => {
                 className={styles.searchInput}
                 placeholder={searchPlaceholder}
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => setQuery(e.currentTarget.value)}
                 onFocus={() => setIsSearchFocused(true)}
                 onBlur={() => setIsSearchFocused(false)}
                 onKeyDown={(e) => {
@@ -326,7 +326,7 @@ const Header: React.FC = () => {
                 className={styles.mobileSearchInput}
                 placeholder={searchPlaceholder}
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => setQuery(e.currentTarget.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     handleSearch()

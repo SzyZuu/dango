@@ -429,6 +429,7 @@ export default function useAnime4K({
 
         async function frame() {
           if (cancelled || generationRef.current !== generation) return
+          if (!context) return
           const current = videoRef.current
           if (!current || current.videoWidth === 0) {
             schedule()

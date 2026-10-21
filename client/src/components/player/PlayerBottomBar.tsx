@@ -16,8 +16,8 @@ interface PlayerBottomBarProps {
   onNextEpisode: () => void
   isTheaterMode: boolean
   onTheaterModeToggle: () => void
-  settingsBtnRef: React.RefObject<HTMLButtonElement | null>
-  timeDisplayRef: React.RefObject<HTMLSpanElement | null>
+  settingsBtnRef: React.RefObject<HTMLButtonElement>
+  timeDisplayRef: React.RefObject<HTMLSpanElement>
 }
 
 const PlayerBottomBar: React.FC<PlayerBottomBarProps> = ({

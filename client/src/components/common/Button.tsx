@@ -2,7 +2,7 @@ import React, { forwardRef } from 'react'
 import { cx } from '../../lib/utils'
 import './Button.css'
 
-interface Props extends React.HTMLAttributes<HTMLButtonElement> {
+interface Props extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
   size?: 'sm' | 'md' | 'lg'
   loading?: boolean
@@ -19,7 +19,7 @@ export const Button = forwardRef<HTMLButtonElement, Props>(
       `btn-${variant}`,
       size !== 'md' && `btn-${size}`,
       loading && 'btn-loading',
-      className
+      className as string
     )
 
     return (

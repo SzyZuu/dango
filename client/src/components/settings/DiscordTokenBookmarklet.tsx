@@ -70,7 +70,7 @@ const DiscordTokenBookmarklet: React.FC = () => {
         }}
       >
         Set this up once and you never have to dig through DevTools: the bookmarklet copies your
-        Discord token to the clipboard and closes the Discord tab — then you just paste it above and
+        Discord token to the clipboard and closes the Discord tab - then you just paste it above and
         press Save.
       </p>
       <ol
@@ -95,7 +95,7 @@ const DiscordTokenBookmarklet: React.FC = () => {
         <li>
           On the Discord tab, click the{' '}
           <strong style={{ color: 'var(--text-primary)' }}>Dango Token Grabber</strong> bookmark.
-          The token lands in your clipboard and the tab closes on its own — come back here, paste it
+          The token lands in your clipboard and the tab closes on its own - come back here, paste it
           above and press <strong>Save</strong>.
         </li>
       </ol>

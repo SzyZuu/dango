@@ -314,10 +314,10 @@ const Watchlist: React.FC = () => {
     if (isCW) {
       removeCw.mutate({ showId: itemToRemove.id as string })
       if (confirmRemoveFromWatchlist) {
-        removeWl.mutate({ id: itemToRemove.id })
+        removeWl.mutate({ id: itemToRemove.id as string })
       }
     } else {
-      removeWl.mutate({ id: itemToRemove.id })
+      removeWl.mutate({ id: itemToRemove.id as string })
     }
     if (confirmRememberPreference)
       updateSetting.mutate({ key: 'skipRemoveConfirmation', value: true })
@@ -330,10 +330,6 @@ const Watchlist: React.FC = () => {
     setItemToRemove(null)
     setConfirmRemoveFromWatchlist(false)
     setConfirmRememberPreference(false)
-  }
-
-  const _handleStatusChange = (id: string, status: string) => {
-    updateStatus.mutate({ id, status })
   }
 
   const bulkRemove = useBatchRemoveFromWatchlist()
@@ -859,7 +855,7 @@ const Watchlist: React.FC = () => {
               <input
                 type="checkbox"
                 checked={confirmRemoveFromWatchlist}
-                onChange={(e) => setConfirmRemoveFromWatchlist(e.target.checked)}
+                onChange={(e) => setConfirmRemoveFromWatchlist(e.currentTarget.checked)}
               />
               Also remove from my watchlist
             </label>
@@ -869,7 +865,7 @@ const Watchlist: React.FC = () => {
               <input
                 type="checkbox"
                 checked={confirmRememberPreference}
-                onChange={(e) => setConfirmRememberPreference(e.target.checked)}
+                onChange={(e) => setConfirmRememberPreference(e.currentTarget.checked)}
               />
               Remember my choice
             </label>

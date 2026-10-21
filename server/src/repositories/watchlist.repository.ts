@@ -11,7 +11,6 @@ export interface WatchlistRow {
   nativeName?: string
   englishName?: string
   type?: string
-  [key: string]: unknown
 }
 
 export const WatchlistRepository = {

@@ -1,3 +1,4 @@
+import type { inferRouterOutputs } from '@trpc/server'
 import { router } from './index.js'
 import { settingsRouter } from './routers/settings.js'
 import { queueRouter } from './routers/queue.js'
@@ -46,3 +47,5 @@ export const appRouter = router({
 })
 
 export type AppRouter = typeof appRouter
+
+export type RouterOutputs = inferRouterOutputs<AppRouter>

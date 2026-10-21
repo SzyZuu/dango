@@ -6,7 +6,7 @@ import { discordRPCService } from '../../discord-rpc.js'
 import logger from '../../logger.js'
 import { offlineDb } from '../../lib/offline-db.js'
 import { translateTexts } from '../../lib/translate.js'
-import { getMalImportStatus, requestMalImportCancel } from '../../lib/mal-import.js'
+import { requestMalImportCancel } from '../../lib/mal-import.js'
 import { defineSchema, reqObj } from '../validation.js'
 import { keyInput, setSettingInput } from '../validation.js'
 
@@ -95,10 +95,6 @@ export const settingsRouter = router({
     return {
       translations: await translateTexts(texts, String(source), String(target)),
     }
-  }),
-
-  malImportStatus: protectedProcedure.query(() => {
-    return getMalImportStatus()
   }),
 
   malImportCancel: protectedProcedure.mutation(() => {

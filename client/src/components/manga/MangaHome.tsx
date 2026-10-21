@@ -64,8 +64,8 @@ const MangaHome: React.FC = () => {
               key={item.id}
               item={{
                 id: item.id,
-                title: item.title,
-                ...mangaNameVariants({ title: item.title, altTitle: item.altTitle }),
+                title: item.title || '',
+                ...mangaNameVariants({ title: item.title || '', altTitle: item.altTitle }),
                 thumbnail: item.provider
                   ? mangaCoverSrc(item.provider, item.cover || '')
                   : item.cover || '',
@@ -94,7 +94,7 @@ const MangaHome: React.FC = () => {
                   info: { title: true, mobileBadges: true, progress: true, meta: false },
                 },
               }}
-              onRemove={() => setResetTarget({ libId: item.id, title: item.title })}
+              onRemove={() => setResetTarget({ libId: item.id, title: item.title || '' })}
               onOpenDetails={(rect) =>
                 openPopup(rect, {
                   provider: item.provider || '',

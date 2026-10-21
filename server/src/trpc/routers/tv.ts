@@ -86,14 +86,6 @@ interface TmdbDetailsBody {
   number_of_seasons?: number
 }
 
-interface ImdbSuggestion {
-  id?: string
-  l?: string
-  y?: number
-  qid?: string
-  i?: { imageUrl?: string }
-}
-
 type SearchResultItem = {
   id: number
   title: string
@@ -130,19 +122,6 @@ type TvSearchPayload = {
   total_results: number
   total_pages: number
   page: number
-}
-
-type TvGenresPayload = {
-  tv: { id: number; name: string }[]
-  movie: { id: number; name: string }[]
-}
-
-type TvImdbMatch = {
-  id: string | undefined
-  title: string | undefined
-  year: number | undefined
-  type: string | undefined
-  image: string
 }
 
 type TvSubtitlesPayload = {
@@ -212,24 +191,6 @@ const tvEpisodesInput = () =>
   defineSchema<TvEpisodesInput, TvEpisodesInput>((value) => {
     const obj = reqObj(value)
     return { id: reqId(obj, 'id'), season: reqId(obj, 'season') }
-  })
-
-export type TvLookupImdbInput = { imdbId: string }
-
-const tvLookupImdbInput = () =>
-  defineSchema<TvLookupImdbInput, TvLookupImdbInput>((value) => ({
-    imdbId: reqStr(reqObj(value), 'imdbId'),
-  }))
-
-export type TvSearchImdbInput = { q?: string }
-
-const tvSearchImdbInput = () =>
-  defineSchema<TvSearchImdbInput, TvSearchImdbInput>((value) => {
-    const obj = reqObj(value)
-    const out: TvSearchImdbInput = {}
-    const q = optStr(obj, 'q')
-    if (q !== undefined) out.q = q
-    return out
   })
 
 export type TvSubtitlesInput = { type: string; tmdbId: string; season?: string; episode?: string }
@@ -432,45 +393,6 @@ export const tvRouter = router({
     }
   }),
 
-  genres: protectedProcedure.query(async ({ ctx }) => {
-    const cacheKey = 'tv-genres-list'
-    const cached = ctx.apiCache.get<TvGenresPayload>(cacheKey)
-    if (cached) return cached
-    const key = await getTmdbKey()
-    if (!key) throw failed('No TMDB API key available')
-    try {
-      const [tvRes, movieRes] = await Promise.all([
-        fetch(`${TMDB_BASE}/genre/tv/list?api_key=${key}`, {
-          headers: { 'User-Agent': 'Mozilla/5.0' },
-        }),
-        fetch(`${TMDB_BASE}/genre/movie/list?api_key=${key}`, {
-          headers: { 'User-Agent': 'Mozilla/5.0' },
-        }),
-      ])
-      const tvData = tvRes.ok
-        ? await parseJsonBody<{ genres?: { id: number; name: string }[] }>(tvRes)
-        : { genres: [] }
-      const movieData = movieRes.ok
-        ? await parseJsonBody<{ genres?: { id: number; name: string }[] }>(movieRes)
-        : { genres: [] }
-      const payload: TvGenresPayload = {
-        tv: (tvData.genres || []).map((g: { id: number; name: string }) => ({
-          id: g.id,
-          name: g.name,
-        })),
-        movie: (movieData.genres || []).map((g: { id: number; name: string }) => ({
-          id: g.id,
-          name: g.name,
-        })),
-      }
-      ctx.apiCache.set(cacheKey, payload, 86400)
-      return payload
-    } catch (e) {
-      if (e instanceof TRPCError) throw e
-      throw failed((e as Error).message)
-    }
-  }),
-
   details: protectedProcedure.input(tvDetailsInput()).query(async ({ input }) => {
     const type = input.type
     const id = input.id
@@ -541,67 +463,6 @@ export const tvRouter = router({
         still_path: ep.still_path,
       }))
       return { episodes }
-    } catch (e) {
-      if (e instanceof TRPCError) throw e
-      throw failed((e as Error).message)
-    }
-  }),
-
-  lookupImdb: protectedProcedure.input(tvLookupImdbInput()).query(async ({ input }) => {
-    const key = await getTmdbKey()
-    if (!key) return { tmdbId: null, error: 'No TMDB API key available' }
-    try {
-      const r = await fetch(
-        `${TMDB_BASE}/find/${input.imdbId}?api_key=${key}&external_source=imdb_id`,
-        { headers: { 'User-Agent': 'Mozilla/5.0' } }
-      )
-      if (!r.ok) return { tmdbId: null, error: `TMDB error ${r.status}` }
-      const d = await parseJsonBody<{
-        movie_results?: TmdbSearchItem[]
-        tv_results?: TmdbSearchItem[]
-      }>(r)
-      const movie = d.movie_results?.[0]
-      const tv = d.tv_results?.[0]
-      const result = movie || tv
-      return {
-        tmdbId: result?.id || null,
-        type: movie ? 'movie' : tv ? 'tv' : null,
-        title: result?.title || result?.name || null,
-        year: (result?.release_date || result?.first_air_date || '').substring(0, 4) || null,
-      }
-    } catch (e) {
-      return { tmdbId: null, error: (e as Error).message }
-    }
-  }),
-
-  searchImdb: protectedProcedure.input(tvSearchImdbInput()).query(async ({ ctx, input }) => {
-    const query = input.q || ''
-    if (!query) return []
-    const cacheKey = `tv-imdb-search-${query.toLowerCase()}`
-    const cached = ctx.apiCache.get<TvImdbMatch[]>(cacheKey)
-    if (cached) return cached
-    try {
-      const response = await fetch(
-        `https://v3.sg.media-imdb.com/suggestion/x/${encodeURIComponent(query)}.json`,
-        { headers: { 'User-Agent': 'Mozilla/5.0' } }
-      )
-      if (!response.ok) throw failed('IMDB search failed')
-      const data = await parseJsonBody<{ d?: ImdbSuggestion[] }>(response)
-      const TV_TYPES = new Set(['tvSeries', 'tvMiniSeries', 'movie'])
-      const matches = (data.d || [])
-        .filter(
-          (entry: ImdbSuggestion) => Boolean(entry.id && entry.l) && TV_TYPES.has(entry.qid || '')
-        )
-        .slice(0, 10)
-        .map((entry: ImdbSuggestion) => ({
-          id: entry.id,
-          title: entry.l,
-          year: entry.y,
-          type: entry.qid,
-          image: entry.i?.imageUrl || '',
-        }))
-      ctx.apiCache.set(cacheKey, matches, 3600)
-      return matches
     } catch (e) {
       if (e instanceof TRPCError) throw e
       throw failed((e as Error).message)

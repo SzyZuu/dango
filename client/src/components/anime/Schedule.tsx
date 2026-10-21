@@ -140,7 +140,7 @@ const Schedule: React.FC<{ eyebrow?: string }> = ({ eyebrow }) => {
           <select
             className={styles.timeSelect}
             value={format}
-            onChange={(e) => setFormat(e.target.value)}
+            onChange={(e) => setFormat(e.currentTarget.value)}
           >
             {formatOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>

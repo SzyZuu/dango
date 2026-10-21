@@ -31,28 +31,6 @@ function hasJapanese(text: string): boolean {
   return /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/.test(text)
 }
 
-function toTitleCase(s: string): string {
-  return s
-    .split(' ')
-    .map((w, i) => {
-      if (
-        i !== 0 &&
-        ['x', 'and', 'or', 'the', 'a', 'an', 'of', 'in', 'on', 'with'].includes(w.toLowerCase())
-      ) {
-        return w.toLowerCase()
-      }
-      return w.charAt(0).toUpperCase() + w.slice(1)
-    })
-    .join(' ')
-    .replace(/\bX\b/g, 'x')
-}
-
-function _normalizeTranslation(s: string): string {
-  const trimmed = s.trim()
-  if (!trimmed) return trimmed
-  return toTitleCase(trimmed)
-}
-
 async function translateBatch(texts: string[]): Promise<Map<string, string>> {
   const jobs = texts.map((t) => t.trim()).filter(Boolean)
   if (jobs.length === 0) return new Map()

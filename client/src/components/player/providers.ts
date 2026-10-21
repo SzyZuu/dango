@@ -2,7 +2,7 @@ export interface ProviderOption {
   value: string
   label: string
   mature: boolean
-  kind?: 'anime' | 'asmr' | 'tv'
+  kind?: 'anime' | 'manga' | 'asmr' | 'tv'
   sub?: SubType
   tier?: ProviderTier
   browse?: BrowseCaps

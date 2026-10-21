@@ -340,7 +340,7 @@ const Insights: React.FC = () => {
                     if (
                       weekIdx >
                       (labels.length > 0
-                        ? (labels[labels.length - 1].props.style.gridColumn as number) + 2
+                        ? ((labels[labels.length - 1].props as { style?: { gridColumn?: number } }).style?.gridColumn as number) + 2
                         : -1)
                     ) {
                       labels.push(
@@ -493,7 +493,7 @@ const Insights: React.FC = () => {
                 <h3 className={styles.genreTitle}>{card.name}</h3>
                 <div className={styles.genreStats}>
                   <span>{card.count} episodes</span>
-                  <span>{card.meanScore > 0 ? `${card.meanScore.toFixed(1)} avg score` : '—'}</span>
+                  <span>{card.meanScore > 0 ? `${card.meanScore.toFixed(1)} avg score` : '-'}</span>
                   <span>{card.timeWatched}</span>
                 </div>
                 <div className={styles.posterRow}>
@@ -517,7 +517,7 @@ const Insights: React.FC = () => {
         <div className={styles.recSection}>
           <h3>Recommended For You</h3>
           <p className={styles.recSubtext}>
-            From your library taste — updates automatically as you watch
+            From your library taste - updates automatically as you watch
           </p>
           <div className={styles.recGrid}>
             {topRecs.map((c) => (
@@ -543,14 +543,14 @@ const Insights: React.FC = () => {
                   </span>
                   <span className={styles.recWhy}>
                     Shares {c.sharedGenres.join(', ')}
-                    {c.exemplars.length > 0 && ` — like ${c.exemplars.join(', ')}`}
+                    {c.exemplars.length > 0 && ` - like ${c.exemplars.join(', ')}`}
                   </span>
                   {c.kind === 'continue' && (
-                    <span className={styles.recNote}>Continue — you watched the earlier part.</span>
+                    <span className={styles.recNote}>Continue - you watched the earlier part.</span>
                   )}
                   {c.kind === 'sequel' && c.prequelTitle && (
                     <span className={styles.recNote}>
-                      Sequel — start with &quot;{c.prequelTitle}&quot; first.
+                      Sequel - start with &quot;{c.prequelTitle}&quot; first.
                     </span>
                   )}
                   <button

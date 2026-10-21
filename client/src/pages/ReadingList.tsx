@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router'
 import MediaCard from '../components/common/MediaCard'
 import LibraryListPage from '../components/common/LibraryListPage'
@@ -17,7 +17,6 @@ import {
   useBatchRemoveMangaProgress,
   mangaLibraryId,
   MANGA_LIBRARY_STATUSES,
-  type ContinueReadingItem,
   type MangaLibraryItem,
 } from '../hooks/useMangaLibrary'
 import { useMangaPopup, type MangaPopupData } from '../hooks/useMangaPopup'
@@ -80,7 +79,7 @@ export default function ReadingList() {
 
   const entries: GridEntry[] = useMemo(() => {
     if (isCR) {
-      return (crQuery.data?.data ?? []).map((item: ContinueReadingItem) => {
+      return (crQuery.data?.data ?? []).map((item) => {
         const page = item.page ?? 0
         const pageCount = item.pageCount ?? 0
         return {
@@ -88,10 +87,10 @@ export default function ReadingList() {
           libId: item.id,
           provider: item.provider,
           mangaId: item.mangaId,
-          title: item.title,
+          title: item.title || '',
           altTitle: item.altTitle,
           cover: item.cover || '',
-          status: item.status,
+          status: item.watchlistStatus ?? '',
           contentRating: item.contentRating || undefined,
           chapterLabel: item.chapterNumber ? `Ch. ${item.chapterNumber}` : undefined,
           progressPercent: pageCount > 0 ? (page / pageCount) * 100 : 0,
@@ -111,7 +110,7 @@ export default function ReadingList() {
       libId: item.id,
       provider: item.provider,
       mangaId: item.mangaId,
-      title: item.title,
+      title: item.title || '',
       altTitle: item.altTitle,
       cover: item.cover || '',
       status: item.status,
@@ -153,7 +152,7 @@ export default function ReadingList() {
       skipConfirmKey="mangaSkipRemoveConfirmation"
       onBulkStatus={(ids, status) => bulkUpdateStatus.mutate({ ids, status })}
       onBulkRemove={(ids) => {
-        if (isCR) bulkResetProgress.mutate(ids)
+        if (isCR) bulkResetProgress.mutate({ ids })
         else bulkRemove.mutate(ids)
       }}
       onStatusChange={(id, status) => updateStatus.mutate({ id, status })}

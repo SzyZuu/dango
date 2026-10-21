@@ -1,6 +1,7 @@
 import { createTRPCClient, httpBatchLink } from '@trpc/client'
 import { createTRPCContext } from '@trpc/tanstack-react-query'
 import type { AppRouter } from '../../../server/src/trpc/router.js'
+export type { RouterOutputs } from '../../../server/src/trpc/router.js'
 import { emitAuthRequired } from './auth-bus'
 import { fetchWithLocalHeaders } from './fetchApi'
 

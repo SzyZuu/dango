@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useParams, useSearchParams, useNavigate } from 'react-router'
 import ErrorMessage from '../components/common/ErrorMessage'
 import MangaReader from '../components/manga/MangaReader'

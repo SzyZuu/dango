@@ -33,7 +33,7 @@ const ResetProgressModal: React.FC<ResetProgressModalProps> = ({
           <input
             type="checkbox"
             checked={alsoRemove}
-            onChange={(e) => onAlsoRemoveChange(e.target.checked)}
+            onChange={(e) => onAlsoRemoveChange(e.currentTarget.checked)}
           />
           Also remove from {listLabel}
         </label>

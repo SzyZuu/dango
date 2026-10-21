@@ -211,7 +211,7 @@ const Asmr: React.FC = () => {
   }, [searchParams])
 
   const handleMatureToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked && !hasConsent) {
+    if (e.currentTarget.checked && !hasConsent) {
       setShowMatureModal(true)
     }
   }
@@ -247,7 +247,7 @@ const Asmr: React.FC = () => {
                 className={pageStyles.searchInput}
                 type="text"
                 value={queryInput}
-                onChange={(e) => setQueryInput(e.target.value)}
+                onChange={(e) => setQueryInput(e.currentTarget.value)}
                 placeholder="Search works, circles, CV… (-word excludes)"
                 aria-label="Search ASMR works"
               />
@@ -266,7 +266,7 @@ const Asmr: React.FC = () => {
               className={styles.sortSelect}
               value={sort}
               onChange={(e) => {
-                setSort(e.target.value)
+                setSort(e.currentTarget.value)
                 setPage(1)
               }}
             >
@@ -289,7 +289,7 @@ const Asmr: React.FC = () => {
               className={styles.sortSelect}
               value={rating}
               onChange={(e) => {
-                setRating(e.target.value)
+                setRating(e.currentTarget.value)
                 setPage(1)
               }}
             >
@@ -306,7 +306,7 @@ const Asmr: React.FC = () => {
                 <ToggleSwitch
                   id="asmr-translate-toggle"
                   isChecked={translateEN}
-                  onChange={(e) => setTranslateEN(e.target.checked)}
+                  onChange={(e) => setTranslateEN(e.currentTarget.checked)}
                 />
                 <span className={styles.filterLabel}>EN</span>
               </div>
@@ -506,7 +506,7 @@ const Asmr: React.FC = () => {
       {player && (
         <AsmrPlayer
           title={player.work.name}
-          images={playerImages}
+          images={playerImages as string[]}
           chapters={playerDetail?.chapters || []}
           tracks={player.tracks}
           trackIndex={player.index}

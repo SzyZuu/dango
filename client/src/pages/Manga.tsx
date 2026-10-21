@@ -159,7 +159,7 @@ export default function Manga() {
   }
 
   const handleMatureToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.checked && !hasConsent) {
+    if (e.currentTarget.checked && !hasConsent) {
       setShowMatureModal(true)
     }
   }
@@ -196,7 +196,7 @@ export default function Manga() {
           <input
             className={pageStyles.searchInput}
             value={queryInput}
-            onChange={(e) => setQueryInput(e.target.value)}
+            onChange={(e) => setQueryInput(e.currentTarget.value)}
             placeholder="Search manga titles..."
             aria-label="Search manga"
           />
@@ -210,7 +210,7 @@ export default function Manga() {
           disabled={mangaProviders.length === 0}
           onChange={(e) => {
             const next = new URLSearchParams(searchParams)
-            next.set('provider', e.target.value)
+            next.set('provider', e.currentTarget.value)
             next.delete('page')
             next.delete('id')
             next.delete('chapter')
@@ -249,7 +249,7 @@ export default function Manga() {
           <select
             className={styles.select}
             value={sort}
-            onChange={(e) => update({ sort: e.target.value }, true)}
+            onChange={(e) => update({ sort: e.currentTarget.value }, true)}
             aria-label="Sort manga"
           >
             {DEX_SORTS.map((o) => (
@@ -262,7 +262,7 @@ export default function Manga() {
         <select
           className={styles.select}
           value={status}
-          onChange={(e) => update({ status: e.target.value }, true)}
+          onChange={(e) => update({ status: e.currentTarget.value }, true)}
           aria-label="Filter by status"
         >
           {statusOptions.map((o) => (
@@ -275,7 +275,7 @@ export default function Manga() {
           <select
             className={styles.select}
             value={type}
-            onChange={(e) => update({ type: e.target.value }, true)}
+            onChange={(e) => update({ type: e.currentTarget.value }, true)}
             aria-label="Filter by type"
           >
             {PILL_TYPES.filter((o) => o.value !== 'doujinshi' || showMature).map((o) => (
@@ -289,7 +289,7 @@ export default function Manga() {
           <select
             className={styles.select}
             value={activeRating}
-            onChange={(e) => update({ rating: e.target.value }, true)}
+            onChange={(e) => update({ rating: e.currentTarget.value }, true)}
             aria-label="Content rating"
           >
             {ratingOptions.map((o) => (

@@ -112,15 +112,6 @@ export const mangaProgressRouter = router({
     }
   }),
 
-  latest: protectedProcedure.input(mangaIdInput()).query(async ({ ctx, input }) => {
-    try {
-      const row = await MangaProgressRepository.getLatest(ctx.mangaDb, input.mangaId)
-      return row || { page: 0, pageCount: 0 }
-    } catch {
-      return { page: 0, pageCount: 0 }
-    }
-  }),
-
   save: protectedProcedure.input(mangaProgressSaveInput()).mutation(async ({ ctx, input }) => {
     const pageNum = Math.max(Number(input.page) || 0, 0)
     const pageCountNum = Math.max(Number(input.pageCount) || 0, 0)

@@ -84,7 +84,7 @@ function OptionTabsInner<T extends string>(
       {options.map((opt) => (
         <Button
           key={opt.value}
-          ref={(el) => {
+          ref={(el: HTMLButtonElement | null) => {
             if (el) btnRefs.current.set(opt.value, el)
           }}
           variant="secondary"

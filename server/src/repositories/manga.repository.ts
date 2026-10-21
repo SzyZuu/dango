@@ -22,7 +22,23 @@ export interface MangaLibraryRow {
   updatedAt?: number | null
   anilistId?: number | null
   anilistIdSource?: string | null
-  [key: string]: unknown
+}
+
+export interface MangaContinueReadingRow {
+  id: string
+  mangaId: string
+  provider: string
+  title: string | null
+  cover: string | null
+  author: string
+  altTitle?: string | null
+  contentRating?: string | null
+  watchlistStatus?: string | null
+  chapterId?: string
+  chapterNumber?: string | null
+  page?: number | null
+  pageCount?: number | null
+  progressAt?: number | null
 }
 
 export interface MangaProgressRow {
@@ -166,7 +182,7 @@ export const MangaProgressRepository = {
 
   getContinueReading: (db: DatabaseWrapper, limit?: number) => {
     const limitClause = typeof limit === 'number' ? `LIMIT ${limit}` : ''
-    return getDrizzle(db).all<MangaLibraryRow & Partial<MangaProgressRow>>(sql`
+    return getDrizzle(db).all<MangaContinueReadingRow>(sql`
       SELECT p.mangaId as id,
              COALESCE(l.mangaId, SUBSTR(p.mangaId, INSTR(p.mangaId, ':') + 1)) as mangaId,
              COALESCE(l.provider, p.provider) as provider,

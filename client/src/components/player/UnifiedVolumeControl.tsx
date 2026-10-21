@@ -73,7 +73,7 @@ const UnifiedVolumeControl: React.FC<UnifiedVolumeControlProps> = ({
     }
   }
 
-  const handleButtonClick = (e: React.MouseEvent) => {
+  const handleButtonClick = (e: React.MouseEvent<HTMLElement>) => {
     e.stopPropagation()
     if (longPressed.current) {
       longPressed.current = false
@@ -116,7 +116,7 @@ const UnifiedVolumeControl: React.FC<UnifiedVolumeControlProps> = ({
         max="1"
         step="0.05"
         value={level}
-        onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
+        onChange={(e) => onVolumeChange(parseFloat(e.currentTarget.value))}
         onClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
         onContextMenu={(e) => e.preventDefault()}

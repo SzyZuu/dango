@@ -133,23 +133,23 @@ export const OfflineDbSettings: React.FC = () => {
         <div className={styles.statCard}>
           <span className={styles.statLabel}>MAL Mapped</span>
           <span className={styles.statValue}>
-            {loading ? '—' : (info?.totalMalMapped ?? 0).toLocaleString()}
+            {loading ? '-' : (info?.totalMalMapped ?? 0).toLocaleString()}
           </span>
         </div>
         <div className={styles.statCard}>
           <span className={styles.statLabel}>Release</span>
-          <span className={styles.statMeta}>{loading ? '—' : (info?.releaseTag ?? 'Never')}</span>
+          <span className={styles.statMeta}>{loading ? '-' : (info?.releaseTag ?? 'Never')}</span>
         </div>
         <div className={styles.statCard}>
           <span className={styles.statLabel}>Last Checked</span>
           <span className={styles.statMeta}>
-            {loading ? '—' : formatDate(info?.lastCheckedAt ?? null)}
+            {loading ? '-' : formatDate(info?.lastCheckedAt ?? null)}
           </span>
         </div>
         <div className={styles.statCard}>
           <span className={styles.statLabel}>Last Updated</span>
           <span className={styles.statMeta}>
-            {loading ? '—' : formatDate(info?.lastUpdatedAt ?? null)}
+            {loading ? '-' : formatDate(info?.lastUpdatedAt ?? null)}
           </span>
         </div>
       </div>

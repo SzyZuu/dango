@@ -68,7 +68,6 @@ const QueueOptionsButton: React.FC<QueueOptionsButtonProps> = ({
   const dismiss = useDismiss(context, {
     outsidePress: true,
     escapeKey: true,
-    scroll: true,
     referencePress: false,
   })
 

@@ -1,4 +1,4 @@
-/* ===== SECTION HEADER — matches AnimeSection ===== */
+/* ===== SECTION HEADER - matches AnimeSection ===== */
 .sectionWrapper {
   margin-bottom: 2.5rem;
 }
@@ -160,7 +160,7 @@
   }
 }
 
-/* ===== RANK — plain number below card ===== */
+/* ===== RANK - plain number below card ===== */
 .rankCard {
   width: 100%;
 }

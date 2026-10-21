@@ -1,6 +1,6 @@
 export interface Show {
   _id: string
-  id?: string
+  id: string
   session?: string
   anilistId?: number
   name: string

@@ -213,7 +213,7 @@ const Settings: React.FC = () => {
   }
 
   const handleRestore = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0]
+    const file = event.currentTarget.files?.[0]
     if (!file) return
 
     setStatusMessage('Importing databases...')
@@ -242,7 +242,7 @@ const Settings: React.FC = () => {
     } catch (_error) {
       setStatusMessage('Import failed: An unexpected error occurred.')
     } finally {
-      event.target.value = ''
+      event.currentTarget.value = ''
     }
   }
 
@@ -281,7 +281,7 @@ const Settings: React.FC = () => {
                   </div>
                   <ToggleSwitch
                     isChecked={lowEndMode}
-                    onChange={(e) => setLowEndMode(e.target.checked)}
+                    onChange={(e) => setLowEndMode(e.currentTarget.checked)}
                     id="low-end-mode"
                   />
                 </div>
@@ -304,7 +304,7 @@ const Settings: React.FC = () => {
                   </div>
                   <ToggleSwitch
                     isChecked={dangoGaze}
-                    onChange={(e) => toggleDangoGaze(e.target.checked)}
+                    onChange={(e) => toggleDangoGaze(e.currentTarget.checked)}
                     id="dango-gaze"
                   />
                 </div>
@@ -326,7 +326,7 @@ const Settings: React.FC = () => {
                   </div>
                   <ToggleSwitch
                     isChecked={virtualKeyboardEnabled}
-                    onChange={(e) => toggleVirtualKeyboard(e.target.checked)}
+                    onChange={(e) => toggleVirtualKeyboard(e.currentTarget.checked)}
                     id="virtual-keyboard-enabled"
                   />
                 </div>
@@ -348,7 +348,7 @@ const Settings: React.FC = () => {
                   </div>
                   <ToggleSwitch
                     isChecked={discordEnabled}
-                    onChange={(e) => toggleDiscord(e.target.checked)}
+                    onChange={(e) => toggleDiscord(e.currentTarget.checked)}
                     id="discord-rpc-enabled"
                   />
                 </div>
@@ -379,7 +379,7 @@ const Settings: React.FC = () => {
                     </div>
                     <ToggleSwitch
                       isChecked={discordHideMature}
-                      onChange={(e) => toggleDiscordHideMature(e.target.checked)}
+                      onChange={(e) => toggleDiscordHideMature(e.currentTarget.checked)}
                       id="discord-hide-mature"
                     />
                   </div>
@@ -435,7 +435,7 @@ const Settings: React.FC = () => {
                   <input
                     type="password"
                     value={discordGatewayToken}
-                    onChange={(e) => setDiscordGatewayToken(e.target.value)}
+                    onChange={(e) => setDiscordGatewayToken(e.currentTarget.value)}
                     placeholder="Paste Discord token here..."
                     style={{
                       flex: '1 1 200px',
@@ -520,7 +520,7 @@ const Settings: React.FC = () => {
                     <ToggleSwitch
                       isChecked={true}
                       onChange={(e) => {
-                        if (!e.target.checked) {
+                        if (!e.currentTarget.checked) {
                           revokeMatureConsent()
                           window.location.reload()
                         }

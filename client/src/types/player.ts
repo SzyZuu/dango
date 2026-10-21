@@ -1,3 +1,12 @@
+import type { Show } from '../../../server/src/providers/provider.interface.js'
+
+export type AnimeShow = Show & {
+  watchedCount?: number
+  currentTime?: number
+  duration?: number
+  showId?: string
+}
+
 export interface SimpleShowMeta {
   name: string
   thumbnail: string
@@ -10,65 +19,7 @@ export interface SimpleShowMeta {
   score?: number
 }
 
-export interface DetailedShowMeta {
-  id: string
-  route: string
-  title: string
-  genres: { name: string; route: string }[]
-  studios: { name: string; route: string }[]
-  sources: { name: string; route: string }[]
-  mediaTypes: { name: string; route: string }[]
-  episodes: number
-  lengthMin: number
-  status: string
-  imageVersionRoute: string
-  stats: {
-    averageScore: number
-    ratingCount: number
-    trackedCount: number
-    trackedRating: number
-    colorLightMode: string
-    colorDarkMode: string
-  }
-  names: {
-    romaji: string
-    english: string
-    native: string
-  }
-  nextEpisodeAirDate?: string
-  bannerImage?: string | null
-  availableEpisodes?: {
-    sub?: number
-    dub?: number
-    raw?: number
-  }
-  availableEpisodesDetail?: {
-    sub?: string[]
-    dub?: string[]
-    raw?: string[]
-  }
-  episodeCount?: string | number | null
-  episodeDuration?: string | number | null
-  averageScore?: number | null
-  airedStart?: {
-    year?: number
-    month?: number
-    date?: number
-  } | null
-  airedEnd?: {
-    year?: number
-    month?: number
-    date?: number
-  } | null
-  country?: string | null
-  rating?: string | null
-  season?: {
-    quarter?: string
-    season?: string
-    title?: string
-    year?: number
-  } | null
-}
+export type DetailedShowMeta = Show
 
 export interface VideoLink {
   resolutionStr: string
@@ -104,6 +55,7 @@ export interface SkipInterval {
 export interface PlayerState {
   showMeta: Partial<SimpleShowMeta & DetailedShowMeta>
   episodes: string[]
+  currentEpisode?: string | null
   watchedEpisodes: string[]
   watchlistStatus: string | null
   showCombinedDetails: boolean

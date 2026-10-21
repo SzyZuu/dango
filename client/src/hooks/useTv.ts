@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useTRPC } from '../lib/trpc'
+import type { RouterOutputs } from '../lib/trpc'
 
 const STALE_5_MIN = 1000 * 60 * 5
 
@@ -47,10 +48,11 @@ export const useTvTrending = (
   enabled: boolean = true
 ) => {
   const trpc = useTRPC()
-  return useQuery({
+  const query = useQuery({
     ...trpc.tv.trending.queryOptions({ mediaType, timeWindow, page }),
     enabled,
     staleTime: STALE_5_MIN,
     retry: 1,
   })
+  return { ...query, data: query.data as RouterOutputs['tv']['trending'] | undefined }
 }

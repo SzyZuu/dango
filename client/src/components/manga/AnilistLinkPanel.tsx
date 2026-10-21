@@ -171,14 +171,14 @@ const AnilistLinkPanel: React.FC<AnilistLinkPanelProps> = ({ libId, anilistId })
 
           <p style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem', marginTop: '12px' }}>
             AniList doesn&apos;t host chapters. Search your providers below and link the matching
-            manga — your AniList status and chapter progress will sync to it from now on.
+            manga - your AniList status and chapter progress will sync to it from now on.
           </p>
 
           <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
             <input
               type="text"
               value={customQuery ?? entry.title}
-              onChange={(e) => setCustomQuery(e.target.value)}
+              onChange={(e) => setCustomQuery(e.currentTarget.value)}
               placeholder="Search providers…"
               style={{
                 flex: 1,

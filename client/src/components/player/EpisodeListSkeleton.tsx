@@ -1,4 +1,3 @@
-import React from 'react'
 import { Skeleton } from '../common/Skeleton'
 import styles from './EpisodeList.module.css'
 

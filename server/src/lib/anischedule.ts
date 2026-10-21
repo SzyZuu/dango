@@ -1,4 +1,4 @@
-import { Show } from '../providers/provider.interface.js'
+import type { Show } from '../providers/provider.interface.js'
 import { parseJsonBody } from '../utils/http.utils.js'
 
 const SUB_SCHEDULE_URL =

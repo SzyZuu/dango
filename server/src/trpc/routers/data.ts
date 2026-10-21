@@ -19,7 +19,6 @@ import {
   searchAnilist,
   searchAnilistByTitle,
   getSpotlightBanners,
-  getBatchedHomeData,
   getGenreTagLists,
   anilistUnavailable,
   wasAnilistDownAtBoot,
@@ -208,18 +207,6 @@ const dataPopularListInput = () =>
     if (sort !== undefined) out.sort = sort
     if (obj.page !== undefined) out.page = readCount(obj, 'page', 1)
     if (obj.size !== undefined) out.size = readCount(obj, 'size', 20)
-    return out
-  })
-
-export type DataHomeInput = { format?: string }
-
-const dataHomeInput = () =>
-  defineSchema<DataHomeInput, DataHomeInput>((value) => {
-    if (value === undefined || value === null) return {}
-    const obj = reqObj(value)
-    const out: DataHomeInput = {}
-    const format = optStr(obj, 'format')
-    if (format !== undefined) out.format = format
     return out
   })
 
@@ -573,17 +560,6 @@ export const dataRouter = router({
     )
   }),
 
-  trending: protectedProcedure.query(async ({ ctx }) => {
-    return cached(ctx, 'trending', 300, defaultValidate, async () => {
-      try {
-        return await getTrending(1, 20, 'TRENDING_DESC', 'RELEASING')
-      } catch (e) {
-        logger.error({ err: e }, 'Trending fetch failed')
-        return []
-      }
-    })
-  }),
-
   spotlight: protectedProcedure.query(async ({ ctx }) => {
     return cached(ctx, 'spotlight', 300, defaultValidate, async () => {
       try {
@@ -591,18 +567,6 @@ export const dataRouter = router({
       } catch (e) {
         logger.error({ err: e }, 'Spotlight fetch failed')
         return []
-      }
-    })
-  }),
-
-  home: protectedProcedure.input(dataHomeInput()).query(async ({ ctx, input }) => {
-    const formatStr = input.format
-    return cached(ctx, `home-${formatStr || 'TV'}`, 300, defaultValidate, async () => {
-      try {
-        return await getBatchedHomeData(formatStr)
-      } catch (e) {
-        logger.error({ err: e }, 'Batched home fetch failed')
-        return { trending: [], seasonal: [], spotlight: [] }
       }
     })
   }),

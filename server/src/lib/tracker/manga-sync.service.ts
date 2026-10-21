@@ -1,4 +1,5 @@
-import { AniListTracker, RemoteMangaEntry } from './anilist-tracker.js'
+import { AniListTracker } from './anilist-tracker.js'
+import type { RemoteMangaEntry } from './anilist-tracker.js'
 import {
   MangaLibraryRepository,
   MangaProgressRepository,
@@ -12,9 +13,8 @@ import { fetchMalMangaList, mapMalMangaStatusCode } from '../mal.js'
 import {
   readTrackerSyncState,
   resolveStatus,
-  TrackerSyncState,
-  TrackerSyncStateEntry,
 } from './sync-state.js'
+import type { TrackerSyncState, TrackerSyncStateEntry } from './sync-state.js'
 
 const TOKEN_KEY = 'tracker_anilist_token'
 const MANGA_SYNC_STATE_KEY = 'tracker_anilist_manga_sync_state'
@@ -226,7 +226,7 @@ export async function syncAniListManga(
         record({
           title: item.title || item.id,
           action: 'unresolved',
-          note: 'No AniList link yet — skipped so nothing is written to the wrong series.',
+          note: 'No AniList link yet - skipped so nothing is written to the wrong series.',
         })
         continue
       }
@@ -244,8 +244,8 @@ export async function syncAniListManga(
             title: item.title,
             action: 'unresolved',
             note: match
-              ? `Closest AniList match ("${match.title.english || match.title.romaji || match.title.native}") is not an exact title match — skipped so nothing is written to the wrong series.`
-              : 'No AniList match found — skipped.',
+              ? `Closest AniList match ("${match.title.english || match.title.romaji || match.title.native}") is not an exact title match - skipped so nothing is written to the wrong series.`
+              : 'No AniList match found - skipped.',
           })
           continue
         }
@@ -255,7 +255,7 @@ export async function syncAniListManga(
         record({
           title: item.title || item.id,
           action: 'unresolved',
-          note: 'Title lookup failed — skipped.',
+          note: 'Title lookup failed - skipped.',
         })
         continue
       }
@@ -283,7 +283,7 @@ export async function syncAniListManga(
     const remoteLabel =
       remote.title.english || remote.title.romaji || remote.title.native || `Manga #${mediaId}`
     pendingWarnings.push(
-      `"${link.title}" is linked to AniList #${mediaId} ("${remoteLabel}") by an older automatic match and the titles do not match — skipped in both directions to protect your AniList list.`
+      `"${link.title}" is linked to AniList #${mediaId} ("${remoteLabel}") by an older automatic match and the titles do not match - skipped in both directions to protect your AniList list.`
     )
     record({
       mediaId,
@@ -357,7 +357,7 @@ export async function syncAniListManga(
               title: local.title,
               action: 'skipped',
               localStatus: local.status,
-              note: 'Pull-only mode — local entry kept, nothing deleted.',
+              note: 'Pull-only mode - local entry kept, nothing deleted.',
             })
             continue
           }
@@ -376,7 +376,7 @@ export async function syncAniListManga(
             action: 'skipped',
             localStatus: local.status,
             localChapters: chapters,
-            note: 'Pull-only mode — not pushed to AniList.',
+            note: 'Pull-only mode - not pushed to AniList.',
           })
           continue
         }
@@ -389,7 +389,7 @@ export async function syncAniListManga(
             action: 'skipped',
             localStatus: local.status,
             localChapters: chapters,
-            note: 'Bookmark with no chapters read — not pushed to AniList.',
+            note: 'Bookmark with no chapters read - not pushed to AniList.',
           })
           continue
         }
@@ -422,7 +422,7 @@ export async function syncAniListManga(
               action: 'delete-remote',
               remoteStatus: remote.status,
               remoteProgress: remote.progress,
-              note: 'Removed locally after a previous sync — delete propagated to AniList.',
+              note: 'Removed locally after a previous sync - delete propagated to AniList.',
             })
             continue
           }
@@ -543,7 +543,7 @@ export async function syncAniListManga(
               remoteStatus: remote.status,
               localChapters: localChapters,
               remoteProgress: remote.progress,
-              note: 'Local is ahead — not pushed in pull-only mode.',
+              note: 'Local is ahead - not pushed in pull-only mode.',
             })
           } else {
             summary.unchanged++
@@ -632,7 +632,7 @@ export async function syncAniListManga(
     const totalDeletes = libraryDeletes.length + remoteDeleteEntryIds.length
     if (totalDeletes > deleteCap) {
       throw new Error(
-        `AniList manga sync would delete ${totalDeletes} titles but only ${remoteEntries.length} were fetched. Aborting to protect your library — if you really removed that many manga on AniList, delete them locally first and sync again.`
+        `AniList manga sync would delete ${totalDeletes} titles but only ${remoteEntries.length} were fetched. Aborting to protect your library - if you really removed that many manga on AniList, delete them locally first and sync again.`
       )
     }
   }
@@ -711,7 +711,7 @@ export async function syncAniListManga(
 
   if (unresolved > 0) {
     summary.errors.push(
-      `${unresolved} local title${unresolved === 1 ? ' was' : 's were'} not matched to AniList (no link yet) — they were skipped and will be retried on the next sync.`
+      `${unresolved} local title${unresolved === 1 ? ' was' : 's were'} not matched to AniList (no link yet) - they were skipped and will be retried on the next sync.`
     )
   }
 

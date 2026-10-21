@@ -72,7 +72,7 @@ dango
 
 ### Release Zip (no install)
 
-No `npm install` needed — dependencies ship inside the zip, client is prebuilt:
+No `npm install` needed - dependencies ship inside the zip, client is prebuilt:
 
 1. Download and extract `dango.zip` from [Releases](https://github.com/serifpersia/dango/releases).
 2. Install Node.js 22.12+ (`node --version` to check).

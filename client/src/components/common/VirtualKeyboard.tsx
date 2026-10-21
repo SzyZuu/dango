@@ -136,7 +136,7 @@ export default function VirtualKeyboard({
     onClose()
   }
 
-  const handleMouseDown = (event: React.MouseEvent) => {
+  const handleMouseDown = (event: React.MouseEvent<HTMLElement>) => {
     event.preventDefault()
   }
 

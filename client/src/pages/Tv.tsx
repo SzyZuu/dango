@@ -31,7 +31,7 @@ import {
 } from '../lib/playbackCompletion'
 import { loadHls, canPlayHlsNatively } from '../lib/hls'
 import { formatTime } from '../lib/utils'
-import { bindHlsAudioTracks } from '../lib/hlsAudio'
+import { bindHlsAudioTracks, type HlsAudioHost } from '../lib/hlsAudio'
 import { pickSubtitleIndex, subtitleKey } from '../lib/subtitles'
 import { isConstrainedDevice } from '../lib/deviceProfile'
 import {
@@ -620,7 +620,7 @@ const Tv: React.FC = () => {
       hasResumedRef.current = true
       setShowWatchedModal(true)
     } else if (action === 'prompt-complete') {
-      setCompleteTitle(isMovie ? details.title : `${details.title} â€” Season ${season}`)
+      setCompleteTitle(isMovie ? details.title : `${details.title} - Season ${season}`)
       setShowCompleteModal(true)
       hasDismissedWatchedRef.current = true
       hasResumedRef.current = true
@@ -816,7 +816,7 @@ const Tv: React.FC = () => {
     watchedEvaluatedKeyRef.current = epKey
     if (nextEpisodeNumber == null && nextSeasonNumber == null) {
       if (details && episodes.length > 0) {
-        setCompleteTitle(`${details.title} â€” Season ${season}`)
+        setCompleteTitle(`${details.title} - Season ${season}`)
         setShowCompleteModal(true)
         hasDismissedWatchedRef.current = true
         hasResumedRef.current = true
@@ -907,7 +907,7 @@ const Tv: React.FC = () => {
       .filter(
         (row) =>
           row.season === season &&
-          (row.completed === true ||
+          (row.completed === 1 ||
             row.completed === 1 ||
             isProgressCompleted(row.currentTime, row.duration))
       )
@@ -1359,7 +1359,7 @@ const Tv: React.FC = () => {
               hls.subtitleTrack = -1
             }
           }
-          bindHlsAudioTracks(hls, HlsClass.Events, {
+          bindHlsAudioTracks(hls as unknown as HlsAudioHost, HlsClass.Events, {
             getWant: () => selectedAudioTrackRef.current,
             onResolve: (id) => setSelectedAudioTrack(id),
           })
@@ -1837,7 +1837,7 @@ const Tv: React.FC = () => {
         <span>Season</span>
         <select
           value={season}
-          onChange={(e) => handleSeasonSelect(parseInt(e.target.value, 10) || 1)}
+          onChange={(e) => handleSeasonSelect(parseInt(e.currentTarget.value, 10) || 1)}
           className={styles.select}
         >
           {details.seasons.map((s) => (
@@ -2191,7 +2191,7 @@ const Tv: React.FC = () => {
                 Provider
                 <select
                   value={source}
-                  onChange={(e) => handleSourceSelect(e.target.value)}
+                  onChange={(e) => handleSourceSelect(e.currentTarget.value)}
                   className={styles.select}
                   disabled={tvProviders.length === 0}
                 >
@@ -2282,7 +2282,7 @@ const Tv: React.FC = () => {
                       {metaRow.map((m, i) => (
                         <span key={`${m}-${i}`}>
                           {m}
-                          {i < metaRow.length - 1 ? ' Â· ' : ''}
+                          {i < metaRow.length - 1 ? ' · ' : ''}
                         </span>
                       ))}
                     </div>

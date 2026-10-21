@@ -71,7 +71,11 @@ interface RequestOptions {
 }
 
 export class AniListTracker {
-  constructor(private token?: string) {}
+  private token?: string
+
+  constructor(token?: string) {
+    this.token = token
+  }
 
   private sleep(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms))

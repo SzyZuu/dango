@@ -32,7 +32,7 @@ const AsmrSpotlightBanner: React.FC<AsmrSpotlightBannerProps> = ({ works }) => {
         return {
           key: rj || work._id || String(index),
           bannerSrc: work.thumbnail || '',
-          posterSrc: work.thumbnail,
+          posterSrc: work.thumbnail || '',
           posterAlt: work.name,
           title: work.name,
           detailTo: target,

@@ -17,7 +17,20 @@ export interface AsmrLibraryRow {
   lastTrackLabel?: string | null
   lastPosition?: number | null
   updatedAt?: number | null
-  [key: string]: unknown
+}
+
+export interface AsmrContinueListeningRow {
+  id: string
+  rjCode: string
+  title: string | null
+  thumbnail: string | null
+  isAdult?: number | null
+  watchlistStatus?: string | null
+  trackIndex?: number | null
+  trackLabel?: string | null
+  currentTime?: number | null
+  duration?: number | null
+  progressAt?: number | null
 }
 
 export interface AsmrProgressRow {
@@ -129,7 +142,7 @@ export const AsmrProgressRepository = {
 
   getContinueListening: (db: DatabaseWrapper, limit?: number) => {
     const limitClause = typeof limit === 'number' ? `LIMIT ${limit}` : ''
-    return getDrizzle(db).all<AsmrLibraryRow & Partial<AsmrProgressRow>>(sql`
+    return getDrizzle(db).all<AsmrContinueListeningRow>(sql`
       SELECT p.workId as id,
              COALESCE(l.rjCode, p.rjCode, p.workId) as rjCode,
              COALESCE(l.title, p.title) as title,

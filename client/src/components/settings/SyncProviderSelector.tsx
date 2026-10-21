@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import styles from '../../pages/Settings.module.css'
 import { toast } from 'react-hot-toast'
+import { trpcClient } from '../../lib/trpc'
 
 interface SyncSettings {
   activeProvider: string
@@ -18,8 +19,7 @@ const SyncProviderSelector: React.FC = () => {
 
   const fetchSettings = async () => {
     try {
-      const res = await fetch('/api/auth/settings/sync')
-      const data = await res.json()
+      const data = await trpcClient.auth.syncSettings.query()
       setSettings(data)
     } catch (err) {
       console.error('Failed to fetch sync settings', err)
@@ -33,32 +33,23 @@ const SyncProviderSelector: React.FC = () => {
   }, [])
 
   const handleProviderChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const newProvider = e.target.value
+    const newProvider = e.currentTarget.value
     try {
-      const res = await fetch('/api/auth/settings/sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ provider: newProvider }),
-      })
-      if (res.ok) {
-        const data = await res.json()
-        setSettings((prev) =>
-          prev
-            ? {
-                ...prev,
-                activeProvider: data.activeProvider,
-              }
-            : null
-        )
-        await fetchSettings()
-        toast.success(
-          `Sync provider updated to ${newProvider === 'default' ? 'Default Order' : newProvider}`
-        )
-      } else {
-        toast.error('Failed to update sync provider')
-      }
+      const data = await trpcClient.auth.saveSyncProvider.mutate({ provider: newProvider })
+      setSettings((prev) =>
+        prev
+          ? {
+              ...prev,
+              activeProvider: data.activeProvider,
+            }
+          : null
+      )
+      await fetchSettings()
+      toast.success(
+        `Sync provider updated to ${newProvider === 'default' ? 'Default Order' : newProvider}`
+      )
     } catch {
-      toast.error('Error updating sync provider')
+      toast.error('Failed to update sync provider')
     }
   }
 

@@ -7,7 +7,7 @@ import { useLowEndMode } from '../../contexts/LowEndModeContext'
 import { useCarousel } from '../../hooks/useCarousel'
 
 interface MediaSectionProps {
-  title: string
+  title?: string
   eyebrow?: string
   titleLink?: string
   loading?: boolean
@@ -148,8 +148,9 @@ const MediaSection: React.FC<MediaSectionProps> = ({
                     : React.Children.map(children, (child, i) => (
                         <div
                           key={
-                            React.isValidElement(child) && child.key != null
-                              ? child.key
+                            React.isValidElement(child) &&
+                            (child as { key?: string | number | null }).key != null
+                              ? (child as { key?: string | number | null }).key
                               : `slide-${i}`
                           }
                           className={styles['carousel-card']}

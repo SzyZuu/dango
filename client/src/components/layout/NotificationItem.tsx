@@ -16,7 +16,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification }) => 
   const addQueueMutation = useAddToQueue()
   const [justQueued, setJustQueued] = React.useState(false)
 
-  const handleDismiss = (e: React.MouseEvent) => {
+  const handleDismiss = (e: React.MouseEvent<HTMLElement>) => {
     e.preventDefault()
     e.stopPropagation()
     dismissMutation.mutate({
@@ -32,7 +32,7 @@ const NotificationItem: React.FC<NotificationItemProps> = ({ notification }) => 
     })
   }
 
-  const handleQueue = (e: React.MouseEvent) => {
+  const handleQueue = (e: React.MouseEvent<HTMLElement>) => {
     e.preventDefault()
     e.stopPropagation()
     setJustQueued(true)

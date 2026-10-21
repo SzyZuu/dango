@@ -5,7 +5,7 @@ import styles from './Pagination.module.css'
 interface PaginationProps {
   page: number
   totalPages?: number
-  canGoNext: boolean
+  canGoNext?: boolean
   onChange: (page: number) => void
   isLoading?: boolean
   variant?: 'compact' | 'labeled'

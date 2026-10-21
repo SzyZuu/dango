@@ -98,7 +98,7 @@ export const formatScore = (showMeta: Partial<DetailedShowMeta>): string | null 
   const score = toNumber(showMeta.score)
   if (score !== null) return String(score)
 
-  const averageScore = toNumber(showMeta.averageScore ?? showMeta.stats?.averageScore)
+  const averageScore = toNumber(showMeta.averageScore)
   if (averageScore !== null) return (averageScore / 10).toFixed(1)
 
   return null
@@ -137,7 +137,14 @@ export const getAnimeMetaDetails = (
     ['Season', formatSeason(showMeta.season)],
     ['Rating', showMeta.rating],
     ['Studios', formatStudios(showMeta.studios)],
-    ['Aired', formatAiredRange(showMeta.airedStart, showMeta.airedEnd, showMeta.status)],
+    [
+      'Aired',
+      formatAiredRange(
+        showMeta.airedStart as MetaDate,
+        showMeta.airedEnd as MetaDate,
+        showMeta.status
+      ),
+    ],
     ['Episodes', formatEpisodeCount(showMeta)],
   ]
 

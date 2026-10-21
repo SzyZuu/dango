@@ -366,9 +366,7 @@ async function loadEntry(
   allowUnsigned: boolean
 ): Promise<{ provider: unknown; facets?: BrowseFacets; error?: string }> {
   if (item.embedBase) {
-    const provider = makeEmbedProvider(item.id, item.embedBase)
-    instanceCache.set(`${item.kind ?? 'anime'}:${item.id}-${item.version}-embed`, { provider })
-    return { provider }
+    return { provider: makeEmbedProvider(item.id, item.embedBase) }
   }
   const entryUrl = resolveEntryUrl(item.entry, registryUrl)
   await fs.promises.mkdir(cacheDir, { recursive: true })

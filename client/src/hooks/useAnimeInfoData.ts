@@ -49,9 +49,10 @@ export function useAnimeInfoData(showId: string | undefined): UseAnimeInfoDataRe
     },
     onMutate: async ({ wasIn }) => {
       await queryClient.cancelQueries({ queryKey: checkKey })
-      queryClient.setQueryData(checkKey, (old: { inWatchlist: boolean } | undefined) => ({
+      queryClient.setQueryData(checkKey, (old) => ({
         ...old,
         inWatchlist: !wasIn,
+        status: old?.status ?? '',
       }))
     },
     onError: (err) => {

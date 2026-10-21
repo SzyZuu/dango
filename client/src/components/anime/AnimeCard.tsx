@@ -4,35 +4,7 @@ import AnimePopup from './AnimePopup'
 import MediaCard, { type MediaCardDisplay } from '../common/MediaCard'
 import mediaStyles from '../common/MediaCard.module.css'
 import { formatTime } from '../../lib/utils'
-
-interface Anime {
-  _id: string
-  id: string
-  name: string
-  nativeName?: string
-  englishName?: string
-  thumbnail: string
-  type?: string
-  episodeNumber?: number
-  currentTime?: number
-  duration?: number
-  showId?: string
-  watchedCount?: number
-  episodeCount?: number
-  availableEpisodes?: {
-    sub?: number
-    dub?: number
-  }
-  availableEpisodesDetail?: {
-    sub?: string[]
-    dub?: string[]
-  }
-  isAdult?: boolean
-  rating?: string
-  airTime?: string
-  aired?: boolean
-  nextEpisodeAirDate?: string
-}
+import type { AnimeShow as Anime } from '../../types/player'
 
 interface AnimeCardConfig {
   elements?: {
@@ -74,7 +46,7 @@ const AnimeCard: React.FC<AnimeCardProps> = memo(
           pathname: episodeToPlay ? `/watch/${anime._id}/${episodeToPlay}` : `/watch/${anime._id}`,
           state: {
             name: anime.name,
-            thumbnail: anime.thumbnail,
+            thumbnail: anime.thumbnail || '',
             nativeName: anime.nativeName,
             englishName: anime.englishName,
             type: anime.type,

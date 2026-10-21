@@ -72,7 +72,7 @@ const TvPopup: React.FC<TvPopupProps> = ({
   const detailPath = tvDetailPath(item.type, item.id)
   const watchPath = tvWatchPath(item.type, item.id)
 
-  const handleToggleWatchlist = (e: React.MouseEvent) => {
+  const handleToggleWatchlist = (e: React.MouseEvent<HTMLElement>) => {
     e.preventDefault()
     e.stopPropagation()
     toggle({

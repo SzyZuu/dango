@@ -1,7 +1,8 @@
 import { createContext, useContext } from 'react'
+export type TitlePreference = 'name' | 'nativeName' | 'englishName'
 export type TitlePreferenceContextType = {
-  titlePreference: 'name' | 'nativeName' | 'englishName'
-  setTitlePreference: (preference: 'name' | 'nativeName' | 'englishName') => void
+  titlePreference: TitlePreference
+  setTitlePreference: (preference: TitlePreference) => void
   loading: boolean
 }
 

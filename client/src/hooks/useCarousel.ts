@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import useEmblaCarousel from 'embla-carousel-react'
-import type { EmblaCarouselType, EmblaOptionsType } from 'embla-carousel'
+
+type EmblaOptions = NonNullable<Parameters<typeof useEmblaCarousel>[0]>
+type EmblaCarouselType = NonNullable<ReturnType<typeof useEmblaCarousel>[1]>
 
 interface UseCarouselOptions {
-  align?: EmblaOptionsType['align']
-  containScroll?: EmblaOptionsType['containScroll']
+  align?: EmblaOptions['align']
+  containScroll?: EmblaOptions['containScroll']
   scrollFraction?: number
   threshold?: number
   onReachThreshold?: () => void

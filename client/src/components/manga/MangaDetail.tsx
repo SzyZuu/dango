@@ -96,11 +96,11 @@ const MangaDetail: React.FC<MangaDetailProps> = ({
                 key={ch.id}
                 className={`${styles.chapterRow} ${done ? styles.chapterDone : ''}`}
                 onClick={() => onOpenChapter(ch)}
-                title={ch.externalUrl ? 'External only — opens on source site' : undefined}
+                title={ch.externalUrl ? 'External only - opens on source site' : undefined}
               >
                 <span>
                   Ch. {ch.number}
-                  {ch.title ? ` — ${ch.title}` : ''}
+                  {ch.title ? ` - ${ch.title}` : ''}
                 </span>
                 <span className={styles.chapterMeta}>
                   {[

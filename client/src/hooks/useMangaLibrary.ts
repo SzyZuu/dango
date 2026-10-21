@@ -86,7 +86,7 @@ export const useLinkMangaAnilist = () => {
       onSuccess: (data) => {
         toast.success(
           data?.progressMigrated
-            ? 'Linked — chapter progress carried over'
+            ? 'Linked - chapter progress carried over'
             : 'Linked to AniList entry'
         )
         void queryClient.invalidateQueries(trpc.mangaLibrary.pathFilter())

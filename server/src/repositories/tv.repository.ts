@@ -20,7 +20,25 @@ export interface TvLibraryRow {
   lastSeason?: number | null
   lastEpisode?: number | null
   updatedAt?: number | null
-  [key: string]: unknown
+}
+
+export interface TvContinueWatchingRow {
+  id: string
+  tmdbId: number | null
+  mediaType: string
+  title: string | null
+  poster: string | null
+  backdrop?: string | null
+  year?: string | null
+  overview?: string | null
+  watchlistStatus?: string | null
+  adult?: number | null
+  season?: number | null
+  episode?: number | null
+  currentTime?: number | null
+  duration?: number | null
+  completed?: number | null
+  progressAt?: number | null
 }
 
 export interface TvProgressRow {
@@ -158,7 +176,7 @@ export const TvProgressRepository = {
 
   getContinueWatching: (db: DatabaseWrapper, limit?: number) => {
     const limitClause = typeof limit === 'number' ? `LIMIT ${limit}` : ''
-    return getDrizzle(db).all<TvLibraryRow & Partial<TvProgressRow>>(sql`
+    return getDrizzle(db).all<TvContinueWatchingRow>(sql`
       SELECT p.mediaId as id,
              COALESCE(l.tmdbId, p.tmdbId, CAST(SUBSTR(REPLACE(p.mediaId, '-', ':'), INSTR(REPLACE(p.mediaId, '-', ':'), ':') + 1) AS INTEGER)) as tmdbId,
              COALESCE(l.mediaType, p.mediaType, SUBSTR(REPLACE(p.mediaId, '-', ':'), 1, INSTR(REPLACE(p.mediaId, '-', ':'), ':') - 1)) as mediaType,

@@ -21,7 +21,7 @@ interface TvBottomBarProps {
   onNextEpisode?: () => void
   isTheaterMode: boolean
   onTheaterModeToggle: () => void
-  timeLabelRef: React.RefObject<HTMLSpanElement | null>
+  timeLabelRef: React.RefObject<HTMLSpanElement>
 }
 
 const TvBottomBar: React.FC<TvBottomBarProps> = ({

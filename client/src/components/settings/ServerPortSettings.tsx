@@ -28,7 +28,7 @@ const ServerPortSettings: React.FC = () => {
     try {
       await trpcClient.auth.setServerPort.mutate({ port: value })
       setStatus(
-        `Saved. Restart dango, then open http://localhost:${value} — this overrides the PORT environment variable.`
+        `Saved. Restart dango, then open http://localhost:${value} - this overrides the PORT environment variable.`
       )
     } catch (err) {
       setStatus((err as Error).message)
@@ -62,7 +62,7 @@ const ServerPortSettings: React.FC = () => {
             min={1}
             max={65535}
             value={port}
-            onChange={(e) => setPort(e.target.value)}
+            onChange={(e) => setPort(e.currentTarget.value)}
             className={styles.input}
           />
         </div>

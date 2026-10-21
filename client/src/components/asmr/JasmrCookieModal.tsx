@@ -80,7 +80,7 @@ const JasmrCookieModal: React.FC<JasmrCookieModalProps> = ({ isOpen, onClose, on
         window.removeEventListener('dango:jasmr-cookie', replyRef.current)
         replyRef.current = null
       }
-      toast.error('Helper not detected — install it via about:debugging first.')
+      toast.error('Helper not detected - install it via about:debugging first.')
     }, 3000)
     const onReply = (e: Event) => {
       const detail = parseReply(e)
@@ -96,10 +96,10 @@ const JasmrCookieModal: React.FC<JasmrCookieModalProps> = ({ isOpen, onClose, on
         const stores = detail.debug?.stores?.length ?? 0
         const names = detail.debug?.names ?? []
         toast.error(
-          `Helper found no cf_clearance (checked ${stores} stores, saw: ${names.join(', ') || 'none'}) — solve the challenge on the JapaneseASMR tab first.`
+          `Helper found no cf_clearance (checked ${stores} stores, saw: ${names.join(', ') || 'none'}) - solve the challenge on the JapaneseASMR tab first.`
         )
       } else {
-        toast.error('Helper request failed — try again.')
+        toast.error('Helper request failed - try again.')
       }
     }
     replyRef.current = onReply
@@ -139,7 +139,7 @@ const JasmrCookieModal: React.FC<JasmrCookieModalProps> = ({ isOpen, onClose, on
               <label>Your User-Agent (must match the browser you solve the challenge with):</label>
               <textarea
                 value={userAgent}
-                onChange={(e) => setUserAgent(e.target.value)}
+                onChange={(e) => setUserAgent(e.currentTarget.value)}
                 rows={3}
                 className={styles.textarea}
               />
@@ -190,7 +190,7 @@ const JasmrCookieModal: React.FC<JasmrCookieModalProps> = ({ isOpen, onClose, on
                     type <code>about:debugging</code> in the address bar &rarr;{' '}
                     <strong>This Firefox</strong> &rarr; <strong>Load Temporary Add-on</strong>{' '}
                     &rarr; open the <code>dango-extension/firefox</code> folder and pick{' '}
-                    <code>manifest.json</code>. (Temporary helpers unload when Firefox closes —
+                    <code>manifest.json</code>. (Temporary helpers unload when Firefox closes -
                     repeat after a restart.)
                   </>
                 ) : (
@@ -198,7 +198,7 @@ const JasmrCookieModal: React.FC<JasmrCookieModalProps> = ({ isOpen, onClose, on
                     type <code>chrome://extensions</code> in the address bar &rarr; enable{' '}
                     <strong>Developer mode</strong> &rarr; <strong>Load unpacked</strong> &rarr;
                     open the <code>dango-extension/chrome</code> folder. (Unpacked helpers show a
-                    developer-mode notice — expected.)
+                    developer-mode notice - expected.)
                   </>
                 )}{' '}
                 Use this link to download the extension and extract it:{' '}
@@ -228,7 +228,7 @@ const JasmrCookieModal: React.FC<JasmrCookieModalProps> = ({ isOpen, onClose, on
               <input
                 type="text"
                 value={cookie}
-                onChange={(e) => setCookie(e.target.value)}
+                onChange={(e) => setCookie(e.currentTarget.value)}
                 placeholder="e.g. xxxxxxxx.xxxxxxxx.xxxxxxx-xxxxxxx"
                 className={styles.input}
               />

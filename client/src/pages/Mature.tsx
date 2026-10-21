@@ -13,20 +13,11 @@ import { useMatureConsent } from '../hooks/useMatureConsent'
 import { useProviders } from '../hooks/useProviders'
 import { trpcClient, useTRPC } from '../lib/trpc'
 import { hideVirtualKeyboard } from '../hooks/useVirtualKeyboard'
+import type { AnimeShow } from '../types/player'
 import styles from './Search.module.css'
 import matureStyles from './Mature.module.css'
 
-interface MatureShow {
-  _id: string
-  id?: string
-  name: string
-  nativeName?: string
-  englishName?: string
-  thumbnail: string
-  type?: string
-  year?: number | null
-  isAdult?: boolean
-}
+type MatureShow = AnimeShow
 
 const META_PROVIDER_OPTIONS = [
   { value: 'anilist', label: 'AniList' },
@@ -360,7 +351,7 @@ export default function Mature() {
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const handleCardClick = async (e: React.MouseEvent, show: MatureShow) => {
+  const handleCardClick = async (e: React.MouseEvent<HTMLElement>, show: MatureShow) => {
     const id = show.id || show._id
     if (provider === 'mal') return
     if (/^\d+$/.test(id)) return
@@ -436,7 +427,7 @@ export default function Mature() {
               type="text"
               placeholder={`Search ${providerOptions.find((p) => p.value === provider)?.label}...`}
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => setQuery(e.currentTarget.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') handleSearch()
               }}
@@ -446,7 +437,7 @@ export default function Mature() {
           <div className={styles.searchActions}>
             <select
               value={provider}
-              onChange={(e) => handleProviderChange(e.target.value)}
+              onChange={(e) => handleProviderChange(e.currentTarget.value)}
               className={styles.providerSelect}
               aria-label="Provider"
             >
@@ -471,9 +462,9 @@ export default function Mature() {
               <select
                 value={remoteSort}
                 onChange={(e) => {
-                  setRemoteSort(e.target.value)
+                  setRemoteSort(e.currentTarget.value)
                   setPage(1)
-                  writeParams(snapshot({ remoteSort: e.target.value, page: 1 }))
+                  writeParams(snapshot({ remoteSort: e.currentTarget.value, page: 1 }))
                 }}
                 className={styles.providerSelect}
                 aria-label="Sort"
@@ -555,9 +546,9 @@ export default function Mature() {
                   <select
                     value={effectiveOrder}
                     onChange={(e) => {
-                      setRemoteOrder(e.target.value)
+                      setRemoteOrder(e.currentTarget.value)
                       setPage(1)
-                      writeParams(snapshot({ remoteOrder: e.target.value, page: 1 }))
+                      writeParams(snapshot({ remoteOrder: e.currentTarget.value, page: 1 }))
                     }}
                   >
                     {(staticOrders.length > 0 ? staticOrders : ['recent']).map((o) => (
@@ -575,11 +566,11 @@ export default function Mature() {
                     value={genre}
                     onChange={(e) => {
                       if (orderSupported) {
-                        setGenre(e.target.value)
+                        setGenre(e.currentTarget.value)
                         setPage(1)
-                        writeParams(snapshot({ genre: e.target.value, page: 1 }))
+                        writeParams(snapshot({ genre: e.currentTarget.value, page: 1 }))
                       } else {
-                        handleGenreChange(e.target.value)
+                        handleGenreChange(e.currentTarget.value)
                       }
                     }}
                   >
@@ -599,7 +590,7 @@ export default function Mature() {
                     type="text"
                     placeholder="Studio name..."
                     value={studio}
-                    onChange={(e) => setStudio(e.target.value)}
+                    onChange={(e) => setStudio(e.currentTarget.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleSearch()
                     }}
@@ -610,7 +601,7 @@ export default function Mature() {
             </div>
             {genre && genreSupported && !orderSupported && (
               <p className={styles.pageSubtitle}>
-                Browsing the {prettyLabel(genre)} genre — search text is ignored while a genre is
+                Browsing the {prettyLabel(genre)} genre - search text is ignored while a genre is
                 selected.
               </p>
             )}
@@ -625,7 +616,7 @@ export default function Mature() {
         )}
       </div>
 
-      {isError && <ErrorMessage message={(error as Error)?.message || 'Search failed'} />}
+      {isError && <ErrorMessage message={(error as unknown as Error)?.message || 'Search failed'} />}
 
       {isLoading ? (
         <SkeletonGrid count={limit} />

@@ -105,10 +105,6 @@ export const authRouter = router({
     return { success: true }
   }),
 
-  githubAuth: protectedProcedure.query(async () => {
-    return { hasCustomClientId: !!process.env.GITHUB_CLIENT_ID }
-  }),
-
   saveGithubAuth: protectedProcedure.input(githubAuthSaveInput()).mutation(async ({ input }) => {
     await updateEnvFile({ GITHUB_CLIENT_ID: input.clientId })
     return { success: true }
@@ -204,11 +200,6 @@ export const authRouter = router({
     await updateEnvFile({ PORT: String(port) })
     logger.info({ port }, 'Server port saved. Restart required to apply.')
     return { success: true, port }
-  }),
-
-  googleAuthUrl: protectedProcedure.query(async () => {
-    const url = await googleDriveService.getAuthUrl()
-    return { url }
   }),
 
   googleLogin: protectedProcedure.mutation(async ({ ctx }) => {

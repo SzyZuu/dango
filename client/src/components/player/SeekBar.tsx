@@ -142,7 +142,7 @@ const SeekBar: React.FC<SeekBarProps> = ({
     }
   }, [isScrubbing, duration, formatTime, timeLabelRef])
 
-  const handlePointerDown = (e: React.PointerEvent) => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return
     if (!videoRef.current || !duration) return
     e.preventDefault()
@@ -158,7 +158,7 @@ const SeekBar: React.FC<SeekBarProps> = ({
     paintPreview(percent)
   }
 
-  const handlePointerMove = (e: React.PointerEvent) => {
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!duration) return
     if (isScrubbingRef.current) return
     if (e.pointerType !== 'mouse') return
@@ -169,7 +169,7 @@ const SeekBar: React.FC<SeekBarProps> = ({
     })
   }
 
-  const handlePointerUp = (e: React.PointerEvent) => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (scrubPointerIdRef.current !== null && e.pointerId !== scrubPointerIdRef.current) return
     if (!isScrubbingRef.current) return
     scrubPointerIdRef.current = null

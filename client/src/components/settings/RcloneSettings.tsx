@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Button } from '../common/Button'
 import { Modal } from '../common/Modal'
+import { trpcClient } from '../../lib/trpc'
 import styles from './GoogleAuthSettings.module.css'
 
 const RcloneSettings: React.FC = () => {
@@ -22,8 +23,7 @@ const RcloneSettings: React.FC = () => {
   const fetchSettings = async () => {
     try {
       setLoading(true)
-      const res = await fetch('/api/auth/settings/rclone')
-      const data = await res.json()
+      const data = await trpcClient.auth.rcloneSettings.query()
       setRemote(data.remote || '')
       setAvailableRemotes(data.availableRemotes || [])
       setActiveRemote(data.activeRemote || null)
@@ -40,23 +40,14 @@ const RcloneSettings: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      const res = await fetch('/api/auth/settings/rclone', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ remote }),
+      await trpcClient.auth.saveRclone.mutate({ remote })
+      setStatusModal({
+        show: true,
+        message:
+          'Rclone configuration saved successfully. You must restart the server for these changes to take effect.',
+        type: 'success',
       })
-
-      if (res.ok) {
-        setStatusModal({
-          show: true,
-          message:
-            'Rclone configuration saved successfully. You must restart the server for these changes to take effect.',
-          type: 'success',
-        })
-        fetchSettings()
-      } else {
-        throw new Error('Failed to save')
-      }
+      fetchSettings()
     } catch {
       setStatusModal({
         show: true,
@@ -95,7 +86,7 @@ const RcloneSettings: React.FC = () => {
           <select
             className={styles.select}
             value={remote}
-            onChange={(e) => setRemote(e.target.value)}
+            onChange={(e) => setRemote(e.currentTarget.value)}
           >
             <option value="">(Disabled / None)</option>
             {availableRemotes.map((r) => (

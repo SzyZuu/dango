@@ -1,38 +1,11 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { trpcClient } from '../lib/trpc'
+import type { RouterOutputs } from '../lib/trpc'
 import { useTRPC } from '../lib/trpc'
+import type { AnimeShow } from '../types/player'
 
-export interface Anime {
-  _id: string
-  id: string
-  name: string
-  nativeName?: string
-  englishName?: string
-  thumbnail: string
-  bannerImage?: string
-  description?: string
-  genres?: { name: string }[]
-  score?: number
-  type?: string
-  status?: string
-  episodeNumber?: number
-  currentTime?: number
-  duration?: number
-  watchedCount?: number
-  availableEpisodesDetail?: {
-    sub?: string[]
-    dub?: string[]
-  }
-  episodeCount?: number
-  isAdult?: boolean
-  rating?: string
-  aired?: boolean
-  nextEpisodeAirDate?: string
-  season?: { title?: string }
-  nextAiring?: { episode: number; timeUntilAiring: number }
-  studios?: { name: string }[]
-}
+export type Anime = AnimeShow
 
 export interface QueueItem {
   id: number
@@ -49,11 +22,12 @@ export interface QueueItem {
 
 export const useSpotlightBanners = () => {
   const trpc = useTRPC()
-  return useQuery({
+  const query = useQuery({
     ...trpc.data.spotlight.queryOptions(),
     staleTime: 1000 * 60 * 5,
     retry: 1,
   })
+  return { ...query, data: query.data as RouterOutputs['data']['spotlight'] | undefined }
 }
 
 export const useInfiniteTrendingList = (sort: string = 'TRENDING_DESC', size: number = 10) => {
@@ -280,7 +254,8 @@ export const useReorderQueue = () => {
         return { previousQueue }
       },
       onError: (_error, _items, context) => {
-        if (context?.previousQueue) queryClient.setQueryData(listKey, context.previousQueue)
+        if (context?.previousQueue)
+          queryClient.setQueryData<QueueItem[]>(listKey, context.previousQueue)
       },
       onSettled: () => {
         void queryClient.invalidateQueries(trpc.queue.pathFilter())

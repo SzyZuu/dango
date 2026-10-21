@@ -4,10 +4,7 @@ import ownStyles from './AnimeMetaDetails.module.css'
 
 interface AnimeMetaDetailsProps {
   showMeta: Partial<DetailedShowMeta> | undefined
-  styles?: {
-    detailsGridContainer: string
-    detailItem: string
-  }
+  styles?: Record<string, string>
 }
 
 export default function AnimeMetaDetails({ showMeta, styles }: AnimeMetaDetailsProps) {

@@ -142,7 +142,7 @@ const MediaCard: React.FC<MediaCardProps> = memo(
 
     const clearPopupTimeout = interaction.clearPopupTimeout
 
-    const handleInfoMouseEnter = (e: React.MouseEvent) => {
+    const handleInfoMouseEnter = (e: React.MouseEvent<HTMLElement>) => {
       if (isMobile) return
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
       if (onOpenDetails) {
@@ -178,7 +178,7 @@ const MediaCard: React.FC<MediaCardProps> = memo(
       interaction.handlePointerUpOrCancel()
     }
 
-    const handleContextMenu = (e: React.MouseEvent) => {
+    const handleContextMenu = (e: React.MouseEvent<HTMLElement>) => {
       if (onOpenDetails) {
         e.preventDefault()
         e.stopPropagation()
@@ -239,7 +239,7 @@ const MediaCard: React.FC<MediaCardProps> = memo(
     }
 
     const shouldBlur = adultContent && !isAgreedToViewMature
-    const handleCardClick = (e: React.MouseEvent) => {
+    const handleCardClick = (e: React.MouseEvent<HTMLElement>) => {
       if (interaction.consumeLongPressClick()) {
         e.preventDefault()
         e.stopPropagation()
@@ -261,7 +261,7 @@ const MediaCard: React.FC<MediaCardProps> = memo(
     })()
 
     const handleRemoveClick = useCallback(
-      (e: React.MouseEvent) => {
+      (e: React.MouseEvent<HTMLElement>) => {
         e.preventDefault()
         e.stopPropagation()
         if (onRemove) onRemove(item.id)

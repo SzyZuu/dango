@@ -4,7 +4,7 @@ import { performWriteTransactionAsync } from '../../sync.js'
 import { WatchlistRepository } from '../../repositories/watchlist.repository.js'
 import { WatchedEpisodesRepository } from '../../repositories/watched-episodes.repository.js'
 import { NotificationsRepository } from '../../repositories/notifications.repository.js'
-import { notificationDismissInput, type Schema } from '../validation.js'
+import { notificationDismissInput, defineSchema, reqObj, reqStr } from '../validation.js'
 
 interface EpisodeNotification {
   showId: string
@@ -20,28 +20,13 @@ type ClearAllInput = { showId?: string } | undefined
 
 type ClearAllOutput = { showId?: string }
 
-function clearAllInput(): Schema<ClearAllInput, ClearAllOutput> {
-  return {
-    '~standard': {
-      version: 1,
-      vendor: 'dango',
-      types: undefined as unknown as { input: ClearAllInput; output: ClearAllOutput },
-      validate(value: unknown) {
-        try {
-          if (value === undefined || value === null) return { value: {} }
-          if (typeof value !== 'object' || value === null) throw new Error('Expected an object')
-          const showId = (value as Record<string, unknown>).showId
-          if (showId === undefined || showId === null) return { value: {} }
-          if (typeof showId !== 'string' || showId.length === 0)
-            throw new Error('showId must be a string')
-          return { value: { showId } }
-        } catch (err) {
-          return { issues: [{ message: err instanceof Error ? err.message : 'Invalid input' }] }
-        }
-      },
-    },
-  }
-}
+const clearAllInput = () =>
+  defineSchema<ClearAllInput, ClearAllOutput>((value) => {
+    if (value === undefined || value === null) return {}
+    const obj = reqObj(value)
+    if (obj.showId === undefined || obj.showId === null) return {}
+    return { showId: reqStr(obj, 'showId') }
+  })
 
 export const notificationsRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => {

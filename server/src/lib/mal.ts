@@ -1,5 +1,6 @@
 import type { AnilistMedia, AnilistSearchOptions } from './anilist.js'
-import { kitsuTitlesByMalIds, KitsuTitles } from './kitsu.js'
+import { kitsuTitlesByMalIds } from './kitsu.js'
+import type { KitsuTitles } from './kitsu.js'
 import { parseJsonBody } from '../utils/http.utils.js'
 
 export interface MalCacheStore {
@@ -964,7 +965,7 @@ export async function fetchMalUserList(username: string): Promise<MalUserListEnt
     })
     if (res.status === 400 || res.status === 404) throw new Error(`MAL user "${user}" not found`)
     if (res.status === 403 || res.status === 429) {
-      throw new Error(`MAL blocked the request (HTTP ${res.status}) — try again later`)
+      throw new Error(`MAL blocked the request (HTTP ${res.status}) - try again later`)
     }
     if (res.status >= 300 && res.status < 400) {
       throw new Error(`MAL list for "${user}" is private or unavailable`)
@@ -1043,7 +1044,7 @@ export async function fetchMalMangaList(username: string): Promise<MalMangaListE
     })
     if (res.status === 400 || res.status === 404) throw new Error(`MAL user "${user}" not found`)
     if (res.status === 403 || res.status === 429) {
-      throw new Error(`MAL blocked the request (HTTP ${res.status}) — try again later`)
+      throw new Error(`MAL blocked the request (HTTP ${res.status}) - try again later`)
     }
     if (res.status >= 300 && res.status < 400) {
       throw new Error(`MAL list for "${user}" is private or unavailable`)

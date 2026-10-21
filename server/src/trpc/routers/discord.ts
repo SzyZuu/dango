@@ -107,62 +107,6 @@ export const discordRouter = router({
     return { success: true }
   }),
 
-  radioPresence: protectedProcedure.input(presenceInput()).mutation(async ({ input }) => {
-    if (!discordRPCService.isServiceEnabled) return { success: true }
-    const sessionId = optUnknown(input, 'sessionId')
-    if (typeof sessionId === 'string') discordRPCService.heartbeat(sessionId)
-    let thumb = String(optUnknown(input, 'thumbnail') || '')
-    if (thumb.includes('/api/image-proxy')) {
-      const match = thumb.match(/url=([^&]+)/)
-      if (match) thumb = decodeURIComponent(match[1])
-    }
-    if (thumb && !thumb.startsWith('https://')) thumb = ''
-    if (thumb.includes('localhost') || thumb.includes('127.0.0.1')) thumb = ''
-    const stationLabel = String(optUnknown(input, 'stationLabel') || '')
-    discordRPCService.updatePresence({
-      title: String(optUnknown(input, 'title') || 'Radio').slice(0, 128),
-      episode: stationLabel.slice(0, 64),
-      totalEpisodes: '',
-      stateLine: (stationLabel || 'Radio').slice(0, 64),
-      currentTime: Number(optUnknown(input, 'currentTime')) || 0,
-      duration: 0,
-      thumbnail: thumb,
-      isPlaying: !!optUnknown(input, 'isPlaying'),
-      providerName: 'Radio',
-      sessionId: typeof sessionId === 'string' ? sessionId : undefined,
-      isAdult: false,
-    })
-    return { success: true }
-  }),
-
-  musicPresence: protectedProcedure.input(presenceInput()).mutation(async ({ input }) => {
-    if (!discordRPCService.isServiceEnabled) return { success: true }
-    const sessionId = optUnknown(input, 'sessionId')
-    if (typeof sessionId === 'string') discordRPCService.heartbeat(sessionId)
-    let thumb = String(optUnknown(input, 'thumbnail') || '')
-    if (thumb.includes('/api/image-proxy')) {
-      const match = thumb.match(/url=([^&]+)/)
-      if (match) thumb = decodeURIComponent(match[1])
-    }
-    if (thumb && !thumb.startsWith('https://')) thumb = ''
-    if (thumb.includes('localhost') || thumb.includes('127.0.0.1')) thumb = ''
-    const artistLabel = String(optUnknown(input, 'artistLabel') || '')
-    discordRPCService.updatePresence({
-      title: String(optUnknown(input, 'title') || 'Music').slice(0, 128),
-      episode: artistLabel.slice(0, 64),
-      totalEpisodes: '',
-      stateLine: (artistLabel || 'Music').slice(0, 64),
-      currentTime: Number(optUnknown(input, 'currentTime')) || 0,
-      duration: Number(optUnknown(input, 'duration')) || 0,
-      thumbnail: thumb,
-      isPlaying: !!optUnknown(input, 'isPlaying'),
-      providerName: 'Music',
-      sessionId: typeof sessionId === 'string' ? sessionId : undefined,
-      isAdult: false,
-    })
-    return { success: true }
-  }),
-
   mangaPresence: protectedProcedure.input(presenceInput()).mutation(async ({ input }) => {
     if (!discordRPCService.isServiceEnabled) return { success: true }
     const sessionId = optUnknown(input, 'sessionId')

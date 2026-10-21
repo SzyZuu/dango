@@ -350,7 +350,7 @@ const Player: React.FC = () => {
   const effectiveIsCompleted = isCompleted || hasReachedEpisodeEnd
   const isShowCompleted =
     effectiveIsCompleted &&
-    isShowFinale(state.episodes, state.currentEpisode, state.showMeta.status)
+    isShowFinale(state.episodes, state.currentEpisode ?? undefined, state.showMeta.status)
   const shouldShowModal = state.showResumeModal && (isShowCompleted || !effectiveIsCompleted)
   const isEpisodeCompleted = effectiveIsCompleted && !isShowCompleted
   const shouldShowNextEpisodeModal =
@@ -592,7 +592,7 @@ const Player: React.FC = () => {
         try {
           sources = (await trpcClient.data.video.query({
             showId,
-            episodeNumber: state.currentEpisode,
+            episodeNumber: state.currentEpisode ?? undefined,
             mode: state.currentMode,
             provider,
           })) as VideoSource[] | null
@@ -742,7 +742,7 @@ const Player: React.FC = () => {
       !pendingQueueTransition &&
       !hasDismissedShowCompletedRef.current
     ) {
-      if (isShowFinale(state.episodes, state.currentEpisode, state.showMeta.status)) {
+      if (isShowFinale(state.episodes, state.currentEpisode ?? undefined, state.showMeta.status)) {
         dispatch({ type: 'SET_STATE', payload: { showResumeModal: true } })
       }
     }
@@ -1189,7 +1189,7 @@ const Player: React.FC = () => {
     const enabled = localStorage.getItem('playerSubtitlesEnabled') !== 'false'
     const activeTrackLabel = player.state.activeSubtitleTrack
 
-    function renderCues() {
+    const renderCues = () => {
       overlay.innerHTML = ''
       if (!enabled || activeTrackLabel === 'off' || activeTrackLabel === null) return
 
@@ -1431,7 +1431,7 @@ const Player: React.FC = () => {
           if (nextQueueItem) {
             prefetchNextEpisodeRef.current(nextQueueItem.episodeNumber, nextQueueItem.showId)
           } else {
-            prefetchNextEpisodeRef.current(nextEpisode)
+            prefetchNextEpisodeRef.current(nextEpisode ?? '')
           }
         }
       }
@@ -1466,7 +1466,7 @@ const Player: React.FC = () => {
     const fallbackDuration = Math.max(
       videoDuration || 0,
       state.resumeDuration || 0,
-      (state.showMeta.lengthMin || 0) * 60,
+      Number(state.showMeta.episodeDuration || 0) * 60,
       1
     )
 
@@ -1613,7 +1613,7 @@ const Player: React.FC = () => {
             <input
               type="checkbox"
               checked={rememberFallbackChoice}
-              onChange={(e) => setRememberFallbackChoice(e.target.checked)}
+              onChange={(e) => setRememberFallbackChoice(e.currentTarget.checked)}
             />
             Remember my choice
           </label>
@@ -1667,7 +1667,7 @@ const Player: React.FC = () => {
           ) : (
             <EpisodeList
               episodes={state.episodes}
-              currentEpisode={state.currentEpisode}
+              currentEpisode={state.currentEpisode ?? undefined}
               watchedEpisodes={state.watchedEpisodes}
               onEpisodeClick={(ep) => navigate(`/watch/${showId}/${ep}`)}
             />
@@ -1716,7 +1716,7 @@ const Player: React.FC = () => {
             loadingVideo={isVideoLoading}
             skipIntervals={state.skipIntervals}
             animeTitle={displayTitle}
-            episodeNumber={state.currentEpisode}
+            episodeNumber={state.currentEpisode ?? undefined}
             isTheaterMode={isTheaterMode}
             onTheaterModeToggle={toggleTheaterMode}
             anime4kEnabled={upscaler.isEnabled}
@@ -1874,7 +1874,7 @@ const Player: React.FC = () => {
                 title="Queue"
                 items={queue}
                 currentShowId={showId}
-                currentEpisode={state.currentEpisode}
+                currentEpisode={state.currentEpisode ?? undefined}
                 onNextQueue={handleQueueTransition}
                 onRemove={(item) =>
                   removeQueue.mutate({
@@ -2101,7 +2101,7 @@ const Player: React.FC = () => {
         isOpen={isEpisodeDrawerOpen}
         onClose={() => setIsEpisodeDrawerOpen(false)}
         episodes={state.episodes}
-        currentEpisode={state.currentEpisode}
+        currentEpisode={state.currentEpisode ?? undefined}
         watchedEpisodes={state.watchedEpisodes}
         onEpisodeClick={(ep) => {
           setIsEpisodeDrawerOpen(false)

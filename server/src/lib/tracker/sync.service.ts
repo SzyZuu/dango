@@ -1,4 +1,5 @@
-import { AniListTracker, RemoteMediaEntry } from './anilist-tracker.js'
+import { AniListTracker } from './anilist-tracker.js'
+import type { RemoteMediaEntry } from './anilist-tracker.js'
 import { WatchlistRepository } from '../../repositories/watchlist.repository.js'
 import { WatchedEpisodesRepository } from '../../repositories/watched-episodes.repository.js'
 import { ShowsMetaRepository } from '../../repositories/shows-meta.repository.js'
@@ -20,9 +21,8 @@ import { kitsuSearchAnime } from '../kitsu.js'
 import {
   readTrackerSyncState,
   resolveStatus,
-  TrackerSyncState,
-  TrackerSyncStateEntry,
 } from './sync-state.js'
+import type { TrackerSyncState, TrackerSyncStateEntry } from './sync-state.js'
 
 const TOKEN_KEY = 'tracker_anilist_token'
 const SYNC_STATE_KEY = 'tracker_anilist_sync_state'
@@ -266,7 +266,7 @@ export async function syncAniList(db: DatabaseWrapper): Promise<SyncSummary> {
     const totalDeletes = watchlistDeletes.length + remoteDeleteEntryIds.length
     if (totalDeletes > deleteCap) {
       throw new Error(
-        `AniList sync would delete ${totalDeletes} shows but only ${remoteEntries.length} were fetched. Aborting to protect your library — if you really removed that many shows on AniList, delete them locally first and sync again.`
+        `AniList sync would delete ${totalDeletes} shows but only ${remoteEntries.length} were fetched. Aborting to protect your library - if you really removed that many shows on AniList, delete them locally first and sync again.`
       )
     }
   }

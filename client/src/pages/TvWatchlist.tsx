@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router'
 import MediaCard from '../components/common/MediaCard'
 import LibraryListPage from '../components/common/LibraryListPage'
@@ -16,7 +16,6 @@ import {
   useBatchRemoveTv,
   useBatchRemoveTvProgress,
   TV_LIBRARY_STATUSES,
-  type ContinueWatchingTvItem,
   type TvLibraryItem,
 } from '../hooks/useTvLibrary'
 
@@ -66,25 +65,25 @@ export default function TvWatchlist() {
 
   const entries: GridEntry[] = useMemo(() => {
     if (isCW) {
-      return (cwQuery.data?.data ?? []).map((item: ContinueWatchingTvItem) => {
+      return (cwQuery.data?.data ?? []).map((item) => {
         const ct = item.currentTime ?? 0
         const dur = item.duration ?? 0
-        const s = item.season ?? item.lastSeason ?? 1
-        const e = item.episode ?? item.lastEpisode ?? 1
+        const s = item.season ?? 1
+        const e = item.episode ?? 1
         const isMovieItem = item.mediaType === 'movie'
         const episodeLabel = isMovieItem ? 'Movie' : `S${s} E${e}`
         const isWatched =
-          item.completed === true || item.completed === 1 || (dur > 0 && ct >= dur * 0.8)
+          item.completed === 1 || (dur > 0 && ct >= dur * 0.8)
         return {
           key: item.id,
           libId: item.id,
-          tmdbId: item.tmdbId,
+          tmdbId: item.tmdbId ?? 0,
           mediaType: item.mediaType,
-          title: item.title,
+          title: item.title || '',
           poster: item.poster || '',
           year: item.year,
           adult: isTvAdult({ adult: item.adult === 1 }),
-          status: item.status,
+          status: item.watchlistStatus ?? '',
           badge: episodeLabel,
           progressPercent: isWatched ? 100 : dur > 0 ? (ct / dur) * 100 : 0,
           progressLabel:
@@ -97,7 +96,7 @@ export default function TvWatchlist() {
               : episodeLabel,
           watchTarget: tvWatchPath(
             item.mediaType,
-            item.tmdbId,
+            item.tmdbId ?? 0,
             isMovieItem ? undefined : s,
             isMovieItem ? undefined : e
           ),

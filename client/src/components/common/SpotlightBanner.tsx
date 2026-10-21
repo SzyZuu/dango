@@ -228,11 +228,11 @@ const SpotlightBanner: React.FC<SpotlightBannerProps> = ({ slides, posterClassNa
   const safeIndex = currentIndex >= slides.length ? 0 : currentIndex
   currentIndexRef.current = safeIndex
 
-  const handleTouchStart = (e: React.TouchEvent) => {
+  const handleTouchStart = (e: React.TouchEvent<HTMLElement>) => {
     touchStartX.current = e.touches[0].clientX
   }
 
-  const handleTouchEnd = (e: React.TouchEvent) => {
+  const handleTouchEnd = (e: React.TouchEvent<HTMLElement>) => {
     const touchEndX = e.changedTouches[0].clientX
     const deltaX = touchEndX - touchStartX.current
     if (Math.abs(deltaX) > 50) {

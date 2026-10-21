@@ -2,25 +2,7 @@ import React from 'react'
 import AnimeCard from './AnimeCard'
 import AnimeCardSkeleton from './AnimeCardSkeleton'
 import MediaSection from '../common/MediaSection'
-
-interface Anime {
-  _id: string
-  id: string
-  name: string
-  thumbnail: string
-  nativeName?: string
-  englishName?: string
-  type?: string
-  episodeNumber?: number
-  currentTime?: number
-  duration?: number
-  watchedCount?: number
-  episodeCount?: number
-  availableEpisodesDetail?: {
-    sub?: string[]
-    dub?: string[]
-  }
-}
+import type { AnimeShow as Anime } from '../../types/player'
 
 interface AnimeSectionConfig {
   elements?: {

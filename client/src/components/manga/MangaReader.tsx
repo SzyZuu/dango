@@ -228,10 +228,10 @@ const MangaReader: React.FC<MangaReaderProps> = ({
     return () => window.removeEventListener('resize', measureRibbon)
   }, [mode, pageIndex, pages.length, measureRibbon])
 
-  const onTouchStart = (e: React.TouchEvent) => {
+  const onTouchStart = (e: React.TouchEvent<HTMLElement>) => {
     touchX.current = e.touches[0].clientX
   }
-  const onTouchEnd = (e: React.TouchEvent) => {
+  const onTouchEnd = (e: React.TouchEvent<HTMLElement>) => {
     if (touchX.current === null) return
     const dx = e.changedTouches[0].clientX - touchX.current
     touchX.current = null
@@ -287,7 +287,7 @@ const MangaReader: React.FC<MangaReaderProps> = ({
           <Icon name="chevron-left" size={14} />
         </button>
         <span className={styles.readerTitle}>
-          {mangaTitle} — Ch. {chapter.number}
+          {mangaTitle} - Ch. {chapter.number}
           {chapter.title ? ` ${chapter.title}` : ''}
         </span>
         {pages.length > 0 && (
@@ -319,7 +319,7 @@ const MangaReader: React.FC<MangaReaderProps> = ({
             aria-pressed={!fitHeight}
             className={!fitHeight ? styles.readerSegmentActive : ''}
             onClick={() => setFit('width')}
-            title="Fit width — best for portrait / phones"
+            title="Fit width - best for portrait / phones"
           >
             Wide
           </button>
@@ -328,7 +328,7 @@ const MangaReader: React.FC<MangaReaderProps> = ({
             aria-pressed={fitHeight}
             className={fitHeight ? styles.readerSegmentActive : ''}
             onClick={() => setFit('height')}
-            title="Fit height — best for landscape / desktop"
+            title="Fit height - best for landscape / desktop"
           >
             Tall
           </button>

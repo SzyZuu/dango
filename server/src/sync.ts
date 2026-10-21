@@ -485,7 +485,7 @@ export async function runFullSyncSequence(
     }
   }
 
-  // Anime runs first and sequentially — it may sync down data
+  // Anime runs first and sequentially - it may sync down data
   const animeRemoteVersion = await syncDownOnBoot(dbs.db, 'anime', opts.remoteFolder).catch(
     (err) => {
       logger.error({ err }, 'Sync down on boot failed')
@@ -496,7 +496,7 @@ export async function runFullSyncSequence(
     logger.error({ err }, 'Sync up on boot failed')
   )
 
-  // manga / TV / ASMR are independent — check + up in parallel
+  // manga / TV / ASMR are independent - check + up in parallel
   const secondary: { kind: MediaKind; db: DatabaseWrapper }[] = [
     { kind: 'manga', db: dbs.mangaDb },
     { kind: 'tv', db: dbs.tvDb },

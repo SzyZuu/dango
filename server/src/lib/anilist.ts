@@ -1,4 +1,4 @@
-import { Show } from '../providers/provider.interface.js'
+import type { Show } from '../providers/provider.interface.js'
 import { buildQueryVariants, pickBestMatch } from '../providers/title-matching.js'
 import logger from '../logger.js'
 import { parseJsonBody } from '../utils/http.utils.js'
@@ -12,11 +12,11 @@ import {
   kitsuSearchAnime,
   kitsuTrending,
   kitsuSeasonal,
-  kitsuSpotlight,
   kitsuLatestReleases,
   kitsuMetaByAnilistId,
   kitsuMetaByMalId,
   kitsuEpisodes,
+  kitsuBatchGetStatuses,
 } from './kitsu.js'
 import {
   malSearchMedia,
@@ -196,7 +196,7 @@ export type AnilistSort =
   | 'EPISODES_DESC'
   | 'UPDATED_AT_DESC'
 
-export function mediaFields(): string {
+function mediaFields(): string {
   return `
     id
     idMal
@@ -230,7 +230,7 @@ export function mediaFields(): string {
   `
 }
 
-export function mediaFieldsLight(): string {
+function mediaFieldsLight(): string {
   return `
     id
     title { romaji english native }
@@ -245,12 +245,6 @@ export function mediaFieldsLight(): string {
     format
     nextAiringEpisode { episode }
   `
-}
-
-export interface BatchedHomeData {
-  trending: Show[]
-  seasonal: Show[]
-  spotlight: Show[]
 }
 
 async function tryFallback<T>(
@@ -279,78 +273,6 @@ function mapFallbackResults(fb: AnilistMedia[]): Show[] {
   return results
 }
 
-export async function getBatchedHomeData(format?: string): Promise<BatchedHomeData> {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = now.getMonth() + 1
-  const currentSeason =
-    month <= 3 ? 'WINTER' : month <= 6 ? 'SPRING' : month <= 9 ? 'SUMMER' : 'FALL'
-
-  const formatVar = format && format !== 'ALL' ? format.toUpperCase() : undefined
-  const formatFilter = formatVar ? `format: $seasonFormat,` : ''
-
-  const query = `
-    query ($season: MediaSeason, $seasonYear: Int, $seasonFormat: MediaFormat) {
-      trending: Page(perPage: 20) {
-        media(sort: TRENDING_DESC, type: ANIME, isAdult: false, status: RELEASING) {
-          ${mediaFieldsLight()}
-        }
-      }
-      seasonal: Page(perPage: 14) {
-        media(season: $season, seasonYear: $seasonYear, type: ANIME, isAdult: false, ${formatFilter} sort: [POPULARITY_DESC, SCORE_DESC]) {
-          ${mediaFieldsLight()}
-        }
-      }
-      spotlight: Page(perPage: 20) {
-        media(sort: TRENDING_DESC, type: ANIME, isAdult: false) {
-          ${mediaFields()}
-        }
-      }
-    }
-  `
-
-  const result = await anilistRequest<{
-    trending?: { media?: AnilistMedia[] }
-    seasonal?: { media?: AnilistMedia[] }
-    spotlight?: { media?: AnilistMedia[] }
-  }>(query, { season: currentSeason, seasonYear: year, seasonFormat: formatVar })
-
-  if (!result?.data) {
-    if (!anilistUnavailable()) return { trending: [], seasonal: [], spotlight: [] }
-    try {
-      const [trending, seasonal, spotlight] = await Promise.all([
-        tryFallback(
-          () => malTop(malCacheStore(), 'airing', 1).then((m) => m.map(fromAnilistMedia)),
-          () => kitsuTrending(1, 20).then((m) => m.map(fromAnilistMedia))
-        ),
-        tryFallback(
-          () =>
-            malSeasonal(malCacheStore(), currentSeason, year, formatVar, 1, 14).then((m) =>
-              m.map(fromAnilistMedia)
-            ),
-          () =>
-            kitsuSeasonal(currentSeason, year, formatVar, 1, 14).then((m) =>
-              m.map(fromAnilistMedia)
-            )
-        ),
-        tryFallback(
-          () => malTop(malCacheStore(), 'airing', 1).then((m) => m.map(fromAnilistMedia)),
-          () => kitsuSpotlight(1, 20).then((m) => m.map(fromAnilistMedia))
-        ),
-      ])
-      return { trending, seasonal, spotlight }
-    } catch {
-      return { trending: [], seasonal: [], spotlight: [] }
-    }
-  }
-
-  return {
-    trending: (result.data.trending?.media ?? []).map(fromAnilistMedia),
-    seasonal: (result.data.seasonal?.media ?? []).map(fromAnilistMedia),
-    spotlight: (result.data.spotlight?.media ?? []).map(fromAnilistMedia),
-  }
-}
-
 function getAnilistCacheKey(query: string, variables?: Record<string, unknown>): string {
   return `${query}:${JSON.stringify(variables || {})}`
 }
@@ -362,7 +284,7 @@ function getCachedAnilist<T>(key: string): T | null {
   return null
 }
 
-export function setCachedAnilist(key: string, data: unknown): void {
+function setCachedAnilist(key: string, data: unknown): void {
   anilistMemoryCache.set(key, { data, expiry: Date.now() + ANILIST_MEMORY_TTL })
 }
 
@@ -990,7 +912,7 @@ function titlesMatchAny(candidate: string | null | undefined, expected: string[]
   return expected.some((t) => titleSimilarity(candidate, t) >= 0.6)
 }
 
-export async function findPosterByTitle(
+async function findPosterByTitle(
   title: string | null | undefined,
   expected?: PosterExpectation
 ): Promise<string | null> {
@@ -1283,7 +1205,6 @@ export async function batchGetShowStatuses(ids: number[]): Promise<Map<number, s
   const missing = ids.filter((id) => !result.has(id))
   if (missing.length > 0) {
     try {
-      const { kitsuBatchGetStatuses } = await import('./kitsu.js')
       const kitsuStatuses = await kitsuBatchGetStatuses(missing)
       for (const [id, status] of kitsuStatuses) {
         result.set(id, status)

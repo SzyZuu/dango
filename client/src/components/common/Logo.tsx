@@ -1,4 +1,4 @@
-﻿import React from 'react'
+import React from 'react'
 import { useDangoAlive } from '../../hooks/useDangoAnimation'
 import { THEME_LOGOS, type ThemeId } from '../../contexts/ThemeContext'
 import { VIEWBOX, OFFSETS, SKEWER } from '../../lib/dangoLayout'

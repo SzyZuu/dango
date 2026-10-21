@@ -87,11 +87,6 @@ export const asmrProgressRouter = router({
     return { progress: rows }
   }),
 
-  latest: protectedProcedure.input(asmrProgressWorkInput()).query(async ({ ctx, input }) => {
-    const row = await AsmrProgressRepository.getLatest(ctx.asmrDb, input.workId)
-    return row || { currentTime: 0, duration: 0 }
-  }),
-
   save: protectedProcedure.input(asmrProgressSaveInput()).mutation(async ({ ctx, input }) => {
     const trackIndexNum = Math.max(Math.round(Number(input.trackIndex)) || 0, 0)
     const timeNum = Math.max(Number(input.currentTime) || 0, 0)

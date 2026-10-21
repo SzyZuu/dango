@@ -125,7 +125,7 @@ const LanAuthSettings: React.FC = () => {
             id="lan-password"
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => setPassword(e.currentTarget.value)}
             placeholder={
               hasPassword ? 'Leave empty to keep current password' : 'Enter a password...'
             }
@@ -138,7 +138,7 @@ const LanAuthSettings: React.FC = () => {
             id="lan-confirm-password"
             type="password"
             value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
+            onChange={(e) => setConfirmPassword(e.currentTarget.value)}
             placeholder="Confirm password..."
             className={styles.input}
           />

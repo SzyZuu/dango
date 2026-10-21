@@ -1,5 +1,5 @@
 :root {
-  /* ===== COLOR: ACCENT — Taro ===== */
+  /* ===== COLOR: ACCENT - Taro ===== */
   --accent: #6d5dfc;
   --accent-light: #897cff;
   --accent-lighter: #b3a8ff;
@@ -32,7 +32,7 @@
   --accent-blue: hsl(var(--secondary-h), var(--secondary-s), var(--secondary-l));
   --accent-blue-light: hsl(var(--secondary-h), var(--secondary-s), 70%);
 
-  /* ===== COLOR: NEUTRAL — Obsidian ===== */
+  /* ===== COLOR: NEUTRAL - Obsidian ===== */
   --bg-main: #0c0d12;
   --bg-primary: #13151d;
   --bg-secondary: #13151d;
@@ -205,9 +205,9 @@
   }
 }
 
-/* ===== THEMES — default is Taro (:root, top ball). Mochi (middle) + Sakura (bottom). ===== */
+/* ===== THEMES - default is Taro (:root, top ball). Mochi (middle) + Sakura (bottom). ===== */
 
-/* Mochi: middle ball (#f0f0f0) — monochrome pearl on neutral charcoal, flat (no glow) */
+/* Mochi: middle ball (#f0f0f0) - monochrome pearl on neutral charcoal, flat (no glow) */
 html[data-theme='mochi'] {
   --accent: #e3e1ee;
   --accent-light: #f4f3fa;
@@ -250,7 +250,7 @@ html[data-theme='mochi'] {
   --focus-ring-glow: 0 0 0 3px rgba(227, 225, 238, 0.25);
 }
 
-/* Sakura: bottom ball (#e0b0e0) — soft pink on dark plum, flat (no glow) */
+/* Sakura: bottom ball (#e0b0e0) - soft pink on dark plum, flat (no glow) */
 html[data-theme='sakura'] {
   --accent: #d9a3d9;
   --accent-light: #eccbec;

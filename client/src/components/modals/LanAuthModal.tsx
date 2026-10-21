@@ -62,7 +62,7 @@ const LanAuthModal: React.FC<LanAuthModalProps> = ({ isOpen, onClose, onSuccess 
             id="lan-password"
             type="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={(e) => setPassword(e.currentTarget.value)}
             placeholder="Enter password..."
             className={styles.input}
             onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}

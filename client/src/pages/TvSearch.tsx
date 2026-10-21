@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useSearchParams } from 'react-router'
 import Icon from '../components/common/Icon'
 import Pagination from '../components/common/Pagination'
@@ -232,7 +232,7 @@ export default function TvSearch() {
             <select
               value={type}
               onChange={(e) => {
-                setType(e.target.value)
+                setType(e.currentTarget.value)
                 setGenreState({})
               }}
               className={styles.providerSelect}

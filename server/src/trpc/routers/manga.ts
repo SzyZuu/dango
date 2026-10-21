@@ -227,32 +227,6 @@ export const mangaRouter = router({
     })
   }),
 
-  chapters: protectedProcedure.input(mangaInfoInput()).query(async ({ ctx, input }) => {
-    const provider = String(input.provider || '')
-    const id = String(input.id || '')
-    const rating = String(input.rating || '')
-    const mature = String(input.mature || '')
-    return cached(
-      ctx,
-      `route-manga-chapters-${provider}-${id}-${rating}-${mature}`,
-      600,
-      async () => {
-        try {
-          if (!id) return { status: 400, body: { error: 'Missing id' } }
-          const chapters =
-            (await pick(ctx, provider as string as MangaProviderName)?.getChapters(
-              id,
-              parseRatings({ rating, mature })
-            )) ?? []
-          return { body: { chapters } }
-        } catch (err) {
-          logger.error({ err }, '[Manga] chapters failed')
-          return { body: { chapters: [] } }
-        }
-      }
-    )
-  }),
-
   pages: protectedProcedure.input(mangaPagesInput()).query(async ({ ctx, input }) => {
     const provider = String(input.provider || '')
     const id = String(input.id || '')

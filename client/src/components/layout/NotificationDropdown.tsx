@@ -54,18 +54,18 @@ const NotificationDropdown: React.FC = () => {
           <>
             <span className={`${styles.statusDot} ${styles.statusDotOk}`} aria-hidden="true" />
             <span>
-              Discovery complete — checked {status.total} {status.total === 1 ? 'show' : 'shows'}
+              Discovery complete - checked {status.total} {status.total === 1 ? 'show' : 'shows'}
             </span>
           </>
         ) : status?.state === 'empty' ? (
           <>
             <span className={`${styles.statusDot} ${styles.statusDotInfo}`} aria-hidden="true" />
-            <span>No shows set to Watching — nothing to check</span>
+            <span>No shows set to Watching - nothing to check</span>
           </>
         ) : status?.state === 'error' ? (
           <>
             <span className={`${styles.statusDot} ${styles.statusDotError}`} aria-hidden="true" />
-            <span>Last check failed — will retry automatically</span>
+            <span>Last check failed - will retry automatically</span>
           </>
         ) : (
           <>

@@ -25,6 +25,7 @@ import {
   useThisWeekSchedule,
 } from '../hooks/useAnimeData'
 import { useTitlePreference } from '../contexts/TitlePreferenceContext'
+import type { AnimeShow } from '../types/player'
 import { useContentType, type ContentType } from '../contexts/ContentTypeContext'
 import OptionTabs from '../components/common/OptionTabs'
 import MangaHome from '../components/manga/MangaHome'
@@ -257,7 +258,7 @@ const Home: React.FC = () => {
           <AnimeSection
             title="This Week"
             eyebrow="Aired this week"
-            animeList={thisWeekList || []}
+            animeList={(thisWeekList || []) as AnimeShow[]}
             continueWatching={false}
             carousel
             loading={loadingThisWeek}

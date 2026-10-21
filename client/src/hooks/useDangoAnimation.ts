@@ -1,4 +1,4 @@
-﻿import { useEffect } from 'react'
+import { useEffect } from 'react'
 import { useSetting } from './useSettings'
 import { useLowEndMode } from '../contexts/LowEndModeContext'
 import { gazeAt } from '../lib/dangoGaze'
@@ -14,6 +14,7 @@ import {
   SHUFFLE_JITTER_MS,
   WAKE_STAGGER,
   NUDGE,
+  type Resting,
 } from '../lib/dangoFaces'
 
 type Slot = SVGGElement
@@ -134,7 +135,7 @@ export const useDangoAnimation = () => {
     const shuffle = () => {
       if (!asleep) {
         turn = (turn + 1) % resting.length
-        resting[turn] = pickResting(Math.random(), resting[turn])
+        resting[turn] = pickResting(Math.random(), resting[turn] as Resting | undefined)
         paint()
       }
       later(shuffle, SHUFFLE_MS + Math.random() * SHUFFLE_JITTER_MS)

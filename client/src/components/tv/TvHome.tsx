@@ -254,12 +254,12 @@ const TvHome: React.FC = () => {
         {items.map((item) => {
           const ct = item.currentTime ?? 0
           const dur = item.duration ?? 0
-          const s = item.season ?? item.lastSeason ?? 1
-          const e = item.episode ?? item.lastEpisode ?? 1
+          const s = item.season ?? 1
+          const e = item.episode ?? 1
           const isMovieItem = item.mediaType === 'movie'
           const episodeLabel = isMovieItem ? 'Movie' : `S${s} E${e}`
           const isWatched =
-            item.completed === true || item.completed === 1 || (dur > 0 && ct >= dur * 0.8)
+            item.completed === 1 || (dur > 0 && ct >= dur * 0.8)
           const percent = isWatched ? 100 : dur > 0 && ct > 0 ? (ct / dur) * 100 : 0
           const label = isWatched
             ? 'Watched'
@@ -273,7 +273,7 @@ const TvHome: React.FC = () => {
               key={item.id}
               item={{
                 id: item.id,
-                title: item.title,
+                title: item.title || '',
                 thumbnail: item.poster || '',
                 typeBadge: isMovieItem ? 'Movie' : 'TV',
                 chapterBadge: episodeLabel,
@@ -281,7 +281,7 @@ const TvHome: React.FC = () => {
               }}
               linkTo={tvWatchPath(
                 item.mediaType,
-                item.tmdbId,
+                item.tmdbId ?? 0,
                 isMovieItem ? undefined : s,
                 isMovieItem ? undefined : e
               )}
@@ -289,7 +289,7 @@ const TvHome: React.FC = () => {
               progress={(dur > 0 || isWatched) && percent > 0 ? { percent, label } : undefined}
               showProgress
               metaRow={item.year ? <span style={{ opacity: 0.75 }}>{item.year}</span> : undefined}
-              onRemove={() => setResetTarget({ libId: item.id, title: item.title })}
+              onRemove={() => setResetTarget({ libId: item.id, title: item.title || '' })}
               renderPopup={(anchorRect, helpers) => (
                 <TvPopup
                   item={{

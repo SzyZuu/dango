@@ -41,7 +41,7 @@ export function useTheaterMode() {
   }, [])
 
   const handleLayoutClick = useCallback(
-    (e: React.MouseEvent) => {
+    (e: React.MouseEvent<HTMLElement>) => {
       if (isTheaterMode && e.target === e.currentTarget) {
         setIsTheaterMode(false)
         try {

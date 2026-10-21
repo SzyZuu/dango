@@ -1,6 +1,6 @@
 import type { AnilistMedia, AnilistSearchOptions } from './anilist.js'
-import { kitsuTitlesByMalIds } from './kitsu.js'
-import type { KitsuTitles } from './kitsu.js'
+import { kitsuTitlesByMalIds } from './kitsu/index.js'
+import type { KitsuTitles } from './kitsu/index.js'
 import { parseJsonBody } from '../utils/http.utils.js'
 import { decodeHtml } from './html.js'
 import { filterMedia, startDateRank } from './media-filter.js'

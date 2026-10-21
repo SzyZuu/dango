@@ -32,7 +32,7 @@ import { SettingsRepository } from './repositories/settings.repository.js'
 import { createHonoApp } from './app-hono.js'
 import { startWatchlistDiscovery, stopWatchlistDiscovery } from './lib/watchlist-discovery.js'
 import { checkAnilistStatus } from './lib/anilist.js'
-import { offlineDb } from './lib/offline-db.js'
+import { offlineDb } from './lib/offline-db/index.js'
 
 const app = createHonoApp(
   () => ({ shuttingDown: isShuttingDown, dbReady: !!db }),

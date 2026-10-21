@@ -18,8 +18,8 @@ import {
   getAnilistEpisodes,
   getShowMetaById,
 } from '../../lib/anilist.js'
-import { kitsuSearchAnime } from '../../lib/kitsu.js'
-import { offlineDb } from '../../lib/offline-db.js'
+import { kitsuSearchAnime } from '../../lib/kitsu/index.js'
+import { offlineDb } from '../../lib/offline-db/index.js'
 import {
   defineSchema,
   idInput,

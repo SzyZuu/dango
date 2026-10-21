@@ -6,22 +6,17 @@ import { WatchlistRepository } from '../repositories/watchlist.repository.js'
 import { ShowsMetaRepository } from '../repositories/shows-meta.repository.js'
 import { LegacyIdMappingRepository } from '../repositories/legacy-id-mapping.repository.js'
 import { rewriteShowId } from '../repositories/show-id.repository.js'
-import { dbGet } from '../utils/db-utils.js'
 import logger from '../logger.js'
 
 const inFlightMigrations = new Map<string, Promise<string>>()
 
 async function consolidateFromNumeric(db: DatabaseWrapper, numericId: string): Promise<string> {
-  const metaRow = dbGet<{ anilistId: number | null }>(
-    db,
-    'SELECT anilistId FROM shows_meta WHERE id = ? AND anilistId IS NOT NULL',
-    [numericId]
-  )
+  const anilistId = await ShowsMetaRepository.getAnilistId(db, numericId)
 
   let trueAnilistId: number | undefined
-  if (metaRow?.anilistId != null && String(metaRow.anilistId) !== numericId) {
-    trueAnilistId = metaRow.anilistId
-  } else if (!metaRow) {
+  if (anilistId != null && String(anilistId) !== numericId) {
+    trueAnilistId = anilistId
+  } else if (anilistId == null) {
     if (await WatchlistRepository.exists(db, numericId)) {
       const meta = await getShowMetaById(numericId)
       if (meta?.anilistId && meta.anilistId !== parseInt(numericId)) {
@@ -64,14 +59,8 @@ async function consolidateFromNumeric(db: DatabaseWrapper, numericId: string): P
   }
 
   if (!legacyId && trueAnilistId) {
-    const metaByAnilist = dbGet<{ id: string }>(
-      db,
-      'SELECT id FROM shows_meta WHERE anilistId = ? AND id IN (SELECT id FROM watchlist)',
-      [trueAnilistId]
-    )
-    if (metaByAnilist) {
-      legacyId = metaByAnilist.id
-    }
+    legacyId =
+      (await ShowsMetaRepository.getWatchlistedIdByAnilistId(db, trueAnilistId)) ?? undefined
   }
 
   if (!legacyId) return numericId
@@ -126,12 +115,8 @@ async function migrateId(db: DatabaseWrapper, legacyId: string): Promise<string>
     if (localMeta && localMeta.name) {
       showName = localMeta.name
     } else {
-      const metaByAnilist = dbGet<{ name: string; id: string }>(
-        db,
-        'SELECT id, name FROM shows_meta WHERE anilistId = ?',
-        [parseInt(legacyId) || 0]
-      )
-      if (metaByAnilist && metaByAnilist.name) {
+      const metaByAnilist = await ShowsMetaRepository.getByAnilistId(db, parseInt(legacyId) || 0)
+      if (metaByAnilist?.name) {
         showName = metaByAnilist.name
       } else {
         const watchlistEntry = await WatchlistRepository.getById(db, legacyId)

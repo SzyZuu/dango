@@ -23,6 +23,20 @@ export const ShowsMetaRepository = {
     return rows[0]?.anilistId ?? null
   },
 
+  getByAnilistId: async (db: DatabaseWrapper, anilistId: number) => {
+    const rows = await getDrizzle(db).all<{ id: string; name: string }>(
+      sql`SELECT id, name FROM shows_meta WHERE anilistId = ${anilistId}`
+    )
+    return rows[0] ?? null
+  },
+
+  getWatchlistedIdByAnilistId: async (db: DatabaseWrapper, anilistId: number) => {
+    const rows = await getDrizzle(db).all<{ id: string }>(
+      sql`SELECT id FROM shows_meta WHERE anilistId = ${anilistId} AND id IN (SELECT id FROM watchlist)`
+    )
+    return rows[0]?.id ?? null
+  },
+
   upsert: (
     db: DatabaseWrapper,
     data: {

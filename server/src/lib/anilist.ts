@@ -17,7 +17,7 @@ import {
   kitsuMetaByMalId,
   kitsuEpisodes,
   kitsuBatchGetStatuses,
-} from './kitsu.js'
+} from './kitsu/index.js'
 import {
   malSearchMedia,
   malSeasonal,
@@ -31,7 +31,7 @@ import {
   toAnilistDetailMedia,
 } from './mal.js'
 import { malCacheStore } from '../repositories/mal-cache.repository.js'
-import { offlineDb, type OfflineEntry } from './offline-db.js'
+import { offlineDb, type OfflineEntry } from './offline-db/index.js'
 import { stripHtml } from './html.js'
 import { CANONICAL_GENRES } from './media-vocab.js'
 

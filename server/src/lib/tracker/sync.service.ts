@@ -10,14 +10,14 @@ import { DatabaseWrapper } from '../../db.js'
 import { dbGet } from '../../utils/db-utils.js'
 import logger from '../../logger.js'
 import { fetchMalUserList, type MalUserListEntry } from '../mal.js'
-import { offlineDb } from '../offline-db.js'
+import { offlineDb } from '../offline-db/index.js'
 import {
   getShowMetaById,
   getShowMetaByMalId,
   isAnilistRateLimited,
   searchAnilistByTitle,
 } from '../anilist.js'
-import { kitsuSearchAnime } from '../kitsu.js'
+import { kitsuSearchAnime } from '../kitsu/index.js'
 import { readTrackerSyncState, resolveStatus } from './sync-state.js'
 import type { TrackerSyncState, TrackerSyncStateEntry } from './sync-state.js'
 import { assertDeleteCap, collectMediaIds, pushRemoteChanges } from './sync-engine.js'

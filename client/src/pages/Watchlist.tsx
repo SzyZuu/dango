@@ -32,6 +32,7 @@ import Pagination from '../components/common/Pagination'
 import styles from './Watchlist.module.css'
 import listStyles from '../components/common/LibraryListPage.module.css'
 import { qk } from '../lib/queryKeys'
+import ActiveFilterChips, { type FilterChip } from '../components/common/ActiveFilterChips'
 
 const FILTERS = [
   'All',
@@ -384,6 +385,63 @@ const Watchlist: React.FC = () => {
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / 14)), [total])
 
+  const activeChips: FilterChip[] = []
+  if (query.trim()) {
+    activeChips.push({
+      key: 'query',
+      label: `Search: ${query}`,
+      onRemove: () => {
+        setQuery('')
+        applyFilters()
+      },
+    })
+  }
+  if (type !== 'ALL') {
+    activeChips.push({
+      key: 'type',
+      label: `Type: ${type}`,
+      onRemove: () => {
+        setType('ALL')
+        applyFilters()
+      },
+    })
+  }
+  if (season !== 'ALL') {
+    activeChips.push({
+      key: 'season',
+      label: `Season: ${season}`,
+      onRemove: () => {
+        setSeason('ALL')
+        applyFilters()
+      },
+    })
+  }
+  if (year !== 'ALL') {
+    activeChips.push({
+      key: 'year',
+      label: `Year: ${year}`,
+      onRemove: () => {
+        setYear('ALL')
+        applyFilters()
+      },
+    })
+  }
+  for (const [genre, genreState] of Object.entries(genreStates)) {
+    activeChips.push({
+      key: genre,
+      label: genreState === 'include' ? `+ ${genre}` : `-${genre}`,
+      tone: genreState === 'include' ? 'primary' : 'danger',
+      onRemove: () => {
+        setGenreStates((prev) => {
+          const copy = { ...prev }
+          delete copy[genre]
+          return copy
+        })
+        applyFilters()
+      },
+    })
+  }
+
   return (
     <div className="page-container">
       <header className={listStyles.header}>
@@ -597,155 +655,7 @@ const Watchlist: React.FC = () => {
         <ErrorMessage message={error.message} />
       ) : (
         <>
-          {(type !== 'ALL' ||
-            season !== 'ALL' ||
-            year !== 'ALL' ||
-            Object.keys(genreStates).length > 0 ||
-            query.trim()) && (
-            <div
-              style={{
-                display: 'flex',
-                flexWrap: 'wrap',
-                gap: '8px',
-                alignItems: 'center',
-                marginBottom: '1.5rem',
-              }}
-            >
-              <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                Active Filters:
-              </span>
-
-              {query.trim() && (
-                <span
-                  className="badge badge-secondary"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                >
-                  Search: {query}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      e.preventDefault()
-                      setQuery('')
-                      applyFilters()
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'inherit',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    ✕
-                  </button>
-                </span>
-              )}
-
-              {type !== 'ALL' && (
-                <span
-                  className="badge badge-secondary"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                >
-                  Type: {type}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      e.preventDefault()
-                      setType('ALL')
-                      applyFilters()
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'inherit',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    ✕
-                  </button>
-                </span>
-              )}
-
-              {season !== 'ALL' && (
-                <span
-                  className="badge badge-secondary"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                >
-                  Season: {season}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      e.preventDefault()
-                      setSeason('ALL')
-                      applyFilters()
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'inherit',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    ✕
-                  </button>
-                </span>
-              )}
-
-              {year !== 'ALL' && (
-                <span
-                  className="badge badge-secondary"
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                >
-                  Year: {year}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      e.preventDefault()
-                      setYear('ALL')
-                      applyFilters()
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'inherit',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    ✕
-                  </button>
-                </span>
-              )}
-
-              {Object.entries(genreStates).map(([genre, state]) => (
-                <span
-                  key={genre}
-                  className={`badge ${state === 'include' ? 'badge-primary' : 'badge-danger'}`}
-                  style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}
-                >
-                  {state === 'include' ? `+ ${genre}` : `- ${genre}`}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      e.preventDefault()
-                      setGenreStates((prev) => {
-                        const copy = { ...prev }
-                        delete copy[genre]
-                        return copy
-                      })
-                      applyFilters()
-                    }}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'inherit',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    ✕
-                  </button>
-                </span>
-              ))}
-            </div>
-          )}
+          {activeChips.length > 0 && <ActiveFilterChips chips={activeChips} />}
 
           <div className={`${listStyles.grid} ${lowEndMode ? styles.lowEnd : ''}`}>
             {sortedList.map((item) => {

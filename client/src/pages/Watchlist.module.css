@@ -242,3 +242,7 @@
 
 @keyframes slideUpIn {
 }
+
+.applyBtn {
+  align-self: flex-start;
+}

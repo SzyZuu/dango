@@ -456,3 +456,18 @@
     grid-template-columns: 1fr;
   }
 }
+
+.applyBtn {
+  align-self: flex-start;
+}
+
+.lowEnd {
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-4);
+}
+
+@media (max-width: 768px) {
+  .lowEnd {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

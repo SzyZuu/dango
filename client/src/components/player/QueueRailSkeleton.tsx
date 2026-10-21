@@ -31,7 +31,7 @@ const QueueRailSkeleton: React.FC<QueueRailSkeletonProps> = ({ count = 3 }) => {
               <Skeleton width="100%" height="100%" variant="rectangular" />
             </div>
             <div className={styles.meta}>
-              <Skeleton width="80%" height="1.2rem" variant="text" className="mb-2" />
+              <Skeleton width="80%" height="1.2rem" variant="text" className={styles.metaGap} />
               <Skeleton
                 width="40%"
                 height="0.8rem"

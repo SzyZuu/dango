@@ -657,7 +657,7 @@ const Watchlist: React.FC = () => {
         <>
           {activeChips.length > 0 && <ActiveFilterChips chips={activeChips} />}
 
-          <div className={`${listStyles.grid} ${lowEndMode ? styles.lowEnd : ''}`}>
+          <div className={`${listStyles.grid} ${lowEndMode ? listStyles.lowEnd : ''}`}>
             {sortedList.map((item) => {
               const selected = selectedIds.has(item.id)
               return (

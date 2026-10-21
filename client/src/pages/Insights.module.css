@@ -856,3 +856,15 @@
   opacity: 0.6;
   cursor: default;
 }
+
+.loading {
+  padding: var(--space-16) var(--space-4);
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.error {
+  padding: var(--space-16) var(--space-4);
+  text-align: center;
+  color: var(--color-danger);
+}

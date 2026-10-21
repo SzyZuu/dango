@@ -367,3 +367,10 @@
     font-size: 1.1rem;
   }
 }
+
+.notificationDivider {
+  height: 1px;
+  flex-shrink: 0;
+  margin: var(--space-2) 0;
+  background: var(--border-primary);
+}

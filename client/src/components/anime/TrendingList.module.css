@@ -232,3 +232,9 @@
   height: 12px;
   margin-top: var(--space-2);
 }
+
+.header-actions {
+  width: 100%;
+  display: flex;
+  justify-content: flex-end;
+}

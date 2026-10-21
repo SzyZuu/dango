@@ -99,7 +99,7 @@ export default function AnimeInfo() {
           </div>
 
           <div className={styles.infoGlass}>
-            <div className={styles.topInfo}>
+            <div>
               <h1 className={styles.title}>{getDisplayTitle()}</h1>
 
               <div className={styles.quickMeta}>

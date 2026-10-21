@@ -252,3 +252,7 @@
     height: 65px;
   }
 }
+
+.metaGap {
+  margin-bottom: var(--space-2);
+}

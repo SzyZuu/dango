@@ -195,7 +195,7 @@ export default function TvInfo() {
           </div>
 
           <div className={styles.infoGlass}>
-            <div className={styles.topInfo}>
+            <div>
               <h1 className={styles.title}>{details.title}</h1>
 
               <div className={styles.quickMeta}>

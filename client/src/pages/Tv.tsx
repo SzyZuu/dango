@@ -61,8 +61,8 @@ import SynopsisText from '../components/anime/SynopsisText'
 import type Hls from 'hls.js'
 import type { SkipInterval } from '../types/player'
 import styles from './Tv.module.css'
-import layoutStyles from './PlayerPageLayout.module.css'
-import playerStyles from './Player.module.css'
+import layoutStyles from '../components/player/PlayerPageLayout.module.css'
+import playerStyles from '../components/player/Player.module.css'
 
 type MediaType = 'movie' | 'tv' | 'tvSeries' | 'tvMiniSeries'
 

@@ -4,7 +4,7 @@ import { THEME_LOGOS, type ThemeId } from '../../contexts/ThemeContext'
 import { VIEWBOX, OFFSETS, SKEWER } from '../../lib/dangoLayout'
 import styles from './Logo.module.css'
 
-const INK = '#140f15'
+const INK = 'var(--logo-ink)'
 
 const BODY =
   'm 7,0 c -3.9372984,0 -7.10030437,2.4883888 -7,6 0.13572675,4.751733 5.0802847,4.156395 7,4.156395 1.2538994,0 6.530451,0.392468 6.584946,-4.168088 C 13.622023,2.8853946 10.937298,0 7,0 Z'

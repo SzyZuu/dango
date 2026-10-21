@@ -1,5 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
 import Icon from './Icon'
+import styles from './ErrorBoundary.module.css'
 
 interface Props {
   children: ReactNode
@@ -25,48 +26,16 @@ class ErrorBoundary extends Component<Props, State> {
   public render() {
     if (this.state.hasError) {
       return (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            height: '100vh',
-            width: '100%',
-            backgroundColor: '#1a1b1c',
-            color: '#fff',
-            textAlign: 'center',
-            padding: '2rem',
-          }}
-        >
-          <Icon
-            name="exclamation-triangle"
-            style={{ fontSize: '4rem', color: '#ff4d4d', marginBottom: '1rem' }}
-          />
-          <h1 style={{ marginBottom: '1rem' }}>Something went wrong</h1>
-          <p style={{ color: '#aaa', marginBottom: '2rem' }}>
-            The application encountered an unexpected error.
-          </p>
+        <div className={styles.screen}>
+          <Icon name="exclamation-triangle" className={styles.icon} />
+          <h1 className={styles.title}>Something went wrong</h1>
+          <p className={styles.text}>The application encountered an unexpected error.</p>
           <button
             onClick={() => {
               this.setState({ hasError: false })
               window.location.href = '/'
             }}
-            style={{
-              padding: '0.8rem 1.5rem',
-              backgroundColor: 'var(--accent, #3d5afe)',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '0.5rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              fontSize: '1rem',
-              transition: 'background-color 0.2s',
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#536dfe')}
-            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = 'var(--accent, #3d5afe)')}
+            className={styles.button}
           >
             <Icon name="home" />
             Go back Home

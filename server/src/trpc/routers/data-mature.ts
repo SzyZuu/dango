@@ -3,7 +3,6 @@ import { protectedProcedure, router } from '../index.js'
 import { badRequest, failed, notFound } from '../errors.js'
 import { cached } from '../cache.js'
 import { TempShowIdsRepository } from '../../repositories/temp-show-ids.repository.js'
-import { malCacheStore } from '../../repositories/mal-cache.repository.js'
 import { malSearchMedia, malSearchTitle } from '../../lib/mal/index.js'
 import type { AnilistMedia } from '../../lib/anilist/index.js'
 import type { BrowseCaps } from '../../providers/remote-types.js'
@@ -37,7 +36,7 @@ export const dataMatureRouter = router({
               return { id: typeof id === 'number' && id < 0 ? `mal-${Math.abs(id)}` : id }
             }
 
-            const malResult = await malSearchTitle(malCacheStore(), title)
+            const malResult = await malSearchTitle(ctx.malCacheStore(), title)
             if (malResult) return { id: malResult, provider: 'mal' }
 
             throw notFound('No match found')
@@ -115,7 +114,7 @@ export const dataMatureRouter = router({
           if (provider === 'mal') {
             let result: AnilistMedia[] = []
             try {
-              result = await malSearchMedia(malCacheStore(), {
+              result = await malSearchMedia(ctx.malCacheStore(), {
                 query,
                 page,
                 perPage: 50,

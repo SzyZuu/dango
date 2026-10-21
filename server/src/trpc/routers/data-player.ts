@@ -6,7 +6,6 @@ import { ShowsMetaRepository } from '../../repositories/shows-meta.repository.js
 import { WatchlistRepository } from '../../repositories/watchlist.repository.js'
 import { LegacyIdMappingRepository } from '../../repositories/legacy-id-mapping.repository.js'
 import { TempShowIdsRepository } from '../../repositories/temp-show-ids.repository.js'
-import { malCacheStore } from '../../repositories/mal-cache.repository.js'
 import { getMigratedId } from '../../lib/migration.js'
 import { isTempShowId } from '../../lib/temp-ids.js'
 import { pickBestMatch } from '../../providers/title-matching.js'
@@ -124,7 +123,7 @@ export const dataPlayerRouter = router({
             const absId = Math.abs(parseInt(showId, 10))
             if (!Number.isFinite(absId)) return { episodes }
             try {
-              const d = await malAnimeDetail(malCacheStore(), absId)
+              const d = await malAnimeDetail(ctx.malCacheStore(), absId)
               const total = d.detail?.episodes
               if (total && total > 0 && total <= 500) {
                 episodes = Array.from({ length: total }, (_, i) => (i + 1).toString())

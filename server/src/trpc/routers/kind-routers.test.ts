@@ -2,6 +2,9 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { createTestDbs } from '../../test-helpers.js'
 import { AppCache } from '../../utils/cache.utils.js'
+import { discordRPCService } from '../../discord-rpc.js'
+import { offlineDb } from '../../lib/offline-db/index.js'
+import { malCacheStore } from '../../repositories/mal-cache.repository.js'
 import type { TrpcContext } from '../context.js'
 import { tvLibraryRouter } from './tv-library.js'
 import { asmrLibraryRouter } from './asmr-library.js'
@@ -20,6 +23,9 @@ async function makeContext() {
     getJasmr: () => undefined,
     getProviders: () => ({}),
     getCatalog: () => [],
+    discordRPC: discordRPCService,
+    offlineDb,
+    malCacheStore,
     lanAuthed: true,
   }
   return { ctx, cleanup: dbs.cleanup }

@@ -58,6 +58,9 @@ import type { AppCache } from './utils/cache.utils.js'
 import type { Provider } from './providers/provider.interface.js'
 import type { MangaProvider } from './providers/manga/manga.types.js'
 import type { TvProvider } from './providers/tv.types.js'
+import { discordRPCService } from './discord-rpc.js'
+import { offlineDb } from './lib/offline-db/index.js'
+import { malCacheStore } from './repositories/mal-cache.repository.js'
 
 export type HonoHealthState = {
   shuttingDown: boolean
@@ -491,6 +494,9 @@ export function createHonoApp(
             getJasmr: media.getJasmr,
             getProviders: media.getProviders,
             getCatalog: providerApi.getCatalog,
+            discordRPC: discordRPCService,
+            offlineDb,
+            malCacheStore,
           },
           c.req.header('authorization'),
           c.req.header('cookie')

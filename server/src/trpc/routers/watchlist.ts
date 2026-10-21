@@ -1,4 +1,5 @@
 import { protectedProcedure, router } from '../index.js'
+import type { TrpcContext } from '../context.js'
 import type { DatabaseWrapper } from '../../db.js'
 import { WatchlistRepository } from '../../repositories/watchlist.repository.js'
 import {
@@ -19,7 +20,6 @@ import {
   getShowMetaById,
 } from '../../lib/anilist/index.js'
 import { kitsuSearchAnime } from '../../lib/kitsu/index.js'
-import { offlineDb } from '../../lib/offline-db/index.js'
 import {
   defineSchema,
   idInput,
@@ -196,7 +196,7 @@ export const watchlistRouter = router({
         }
       }
     }
-    await backfillMissingPosters(db, rows)
+    await backfillMissingPosters(db, ctx.offlineDb, rows)
 
     const rowIds = rows.map((r) => r.id)
     let adultIds = new Set<string>()
@@ -234,7 +234,11 @@ export const watchlistRouter = router({
         sortBy: input.sortBy,
         titlePreference: input.titlePreference,
       })
-      const data = await filterWatchlistRows(await getContinueWatchingData(db), filters, db)
+      const data = await filterWatchlistRows(
+        await getContinueWatchingData(db, ctx.offlineDb),
+        filters,
+        db
+      )
 
       return {
         data: data.slice(offset, offset + limit),
@@ -604,6 +608,7 @@ async function filterWatchlistRows<
 
 async function backfillMissingPosters(
   db: DatabaseWrapper,
+  offlineDb: TrpcContext['offlineDb'],
   rows: { id: string; _id?: string; name?: string; thumbnail?: string }[]
 ): Promise<void> {
   const missing = rows.filter((r) => !r.thumbnail || r.thumbnail.trim() === '')
@@ -638,10 +643,13 @@ async function backfillMissingPosters(
       }
     })
   )
-  await sweepOfflinePosters(db)
+  await sweepOfflinePosters(db, offlineDb)
 }
 
-async function sweepOfflinePosters(db: DatabaseWrapper): Promise<void> {
+async function sweepOfflinePosters(
+  db: DatabaseWrapper,
+  offlineDb: TrpcContext['offlineDb']
+): Promise<void> {
   try {
     await ShowsMetaRepository.backfillNamesFromWatchlist(db)
   } catch {
@@ -657,12 +665,12 @@ async function sweepOfflinePosters(db: DatabaseWrapper): Promise<void> {
   )
   if (ids.length === 0) return
   for (const id of ids) {
-    const poster = resolveOfflinePoster(id)
+    const poster = resolveOfflinePoster(id, offlineDb)
     if (poster) await applyPoster(db, id, poster)
   }
 }
 
-function resolveOfflinePoster(id: string): string | null {
+function resolveOfflinePoster(id: string, offlineDb: TrpcContext['offlineDb']): string | null {
   if (/^\d+$/.test(id)) {
     return offlineDb.getByAnilistId(Number(id))?.thumbnail?.trim() || null
   }
@@ -686,6 +694,7 @@ async function applyPoster(db: DatabaseWrapper, id: string, poster: string): Pro
 
 async function getContinueWatchingData(
   db: DatabaseWrapper,
+  offlineDb: TrpcContext['offlineDb'],
   limit?: number
 ): Promise<CombinedContinueWatchingShow[]> {
   const rows: ContinueWatchingResult[] = await WatchedEpisodesRepository.getContinueWatching(
@@ -713,7 +722,7 @@ async function getContinueWatchingData(
       thumbnail: show.thumbnail ?? '',
     }))
 
-  await backfillMissingPosters(db, enrichedRows)
+  await backfillMissingPosters(db, offlineDb, enrichedRows)
 
   return enrichedRows
 }

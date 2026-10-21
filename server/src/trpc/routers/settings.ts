@@ -1,9 +1,7 @@
 import { protectedProcedure, router } from '../index.js'
 import { SettingsRepository } from '../../repositories/settings.repository.js'
 import { performWriteTransactionAsync } from '../../db/transaction.js'
-import { discordRPCService } from '../../discord-rpc.js'
 import logger from '../../logger.js'
-import { offlineDb } from '../../lib/offline-db/index.js'
 import { translateTexts } from '../../lib/translate.js'
 import { requestMalImportCancel } from '../../lib/mal-import.js'
 import { defineSchema, reqObj } from '../validation.js'
@@ -52,16 +50,16 @@ export const settingsRouter = router({
       else await SettingsRepository.upsert(tx, key, value)
     })
     if (key === 'discordRPCEnabled') {
-      discordRPCService.setEnabled(input.value === 'true' || input.value === true)
+      ctx.discordRPC.setEnabled(input.value === 'true' || input.value === true)
     }
     if (key === 'discordRPCHideMature') {
-      discordRPCService.setHideMature(input.value === 'true' || input.value === true)
+      ctx.discordRPC.setHideMature(input.value === 'true' || input.value === true)
     }
     return { success: true }
   }),
 
   offlineDbInfo: protectedProcedure.query(async ({ ctx }) => {
-    return await offlineDb.getOfflineDbInfo(ctx.db)
+    return await ctx.offlineDb.getOfflineDbInfo(ctx.db)
   }),
 
   setOfflineDbAutoUpdate: protectedProcedure
@@ -72,11 +70,11 @@ export const settingsRouter = router({
     }),
 
   triggerOfflineDbUpdate: protectedProcedure.mutation(async ({ ctx }) => {
-    const info = await offlineDb.getOfflineDbInfo(ctx.db)
+    const info = await ctx.offlineDb.getOfflineDbInfo(ctx.db)
     if (info.isRefreshing) {
       throw conflict('Offline database refresh already in progress')
     }
-    offlineDb.refreshDatabase(ctx.db).catch((err) => {
+    ctx.offlineDb.refreshDatabase(ctx.db).catch((err) => {
       logger.warn({ err: err?.message }, 'Manual offline database update failed')
     })
     return { message: 'Offline database refresh started' }

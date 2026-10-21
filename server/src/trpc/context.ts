@@ -5,6 +5,9 @@ import type { MangaProvider } from '../providers/manga/manga.types.js'
 import type { JasmrApi } from '../providers/asmr/asmr.types.js'
 import type { Provider } from '../providers/provider.interface.js'
 import type { ProviderCatalogItem } from '../providers/remote-types.js'
+import type { MalCacheStore } from '../lib/mal/index.js'
+import type { discordRPCService } from '../discord-rpc.js'
+import type { offlineDb } from '../lib/offline-db/index.js'
 import { getTokenFromHeaders, hasAppPassword, validateLanSession } from '../app-auth.js'
 
 export type TrpcContext = {
@@ -18,7 +21,16 @@ export type TrpcContext = {
   getJasmr: () => JasmrApi | undefined
   getProviders: () => Record<string, Provider>
   getCatalog: () => ProviderCatalogItem[]
+  discordRPC: typeof discordRPCService
+  offlineDb: typeof offlineDb
+  malCacheStore: () => MalCacheStore
   lanAuthed: boolean
+}
+
+export type TrpcServices = {
+  discordRPC: typeof discordRPCService
+  offlineDb: typeof offlineDb
+  malCacheStore: () => MalCacheStore
 }
 
 export function buildTrpcContext(
@@ -33,7 +45,7 @@ export function buildTrpcContext(
     getJasmr: () => JasmrApi | undefined
     getProviders: () => Record<string, Provider>
     getCatalog: () => ProviderCatalogItem[]
-  },
+  } & TrpcServices,
   authorization: string | undefined,
   cookie: string | undefined
 ): TrpcContext {

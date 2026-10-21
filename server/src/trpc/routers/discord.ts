@@ -1,7 +1,7 @@
 import { protectedProcedure, router } from '../index.js'
 import { defineSchema, optNum, optStr, reqObj } from '../validation.js'
 import { badRequest, failed } from '../errors.js'
-import { discordRPCService } from '../../discord-rpc.js'
+import type { TrpcContext } from '../context.js'
 import { discordGatewayService } from '../../discord-gateway.js'
 import { getDlsitePoster, getMangadexCover } from '../../lib/posters.js'
 import { updateEnvFile } from '../../utils/env.utils.js'
@@ -158,14 +158,18 @@ async function presenceThumbnails(
   return { thumb: cleanProxyThumb(raw) }
 }
 
-async function sendPresence(input: PresenceInput, kind: PresenceKind): Promise<void> {
-  if (!discordRPCService.isServiceEnabled) return
-  if (input.sessionId) discordRPCService.heartbeat(input.sessionId)
+async function sendPresence(
+  service: TrpcContext['discordRPC'],
+  input: PresenceInput,
+  kind: PresenceKind
+): Promise<void> {
+  if (!service.isServiceEnabled) return
+  if (input.sessionId) service.heartbeat(input.sessionId)
   const conf = PRESENCE_KIND[kind]
   const label = input[conf.labelField] || ''
   const { thumb, thumbs } = await presenceThumbnails(input, kind)
   const timed = kind !== 'manga'
-  discordRPCService.updatePresence({
+  service.updatePresence({
     title: (input.title || conf.fallbackTitle).slice(0, 128),
     episode: label.slice(0, 64),
     totalEpisodes: '',
@@ -182,46 +186,46 @@ async function sendPresence(input: PresenceInput, kind: PresenceKind): Promise<v
 }
 
 export const discordRouter = router({
-  pageStatus: protectedProcedure.input(pageStatusInput()).mutation(async ({ input }) => {
-    if (!input.page || !discordRPCService.isServiceEnabled) {
+  pageStatus: protectedProcedure.input(pageStatusInput()).mutation(async ({ ctx, input }) => {
+    if (!input.page || !ctx.discordRPC.isServiceEnabled) {
       return { success: true }
     }
-    discordRPCService.setIdleStatus(input.page)
+    ctx.discordRPC.setIdleStatus(input.page)
     return { success: true }
   }),
 
-  heartbeat: protectedProcedure.input(heartbeatInput()).mutation(async ({ input }) => {
-    if (!input.sessionId || !discordRPCService.isServiceEnabled) {
+  heartbeat: protectedProcedure.input(heartbeatInput()).mutation(async ({ ctx, input }) => {
+    if (!input.sessionId || !ctx.discordRPC.isServiceEnabled) {
       return { success: true }
     }
     if (input.bye) {
-      discordRPCService.removeHeartbeat(input.sessionId)
+      ctx.discordRPC.removeHeartbeat(input.sessionId)
     } else {
-      discordRPCService.heartbeat(input.sessionId)
+      ctx.discordRPC.heartbeat(input.sessionId)
     }
     return { success: true }
   }),
 
-  clear: protectedProcedure.input(heartbeatInput()).mutation(async ({ input }) => {
-    if (!discordRPCService.isServiceEnabled) {
+  clear: protectedProcedure.input(heartbeatInput()).mutation(async ({ ctx, input }) => {
+    if (!ctx.discordRPC.isServiceEnabled) {
       return { success: true }
     }
-    discordRPCService.clearPresence(input.sessionId)
+    ctx.discordRPC.clearPresence(input.sessionId)
     return { success: true }
   }),
 
-  asmrPresence: protectedProcedure.input(presenceInput()).mutation(async ({ input }) => {
-    await sendPresence(input, 'asmr')
+  asmrPresence: protectedProcedure.input(presenceInput()).mutation(async ({ ctx, input }) => {
+    await sendPresence(ctx.discordRPC, input, 'asmr')
     return { success: true }
   }),
 
-  mangaPresence: protectedProcedure.input(presenceInput()).mutation(async ({ input }) => {
-    await sendPresence(input, 'manga')
+  mangaPresence: protectedProcedure.input(presenceInput()).mutation(async ({ ctx, input }) => {
+    await sendPresence(ctx.discordRPC, input, 'manga')
     return { success: true }
   }),
 
-  tvPresence: protectedProcedure.input(presenceInput()).mutation(async ({ input }) => {
-    await sendPresence(input, 'tv')
+  tvPresence: protectedProcedure.input(presenceInput()).mutation(async ({ ctx, input }) => {
+    await sendPresence(ctx.discordRPC, input, 'tv')
     return { success: true }
   }),
 

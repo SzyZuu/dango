@@ -6,7 +6,6 @@ import { NotificationsRepository } from '../../repositories/notifications.reposi
 import { SettingsRepository } from '../../repositories/settings.repository.js'
 import { performWriteTransactionAsync } from '../../db/transaction.js'
 import { getMigratedId } from '../../lib/migration.js'
-import { discordRPCService } from '../../discord-rpc.js'
 import { episodeProgressInput, progressUpdateInput, showIdInput } from '../validation.js'
 
 async function showsMetaChanged(
@@ -99,7 +98,7 @@ export const progressRouter = router({
         displayName = input.nativeName
       }
 
-      discordRPCService.updatePresence({
+      ctx.discordRPC.updatePresence({
         title: displayName as string,
         episode: String(episodeNumber),
         totalEpisodes: input.episodeCount ? String(input.episodeCount) : undefined,

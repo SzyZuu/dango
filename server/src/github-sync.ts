@@ -1,21 +1,17 @@
 import logger from './logger.js'
-import path from 'path'
 import { DatabaseWrapper } from './db.js'
-import { dbAll, dbGet } from './utils/db-utils.js'
-import { isTempSyncRow } from './lib/temp-ids.js'
 import { updateEnvFile } from './utils/env.utils.js'
 import { CONFIG } from './config.js'
 import { SHIPPED_DEFAULTS } from './shipped-defaults.js'
+import { exportTables, importTables, normalizePayload, readPayloadVersion } from './sync-payload.js'
+import type { SyncPayload } from './sync-payload.js'
 import {
-  exportTables,
-  importTables,
-  MANGA_SYNC_TABLES,
-  TV_SYNC_TABLES,
-  ASMR_SYNC_TABLES,
-  normalizePayload as normalizeGenericPayload,
-  readPayloadVersion,
-  type SyncPayload as GenericSyncPayload,
-} from './sync-payload.js'
+  SYNC_KINDS,
+  withLabel,
+  type SyncBackend,
+  type SyncBackendOpts,
+  type SyncKind,
+} from './sync-backend.js'
 
 const log = logger.child({ module: 'GitHubSync' })
 
@@ -27,28 +23,16 @@ const GITHUB_API_HEADERS = {
   'x-github-api-version': '2026-03-10',
 }
 
-const SYNC_TABLES = [
-  'watchlist',
-  'watched_episodes',
-  'queue',
-  'settings',
-  'shows_meta',
-  'sync_metadata',
-  'dismissed_notifications',
-  'discovered_notifications',
-] as const
+const SYNC_FILENAMES: Record<SyncKind, string> = {
+  anime: 'sync.json',
+  manga: 'manga.sync.json',
+  tv: 'tv.sync.json',
+  asmr: 'asmr.sync.json',
+}
 
 const nativeImport = new Function('specifier', 'return import(specifier)') as <T>(
   specifier: string
 ) => Promise<T>
-
-type SyncTable = (typeof SYNC_TABLES)[number]
-type Row = Record<string, string | number | null>
-type SyncPayload = {
-  version: number
-  exportedAt: string
-  tables: Record<SyncTable, Row[]>
-}
 
 type DeviceVerification = {
   user_code: string
@@ -123,20 +107,9 @@ function getGitHubClientId() {
   return id
 }
 
-function getSyncFilename() {
-  return CONFIG.IS_DEV ? 'sync.dev.json' : 'sync.json'
-}
-
-function getMangaSyncFilename() {
-  return CONFIG.IS_DEV ? 'manga.sync.dev.json' : 'manga.sync.json'
-}
-
-function getTvSyncFilename() {
-  return CONFIG.IS_DEV ? 'tv.sync.dev.json' : 'tv.sync.json'
-}
-
-function getAsmrSyncFilename() {
-  return CONFIG.IS_DEV ? 'asmr.sync.dev.json' : 'asmr.sync.json'
+function getSyncFilename(kind: SyncKind): string {
+  const base = SYNC_FILENAMES[kind]
+  return CONFIG.IS_DEV ? base.replace(/\.json$/, '.dev.json') : base
 }
 
 async function loadOctokit(token: string): Promise<OctokitInstance> {
@@ -156,36 +129,9 @@ function getErrorStatus(error: unknown): number | undefined {
   return undefined
 }
 
-function quoteIdentifier(identifier: string) {
-  return `"${identifier.replace(/"/g, '""')}"`
-}
-
-function getRowsFromAll<T = unknown>(db: DatabaseWrapper, sql: string): T[] {
-  return dbAll<T>(db, sql)
-}
-
-function readVersion(payload: SyncPayload): number {
-  const versionRow = payload.tables.sync_metadata.find((row) => row.key === 'db_version')
-  const value = versionRow?.value
-  return typeof value === 'number' ? value : Number(value || payload.version || 0)
-}
-
-function normalizePayload(input: unknown): SyncPayload {
-  if (!input || typeof input !== 'object' || !('tables' in input)) {
-    throw new Error('Invalid GitHub sync payload.')
-  }
-
-  const payload = input as SyncPayload
-  for (const table of SYNC_TABLES) {
-    if (!Array.isArray(payload.tables?.[table])) {
-      throw new Error(`Invalid GitHub sync payload: missing ${table}.`)
-    }
-  }
-
-  return payload
-}
-
-class GitHubSyncService {
+class GitHubSyncService implements SyncBackend {
+  readonly name = 'github' as const
+  readonly label = 'GitHub'
   private deviceState: DeviceFlowState = { status: 'idle' }
 
   isAuthenticated() {
@@ -323,143 +269,41 @@ class GitHubSyncService {
     this.deviceState = { status: 'idle' }
   }
 
-  async getRemoteVersion(): Promise<number> {
-    const payload = await this.fetchSyncPayload()
-    return payload ? readVersion(payload) : 0
-  }
-
-  async getMangaRemoteVersion(): Promise<number> {
-    const payload = await this.fetchMangaSyncPayload()
+  async version(kind: SyncKind, _opts: SyncBackendOpts): Promise<number> {
+    const payload = await this.fetchSyncPayload(kind)
     return payload ? readPayloadVersion(payload) : 0
   }
 
-  async getTvRemoteVersion(): Promise<number> {
-    const payload = await this.fetchTvSyncPayload()
-    return payload ? readPayloadVersion(payload) : 0
-  }
-
-  async getAsmrRemoteVersion(): Promise<number> {
-    const payload = await this.fetchAsmrSyncPayload()
-    return payload ? readPayloadVersion(payload) : 0
-  }
-
-  async syncUp(db: DatabaseWrapper): Promise<void> {
-    const payload = await this.exportDatabase(db)
+  async up(kind: SyncKind, db: DatabaseWrapper, _opts: SyncBackendOpts): Promise<void> {
+    const config = SYNC_KINDS[kind]
+    const filename = getSyncFilename(kind)
+    const payload = exportTables(db, config.tables)
     const octokit = await this.getOctokit()
     const owner = await this.ensureRepo(octokit)
-    const existing = await this.getSyncFile(octokit, owner)
+    const existing = await this.getSyncFile(octokit, owner, filename)
     const content = Buffer.from(JSON.stringify(payload, null, 2), 'utf8').toString('base64')
 
     await octokit.rest.repos.createOrUpdateFileContents({
       owner,
       repo: REPO_NAME,
-      path: getSyncFilename(),
-      message: `Sync dango data v${payload.version}`,
+      path: filename,
+      message: `Sync dango ${withLabel(config.label, 'data')} v${payload.version}`,
       content,
       sha: existing?.sha,
       headers: GITHUB_API_HEADERS,
     })
   }
 
-  async syncDown(db: DatabaseWrapper): Promise<number> {
-    const payload = await this.fetchSyncPayload()
+  async down(kind: SyncKind, db: DatabaseWrapper, _opts: SyncBackendOpts): Promise<number> {
+    const config = SYNC_KINDS[kind]
+    const payload = await this.fetchSyncPayload(kind)
     if (!payload) {
       return 0
     }
 
-    this.importDatabase(db, payload)
-    return readVersion(payload)
-  }
-
-  async syncMangaUp(db: DatabaseWrapper): Promise<void> {
-    const payload = exportTables(db, MANGA_SYNC_TABLES)
-    const octokit = await this.getOctokit()
-    const owner = await this.ensureRepo(octokit)
-    const existing = await this.getSyncFile(octokit, owner, getMangaSyncFilename())
-    const content = Buffer.from(JSON.stringify(payload, null, 2), 'utf8').toString('base64')
-
-    await octokit.rest.repos.createOrUpdateFileContents({
-      owner,
-      repo: REPO_NAME,
-      path: getMangaSyncFilename(),
-      message: `Sync dango manga data v${payload.version}`,
-      content,
-      sha: existing?.sha,
-      headers: GITHUB_API_HEADERS,
-    })
-  }
-
-  async syncMangaDown(db: DatabaseWrapper): Promise<number> {
-    const payload = await this.fetchMangaSyncPayload()
-    if (!payload) {
-      return 0
-    }
-
-    importTables(db, MANGA_SYNC_TABLES, payload, {
-      libraryTables: ['manga_library', 'manga_progress'],
-      backupName: 'pre-sync-manga-backup.db',
-    })
-    return readPayloadVersion(payload)
-  }
-
-  async syncTvUp(db: DatabaseWrapper): Promise<void> {
-    const payload = exportTables(db, TV_SYNC_TABLES)
-    const octokit = await this.getOctokit()
-    const owner = await this.ensureRepo(octokit)
-    const existing = await this.getSyncFile(octokit, owner, getTvSyncFilename())
-    const content = Buffer.from(JSON.stringify(payload, null, 2), 'utf8').toString('base64')
-
-    await octokit.rest.repos.createOrUpdateFileContents({
-      owner,
-      repo: REPO_NAME,
-      path: getTvSyncFilename(),
-      message: `Sync dango TV data v${payload.version}`,
-      content,
-      sha: existing?.sha,
-      headers: GITHUB_API_HEADERS,
-    })
-  }
-
-  async syncTvDown(db: DatabaseWrapper): Promise<number> {
-    const payload = await this.fetchTvSyncPayload()
-    if (!payload) {
-      return 0
-    }
-
-    importTables(db, TV_SYNC_TABLES, payload, {
-      libraryTables: ['tv_library', 'tv_progress'],
-      backupName: 'pre-sync-tv-backup.db',
-    })
-    return readPayloadVersion(payload)
-  }
-
-  async syncAsmrUp(db: DatabaseWrapper): Promise<void> {
-    const payload = exportTables(db, ASMR_SYNC_TABLES)
-    const octokit = await this.getOctokit()
-    const owner = await this.ensureRepo(octokit)
-    const existing = await this.getSyncFile(octokit, owner, getAsmrSyncFilename())
-    const content = Buffer.from(JSON.stringify(payload, null, 2), 'utf8').toString('base64')
-
-    await octokit.rest.repos.createOrUpdateFileContents({
-      owner,
-      repo: REPO_NAME,
-      path: getAsmrSyncFilename(),
-      message: `Sync dango ASMR data v${payload.version}`,
-      content,
-      sha: existing?.sha,
-      headers: GITHUB_API_HEADERS,
-    })
-  }
-
-  async syncAsmrDown(db: DatabaseWrapper): Promise<number> {
-    const payload = await this.fetchAsmrSyncPayload()
-    if (!payload) {
-      return 0
-    }
-
-    importTables(db, ASMR_SYNC_TABLES, payload, {
-      libraryTables: ['asmr_library', 'asmr_progress'],
-      backupName: 'pre-sync-asmr-backup.db',
+    importTables(db, config.tables, payload, {
+      libraryTables: config.libraryTables,
+      backupName: config.backupName,
     })
     return readPayloadVersion(payload)
   }
@@ -557,7 +401,7 @@ class GitHubSyncService {
   private async getSyncFile(
     octokit: OctokitInstance,
     owner: string,
-    filePath: string = getSyncFilename()
+    filePath: string
   ): Promise<{ content: string; sha: string } | null> {
     try {
       const response = await octokit.rest.repos.getContent({
@@ -584,118 +428,20 @@ class GitHubSyncService {
     }
   }
 
-  private async fetchSyncPayload(): Promise<SyncPayload | null> {
+  private async fetchSyncPayload(kind: SyncKind): Promise<SyncPayload<string> | null> {
     const octokit = await this.getOctokit()
     const owner = await this.ensureRepo(octokit)
-    const file = await this.getSyncFile(octokit, owner)
+    const file = await this.getSyncFile(octokit, owner, getSyncFilename(kind))
 
     if (!file) {
       return null
     }
 
-    return normalizePayload(JSON.parse(file.content))
-  }
-
-  private async fetchMangaSyncPayload(): Promise<GenericSyncPayload<
-    (typeof MANGA_SYNC_TABLES)[number]
-  > | null> {
-    const octokit = await this.getOctokit()
-    const owner = await this.ensureRepo(octokit)
-    const file = await this.getSyncFile(octokit, owner, getMangaSyncFilename())
-
-    if (!file) {
-      return null
-    }
-
-    return normalizeGenericPayload(JSON.parse(file.content), MANGA_SYNC_TABLES, 'GitHub manga')
-  }
-
-  private async fetchTvSyncPayload(): Promise<GenericSyncPayload<
-    (typeof TV_SYNC_TABLES)[number]
-  > | null> {
-    const octokit = await this.getOctokit()
-    const owner = await this.ensureRepo(octokit)
-    const file = await this.getSyncFile(octokit, owner, getTvSyncFilename())
-
-    if (!file) {
-      return null
-    }
-
-    return normalizeGenericPayload(JSON.parse(file.content), TV_SYNC_TABLES, 'GitHub TV')
-  }
-
-  private async fetchAsmrSyncPayload(): Promise<GenericSyncPayload<
-    (typeof ASMR_SYNC_TABLES)[number]
-  > | null> {
-    const octokit = await this.getOctokit()
-    const owner = await this.ensureRepo(octokit)
-    const file = await this.getSyncFile(octokit, owner, getAsmrSyncFilename())
-
-    if (!file) {
-      return null
-    }
-
-    return normalizeGenericPayload(JSON.parse(file.content), ASMR_SYNC_TABLES, 'GitHub ASMR')
-  }
-
-  private async exportDatabase(db: DatabaseWrapper): Promise<SyncPayload> {
-    const tables = {} as Record<SyncTable, Row[]>
-
-    for (const table of SYNC_TABLES) {
-      const rows = await getRowsFromAll<Row>(db, `SELECT * FROM ${quoteIdentifier(table)}`)
-      tables[table] = rows.filter((row) => !isTempSyncRow(row))
-    }
-
-    return {
-      version: readVersion({ version: 0, exportedAt: '', tables }),
-      exportedAt: new Date().toISOString(),
-      tables,
-    }
-  }
-
-  private importDatabase(db: DatabaseWrapper, payload: SyncPayload) {
-    const remoteLibraryRows =
-      (payload.tables.watchlist?.length ?? 0) + (payload.tables.watched_episodes?.length ?? 0)
-    const localLibraryRows =
-      dbGet<{ n: number }>(
-        db,
-        'SELECT (SELECT COUNT(*) FROM watchlist) + (SELECT COUNT(*) FROM watched_episodes) AS n'
-      )?.n ?? 0
-    if (remoteLibraryRows === 0 && localLibraryRows > 0) {
-      throw new Error('Sync down refused: remote library is empty while local library has data')
-    }
-    try {
-      db.backup(path.join(CONFIG.ROOT, 'pre-sync-backup.db'))
-    } catch (err) {
-      log.warn({ err }, 'Pre-sync backup failed, continuing without backup')
-    }
-    const localColumns = new Map<string, Set<string>>()
-    for (const table of SYNC_TABLES) {
-      const cols = db.all<{ name: string }>(`PRAGMA table_info("${table}")`)
-      localColumns.set(table, new Set(cols.map((c) => c.name)))
-    }
-    db.serialize(() => {
-      for (const table of SYNC_TABLES) {
-        db.run(`DELETE FROM ${quoteIdentifier(table)}`)
-      }
-
-      for (const table of SYNC_TABLES) {
-        const known = localColumns.get(table)
-        for (const row of payload.tables[table]) {
-          if (isTempSyncRow(row)) continue
-          const columns = Object.keys(row).filter((c) => known?.has(c))
-          if (columns.length === 0) continue
-
-          const columnSql = columns.map(quoteIdentifier).join(', ')
-          const placeholders = columns.map(() => '?').join(', ')
-          const values = columns.map((column) => row[column])
-          db.run(
-            `INSERT INTO ${quoteIdentifier(table)} (${columnSql}) VALUES (${placeholders})`,
-            values
-          )
-        }
-      }
-    })
+    return normalizePayload(
+      JSON.parse(file.content),
+      SYNC_KINDS[kind].tables,
+      `GitHub ${withLabel(SYNC_KINDS[kind].label, 'sync')}`
+    )
   }
 }
 

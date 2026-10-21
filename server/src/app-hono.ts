@@ -37,6 +37,7 @@ import {
   performWriteTransactionAsync,
 } from './db/transaction.js'
 import { KIND_SYNC, setKindManifestVersion, type MediaKind } from './sync.js'
+import { SYNC_KINDS } from './sync-backend.js'
 import {
   ANIME_SYNC_TABLES,
   ASMR_SYNC_TABLES,
@@ -201,9 +202,9 @@ async function restoreJsonBackup(c: Context, dbs: HonoDbs, buffer: Buffer) {
   }> = (Object.keys(KIND_SYNC) as MediaKind[]).map((kind) => ({
     key: kind,
     db: kindDbs[kind],
-    tables: KIND_SYNC[kind].tables,
-    libraryTables: KIND_SYNC[kind].libraryTables,
-    backupName: KIND_SYNC[kind].backupName,
+    tables: SYNC_KINDS[kind].tables,
+    libraryTables: SYNC_KINDS[kind].libraryTables,
+    backupName: SYNC_KINDS[kind].backupName,
     setVersion: (version: number) => setKindManifestVersion(kind, version),
   }))
 

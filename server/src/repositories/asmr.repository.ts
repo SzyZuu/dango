@@ -1,8 +1,8 @@
-import { eq, inArray, sql } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
 import { DatabaseWrapper } from '../db.js'
 import { getDrizzle } from '../db/drizzle.js'
-import { asmrProgress } from '../db/schema-asmr.js'
 import { makeLibraryRepo } from './library.repository.js'
+import { makeProgressRepo } from './progress.repository.js'
 
 export const ASMR_STATUSES: string[] = ['Listening', 'Completed', 'On-Hold', 'Dropped', 'Planned']
 
@@ -85,19 +85,15 @@ export const AsmrLibraryRepository = {
 }
 
 export const AsmrProgressRepository = {
-  getByWork: (db: DatabaseWrapper, workId: string) =>
-    getDrizzle(db).all<AsmrProgressRow>(sql`
-      SELECT workId, trackIndex, trackLabel, currentTime, duration, updatedAt FROM asmr_progress WHERE workId = ${workId} ORDER BY updatedAt DESC`),
+  ...makeProgressRepo<AsmrProgressRow>({
+    table: 'asmr_progress',
+    keyCol: 'workId',
+    columns: 'workId, trackIndex, trackLabel, currentTime, duration, updatedAt',
+  }),
 
   getTrack: async (db: DatabaseWrapper, workId: string, trackIndex: number) => {
     const rows = await getDrizzle(db).all<AsmrProgressRow>(sql`
       SELECT workId, trackIndex, trackLabel, currentTime, duration, updatedAt FROM asmr_progress WHERE workId = ${workId} AND trackIndex = ${trackIndex}`)
-    return rows[0]
-  },
-
-  getLatest: async (db: DatabaseWrapper, workId: string) => {
-    const rows = await getDrizzle(db).all<AsmrProgressRow>(sql`
-      SELECT workId, trackIndex, trackLabel, currentTime, duration, updatedAt FROM asmr_progress WHERE workId = ${workId} ORDER BY updatedAt DESC LIMIT 1`)
     return rows[0]
   },
 
@@ -127,14 +123,6 @@ export const AsmrProgressRepository = {
          rjCode = COALESCE(EXCLUDED.rjCode, asmr_progress.rjCode),
          isAdult = COALESCE(EXCLUDED.isAdult, asmr_progress.isAdult),
          updatedAt = strftime('%s', 'now')`),
-
-  deleteByWork: (db: DatabaseWrapper, workId: string) =>
-    getDrizzle(db).delete(asmrProgress).where(eq(asmrProgress.workId, workId)),
-
-  deleteMany: (db: DatabaseWrapper, ids: string[]) => {
-    if (ids.length === 0) return Promise.resolve()
-    return getDrizzle(db).delete(asmrProgress).where(inArray(asmrProgress.workId, ids))
-  },
 
   deleteTrack: (db: DatabaseWrapper, workId: string, trackIndex: number) =>
     getDrizzle(db).run(sql`

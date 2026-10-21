@@ -1,18 +1,17 @@
-import { protectedProcedure, router } from '../index.js'
-import { defineSchema, optStr, reqObj, reqStr, reqStrArray } from '../validation.js'
+import { router, protectedProcedure } from '../index.js'
 import { performMangaWriteTransactionAsync } from '../../db/transaction.js'
 import { adultNonListIds } from '../../utils/db-utils.js'
-import { SettingsRepository } from '../../repositories/settings.repository.js'
+import type { DatabaseWrapper } from '../../db.js'
 import {
   MangaLibraryRepository,
   MangaProgressRepository,
+  type MangaContinueReadingRow,
+  type MangaProgressRow,
 } from '../../repositories/manga.repository.js'
-import type { DatabaseWrapper } from '../../db.js'
+import { createProgressRouter } from './progress-factory.js'
+import { defineSchema, optStr, reqObj, reqStr } from '../validation.js'
 
 const MANGA_ADULT_RATINGS = ['erotica', 'pornographic']
-
-const isMangaContinueAdult = (row: { contentRating?: string | null }) =>
-  !!row.contentRating && MANGA_ADULT_RATINGS.includes(row.contentRating)
 
 const getAdultNonListMangaIds = (db: DatabaseWrapper) =>
   adultNonListIds(
@@ -84,33 +83,32 @@ const mangaProgressRemoveInput = () =>
     return out
   })
 
-const mangaProgressRemoveManyInput = () =>
-  defineSchema<{ ids: string[] }, { ids: string[] }>((value) => ({
-    ids: reqStrArray(reqObj(value), 'ids', true),
-  }))
-
-export type MangaContinueReadingInput = { limit?: number }
-
-const mangaContinueReadingInput = () =>
-  defineSchema<MangaContinueReadingInput, MangaContinueReadingInput>((value) => {
-    const obj = reqObj(value)
-    const out: MangaContinueReadingInput = {}
-    if (obj.limit !== undefined && obj.limit !== null) {
-      const limit = Number(obj.limit)
-      if (!Number.isNaN(limit)) out.limit = limit
-    }
-    return out
-  })
+const shared = createProgressRouter<
+  MangaProgressRow,
+  MangaContinueReadingRow,
+  MangaIdInput,
+  MangaProgressRemoveInput
+>({
+  db: (ctx) => ctx.mangaDb,
+  write: performMangaWriteTransactionAsync,
+  repo: MangaProgressRepository,
+  keyField: 'mangaId',
+  byKeyInput: mangaIdInput(),
+  removeInput: mangaProgressRemoveInput(),
+  removeOne: (db, key, input) => {
+    if (!input.chapterId) return false
+    MangaProgressRepository.deleteChapter(db, key, input.chapterId)
+    return true
+  },
+  continueRows: (db, limit) => MangaProgressRepository.getContinueReading(db, limit),
+  continueSettings: { ignoreAdult: 'mangaIgnoreAdultContent', listOnly: 'mangaCwWatchlistOnly' },
+  isAdult: (row) => !!row.contentRating && MANGA_ADULT_RATINGS.includes(row.contentRating),
+  watchlistStatus: 'Reading',
+  adultIds: getAdultNonListMangaIds,
+})
 
 export const mangaProgressRouter = router({
-  byManga: protectedProcedure.input(mangaIdInput()).query(async ({ ctx, input }) => {
-    try {
-      const rows = await MangaProgressRepository.getByManga(ctx.mangaDb, input.mangaId)
-      return { progress: rows }
-    } catch {
-      return { progress: [] }
-    }
-  }),
+  byManga: shared.byKey,
 
   save: protectedProcedure.input(mangaProgressSaveInput()).mutation(async ({ ctx, input }) => {
     const pageNum = Math.max(Number(input.page) || 0, 0)
@@ -137,70 +135,9 @@ export const mangaProgressRouter = router({
     return { success: true }
   }),
 
-  remove: protectedProcedure.input(mangaProgressRemoveInput()).mutation(async ({ ctx, input }) => {
-    await performMangaWriteTransactionAsync(ctx.mangaDb, async (tx) => {
-      if (input.chapterId) {
-        await MangaProgressRepository.deleteChapter(
-          tx,
-          String(input.mangaId),
-          String(input.chapterId)
-        )
-      } else {
-        await MangaProgressRepository.deleteByManga(tx, String(input.mangaId))
-      }
-    })
-    return { success: true }
-  }),
-
-  removeMany: protectedProcedure
-    .input(mangaProgressRemoveManyInput())
-    .mutation(async ({ ctx, input }) => {
-      const ids = input.ids.map((id) => String(id))
-      await performMangaWriteTransactionAsync(ctx.mangaDb, async (tx) => {
-        await MangaProgressRepository.deleteMany(tx, ids)
-      })
-      return { success: true, removed: ids.length }
-    }),
-
-  continueReading: protectedProcedure
-    .input(mangaContinueReadingInput())
-    .query(async ({ ctx, input }) => {
-      try {
-        const limit = Math.min(Math.max(parseInt(String(input.limit)) || 24, 1), 100)
-        const { ignoreAdult, listOnly } = await SettingsRepository.readContinueFlags(
-          ctx.db,
-          'mangaIgnoreAdultContent',
-          'mangaCwWatchlistOnly'
-        )
-        const rows = (await MangaProgressRepository.getContinueReading(ctx.mangaDb, limit)).filter(
-          (row) => {
-            if (ignoreAdult && isMangaContinueAdult(row)) return false
-            if (listOnly && row.watchlistStatus !== 'Reading') return false
-            return true
-          }
-        )
-        return { data: rows, total: rows.length }
-      } catch {
-        return { data: [], total: 0 }
-      }
-    }),
-
-  adultCount: protectedProcedure.query(async ({ ctx }) => {
-    try {
-      const ids = await getAdultNonListMangaIds(ctx.mangaDb)
-      return { count: ids.length }
-    } catch {
-      return { count: 0 }
-    }
-  }),
-
-  purgeAdult: protectedProcedure.mutation(async ({ ctx }) => {
-    const ids = await getAdultNonListMangaIds(ctx.mangaDb)
-    if (ids.length > 0) {
-      await performMangaWriteTransactionAsync(ctx.mangaDb, async (tx) => {
-        await MangaProgressRepository.deleteMany(tx, ids)
-      })
-    }
-    return { success: true, removed: ids.length }
-  }),
+  remove: shared.remove,
+  removeMany: shared.removeMany,
+  continueReading: shared.continue,
+  adultCount: shared.adultCount,
+  purgeAdult: shared.purgeAdult,
 })

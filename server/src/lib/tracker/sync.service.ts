@@ -20,6 +20,7 @@ import {
 import { kitsuSearchAnime } from '../kitsu.js'
 import { readTrackerSyncState, resolveStatus } from './sync-state.js'
 import type { TrackerSyncState, TrackerSyncStateEntry } from './sync-state.js'
+import { assertDeleteCap, collectMediaIds, pushRemoteChanges } from './sync-engine.js'
 
 const TOKEN_KEY = 'tracker_anilist_token'
 const SYNC_STATE_KEY = 'tracker_anilist_sync_state'
@@ -70,13 +71,7 @@ export async function syncAniList(db: DatabaseWrapper): Promise<SyncSummary> {
     }
   }
 
-  const allMediaIds = new Set<number>([
-    ...localByMediaId.keys(),
-    ...remoteByMediaId.keys(),
-    ...Object.keys(syncState)
-      .map((k) => Number.parseInt(k, 10))
-      .filter((n) => Number.isFinite(n)),
-  ])
+  const allMediaIds = collectMediaIds(localByMediaId.keys(), remoteByMediaId.keys(), syncState)
 
   const summary: SyncSummary = { pushed: 0, pulled: 0, merged: 0, unchanged: 0, errors: [] }
 
@@ -259,31 +254,15 @@ export async function syncAniList(db: DatabaseWrapper): Promise<SyncSummary> {
   }
 
   if (pushUpdates.length > 0 || remoteDeleteEntryIds.length > 0 || watchlistDeletes.length > 0) {
-    const deleteCap = Math.max(5, Math.ceil(localItems.length * 0.1))
-    const totalDeletes = watchlistDeletes.length + remoteDeleteEntryIds.length
-    if (totalDeletes > deleteCap) {
-      throw new Error(
-        `AniList sync would delete ${totalDeletes} shows but only ${remoteEntries.length} were fetched. Aborting to protect your library - if you really removed that many shows on AniList, delete them locally first and sync again.`
-      )
-    }
+    assertDeleteCap({
+      totalDeletes: watchlistDeletes.length + remoteDeleteEntryIds.length,
+      localItemCount: localItems.length,
+      fetched: remoteEntries.length,
+      message: `AniList sync would delete ${watchlistDeletes.length + remoteDeleteEntryIds.length} shows but only ${remoteEntries.length} were fetched. Aborting to protect your library - if you really removed that many shows on AniList, delete them locally first and sync again.`,
+    })
   }
 
-  if (pushUpdates.length > 0) {
-    const batchSize = 10
-    for (let i = 0; i < pushUpdates.length; i += batchSize) {
-      const batch = pushUpdates.slice(i, i + batchSize)
-      await tracker.batchUpdateMediaEntries(batch)
-    }
-  }
-
-  if (remoteDeleteEntryIds.length > 0) {
-    const deleteBatch = remoteDeleteEntryIds.map((r) => r.entryId)
-    const batchSize = 10
-    for (let i = 0; i < deleteBatch.length; i += batchSize) {
-      const batch = deleteBatch.slice(i, i + batchSize)
-      await tracker.batchDeleteMediaEntries(batch)
-    }
-  }
+  await pushRemoteChanges(tracker, pushUpdates, remoteDeleteEntryIds)
 
   if (
     watchlistUpserts.length > 0 ||

@@ -1,13 +1,15 @@
-import { protectedProcedure, router } from '../index.js'
-import type { DatabaseWrapper } from '../../db.js'
+import { router, protectedProcedure } from '../index.js'
 import { performAsmrWriteTransactionAsync } from '../../db/transaction.js'
 import { adultNonListIds } from '../../utils/db-utils.js'
-import { SettingsRepository } from '../../repositories/settings.repository.js'
+import type { DatabaseWrapper } from '../../db.js'
 import {
   AsmrLibraryRepository,
   AsmrProgressRepository,
+  type AsmrContinueListeningRow,
+  type AsmrProgressRow,
 } from '../../repositories/asmr.repository.js'
-import { defineSchema, reqObj, reqStr, reqStrArray, strOrNull } from '../validation.js'
+import { createProgressRouter } from './progress-factory.js'
+import { defineSchema, reqObj, reqStr, strOrNull } from '../validation.js'
 
 const getAdultNonListWorkIds = (db: DatabaseWrapper) =>
   adultNonListIds(
@@ -17,13 +19,6 @@ const getAdultNonListWorkIds = (db: DatabaseWrapper) =>
     'workId',
     'COALESCE(l.isAdult, p.isAdult) = 1'
   )
-
-export type AsmrProgressIdsInput = { ids: string[] }
-
-const asmrProgressIdsInput = () =>
-  defineSchema<AsmrProgressIdsInput, AsmrProgressIdsInput>((value) => ({
-    ids: reqStrArray(reqObj(value), 'ids', true),
-  }))
 
 export type AsmrProgressWorkInput = { workId: string }
 
@@ -68,24 +63,32 @@ const asmrProgressRemoveInput = () =>
     return { workId: reqStr(obj, 'workId'), trackIndex: obj.trackIndex ?? undefined }
   })
 
-export type AsmrContinueListeningInput = { limit?: number }
-
-const asmrContinueListeningInput = () =>
-  defineSchema<AsmrContinueListeningInput, AsmrContinueListeningInput>((value) => {
-    const obj = reqObj(value)
-    const out: AsmrContinueListeningInput = {}
-    if (obj.limit !== undefined && obj.limit !== null && obj.limit !== '') {
-      const limit = Number(obj.limit)
-      if (Number.isFinite(limit)) out.limit = limit
-    }
-    return out
-  })
+const shared = createProgressRouter<
+  AsmrProgressRow,
+  AsmrContinueListeningRow,
+  AsmrProgressWorkInput,
+  AsmrProgressRemoveInput
+>({
+  db: (ctx) => ctx.asmrDb,
+  write: performAsmrWriteTransactionAsync,
+  repo: AsmrProgressRepository,
+  keyField: 'workId',
+  byKeyInput: asmrProgressWorkInput(),
+  removeInput: asmrProgressRemoveInput(),
+  removeOne: (db, key, input) => {
+    if (input.trackIndex === undefined || input.trackIndex === null) return false
+    AsmrProgressRepository.deleteTrack(db, key, Number(input.trackIndex))
+    return true
+  },
+  continueRows: (db, limit) => AsmrProgressRepository.getContinueListening(db, limit),
+  continueSettings: { ignoreAdult: 'asmrIgnoreAdultContent', listOnly: 'asmrCwWatchlistOnly' },
+  isAdult: (row) => row.isAdult === 1,
+  watchlistStatus: 'Listening',
+  adultIds: getAdultNonListWorkIds,
+})
 
 export const asmrProgressRouter = router({
-  getByWork: protectedProcedure.input(asmrProgressWorkInput()).query(async ({ ctx, input }) => {
-    const rows = await AsmrProgressRepository.getByWork(ctx.asmrDb, input.workId)
-    return { progress: rows }
-  }),
+  getByWork: shared.byKey,
 
   save: protectedProcedure.input(asmrProgressSaveInput()).mutation(async ({ ctx, input }) => {
     const trackIndexNum = Math.max(Math.round(Number(input.trackIndex)) || 0, 0)
@@ -112,56 +115,9 @@ export const asmrProgressRouter = router({
     return { success: true }
   }),
 
-  remove: protectedProcedure.input(asmrProgressRemoveInput()).mutation(async ({ ctx, input }) => {
-    await performAsmrWriteTransactionAsync(ctx.asmrDb, async (tx) => {
-      if (input.trackIndex !== undefined && input.trackIndex !== null) {
-        await AsmrProgressRepository.deleteTrack(tx, String(input.workId), Number(input.trackIndex))
-      } else {
-        await AsmrProgressRepository.deleteByWork(tx, String(input.workId))
-      }
-    })
-    return { success: true }
-  }),
-
-  removeMany: protectedProcedure.input(asmrProgressIdsInput()).mutation(async ({ ctx, input }) => {
-    const ids = input.ids.map((id) => String(id))
-    await performAsmrWriteTransactionAsync(ctx.asmrDb, async (tx) => {
-      await AsmrProgressRepository.deleteMany(tx, ids)
-    })
-    return { success: true, removed: ids.length }
-  }),
-
-  continueListening: protectedProcedure
-    .input(asmrContinueListeningInput())
-    .query(async ({ ctx, input }) => {
-      const limit = Math.min(Math.max(parseInt(String(input.limit ?? 24)) || 24, 1), 100)
-      const { ignoreAdult, listOnly } = await SettingsRepository.readContinueFlags(
-        ctx.db,
-        'asmrIgnoreAdultContent',
-        'asmrCwWatchlistOnly'
-      )
-      const rows = (await AsmrProgressRepository.getContinueListening(ctx.asmrDb, limit)).filter(
-        (row) => {
-          if (ignoreAdult && row.isAdult === 1) return false
-          if (listOnly && row.watchlistStatus !== 'Listening') return false
-          return true
-        }
-      )
-      return { data: rows, total: rows.length }
-    }),
-
-  adultCount: protectedProcedure.query(async ({ ctx }) => {
-    const ids = await getAdultNonListWorkIds(ctx.asmrDb)
-    return { count: ids.length }
-  }),
-
-  purgeAdult: protectedProcedure.mutation(async ({ ctx }) => {
-    const ids = await getAdultNonListWorkIds(ctx.asmrDb)
-    if (ids.length > 0) {
-      await performAsmrWriteTransactionAsync(ctx.asmrDb, async (tx) => {
-        for (const id of ids) await AsmrProgressRepository.deleteByWork(tx, id)
-      })
-    }
-    return { success: true, removed: ids.length }
-  }),
+  remove: shared.remove,
+  removeMany: shared.removeMany,
+  continueListening: shared.continue,
+  adultCount: shared.adultCount,
+  purgeAdult: shared.purgeAdult,
 })

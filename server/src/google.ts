@@ -1,22 +1,17 @@
 import fs from 'fs'
-import path from 'path'
 import { Readable } from 'stream'
 import { pipeline } from 'stream/promises'
 import logger from './logger.js'
 import { CONFIG } from './config.js'
 import { DatabaseWrapper } from './db.js'
-import { dbAll, dbGet } from './utils/db-utils.js'
-import { isTempSyncRow } from './lib/temp-ids.js'
 import { fetchWithRetry, HttpError, decodeMaybeGzip, parseJsonBody } from './utils/http.utils.js'
+import { exportTables, importTables, normalizePayload, readPayloadVersion } from './sync-payload.js'
 import {
-  exportTables,
-  importTables,
-  MANGA_SYNC_TABLES,
-  TV_SYNC_TABLES,
-  ASMR_SYNC_TABLES,
-  normalizePayload as normalizeGenericPayload,
-  readPayloadVersion,
-} from './sync-payload.js'
+  SYNC_KINDS,
+  type SyncBackend,
+  type SyncBackendOpts,
+  type SyncKind,
+} from './sync-backend.js'
 
 type GoogleTokenSet = {
   access_token?: string
@@ -49,7 +44,9 @@ interface GoogleRequestResult<T> {
   headers: Headers
 }
 
-export class GoogleDriveService {
+export class GoogleDriveService implements SyncBackend {
+  readonly name = 'google' as const
+  readonly label = 'Google'
   private tokens: GoogleTokenSet = {}
   private folderIdCache: Map<string, string> = new Map()
 
@@ -535,28 +532,14 @@ export class GoogleDriveService {
     }
   }
 
-  private getSyncFilename(): string {
-    return (CONFIG as { GOOGLE_SYNC_FILENAME?: string }).GOOGLE_SYNC_FILENAME || 'sync.json'
-  }
-
-  private getMangaSyncFilename(): string {
-    return (
-      (CONFIG as { MANGA_GOOGLE_SYNC_FILENAME?: string }).MANGA_GOOGLE_SYNC_FILENAME ||
-      'manga.sync.json'
-    )
-  }
-
-  private getTvSyncFilename(): string {
-    return (
-      (CONFIG as { TV_GOOGLE_SYNC_FILENAME?: string }).TV_GOOGLE_SYNC_FILENAME || 'tv.sync.json'
-    )
-  }
-
-  private getAsmrSyncFilename(): string {
-    return (
-      (CONFIG as { ASMR_GOOGLE_SYNC_FILENAME?: string }).ASMR_GOOGLE_SYNC_FILENAME ||
-      'asmr.sync.json'
-    )
+  private getSyncFilename(kind: SyncKind): string {
+    const names: Record<SyncKind, string | undefined> = {
+      anime: (CONFIG as { GOOGLE_SYNC_FILENAME?: string }).GOOGLE_SYNC_FILENAME,
+      manga: (CONFIG as { MANGA_GOOGLE_SYNC_FILENAME?: string }).MANGA_GOOGLE_SYNC_FILENAME,
+      tv: (CONFIG as { TV_GOOGLE_SYNC_FILENAME?: string }).TV_GOOGLE_SYNC_FILENAME,
+      asmr: (CONFIG as { ASMR_GOOGLE_SYNC_FILENAME?: string }).ASMR_GOOGLE_SYNC_FILENAME,
+    }
+    return names[kind] || `${kind === 'anime' ? '' : `${kind}.`}sync.json`
   }
 
   private async findFileInAppData(filename: string): Promise<GoogleDriveFile | null> {
@@ -621,9 +604,9 @@ export class GoogleDriveService {
     })
   }
 
-  async getRemoteVersion(): Promise<number> {
+  async version(kind: SyncKind, _opts: SyncBackendOpts): Promise<number> {
     if (!this.isAuthenticated()) return 0
-    const file = await this.findFileInAppData(this.getSyncFilename())
+    const file = await this.findFileInAppData(this.getSyncFilename(kind))
     if (!file) return 0
     try {
       const payload = (await this.downloadJson(file.id)) as {
@@ -638,220 +621,27 @@ export class GoogleDriveService {
     }
   }
 
-  async getMangaRemoteVersion(): Promise<number> {
-    if (!this.isAuthenticated()) return 0
-    const file = await this.findFileInAppData(this.getMangaSyncFilename())
-    if (!file) return 0
-    try {
-      const payload = (await this.downloadJson(file.id)) as {
-        version?: number
-        tables?: { sync_metadata?: Array<{ key: string; value: number | string }> }
-      }
-      const row = payload?.tables?.sync_metadata?.find((r) => r.key === 'db_version')
-      const v = row?.value
-      return typeof v === 'number' ? v : Number(v || payload?.version || 0)
-    } catch {
-      return 0
-    }
-  }
-
-  async syncUp(db: DatabaseWrapper): Promise<void> {
+  async up(kind: SyncKind, db: DatabaseWrapper, _opts: SyncBackendOpts): Promise<void> {
     if (!this.isAuthenticated()) return
-    const payload = await this.exportDatabase(db)
-    const existing = await this.findFileInAppData(this.getSyncFilename())
-    await this.uploadJson(this.getSyncFilename(), payload, existing?.id)
+    const config = SYNC_KINDS[kind]
+    const filename = this.getSyncFilename(kind)
+    const payload = exportTables(db, config.tables)
+    const existing = await this.findFileInAppData(filename)
+    await this.uploadJson(filename, payload, existing?.id)
   }
 
-  async syncDown(db: DatabaseWrapper): Promise<number> {
+  async down(kind: SyncKind, db: DatabaseWrapper, _opts: SyncBackendOpts): Promise<number> {
     if (!this.isAuthenticated()) return 0
-    const file = await this.findFileInAppData(this.getSyncFilename())
-    if (!file) return 0
-    const payload = (await this.downloadJson(file.id)) as {
-      version: number
-      exportedAt: string
-      tables: Record<string, Array<Record<string, string | number | null>>>
-    }
-    this.importDatabase(db, payload)
-    const row = (
-      payload.tables?.sync_metadata as Array<{ key: string; value: number }> | undefined
-    )?.find((r) => r.key === 'db_version')
-    return Number(row?.value || payload.version || 0)
-  }
-
-  async syncMangaUp(db: DatabaseWrapper): Promise<void> {
-    if (!this.isAuthenticated()) return
-    const payload = exportTables(db, MANGA_SYNC_TABLES)
-    const existing = await this.findFileInAppData(this.getMangaSyncFilename())
-    await this.uploadJson(this.getMangaSyncFilename(), payload, existing?.id)
-  }
-
-  async syncMangaDown(db: DatabaseWrapper): Promise<number> {
-    if (!this.isAuthenticated()) return 0
-    const file = await this.findFileInAppData(this.getMangaSyncFilename())
+    const config = SYNC_KINDS[kind]
+    const file = await this.findFileInAppData(this.getSyncFilename(kind))
     if (!file) return 0
     const raw = await this.downloadJson(file.id)
-    const payload = normalizeGenericPayload(raw, MANGA_SYNC_TABLES, 'Google manga')
-    importTables(db, MANGA_SYNC_TABLES, payload, {
-      libraryTables: ['manga_library', 'manga_progress'],
-      backupName: 'pre-sync-manga-backup.db',
+    const payload = normalizePayload(raw, config.tables, `Google ${config.label || 'anime'}`)
+    importTables(db, config.tables, payload, {
+      libraryTables: config.libraryTables,
+      backupName: config.backupName,
     })
     return readPayloadVersion(payload)
-  }
-
-  async getTvRemoteVersion(): Promise<number> {
-    if (!this.isAuthenticated()) return 0
-    const file = await this.findFileInAppData(this.getTvSyncFilename())
-    if (!file) return 0
-    try {
-      const payload = (await this.downloadJson(file.id)) as {
-        version?: number
-        tables?: { sync_metadata?: Array<{ key: string; value: number | string }> }
-      }
-      const row = payload?.tables?.sync_metadata?.find((r) => r.key === 'db_version')
-      const v = row?.value
-      return typeof v === 'number' ? v : Number(v || payload?.version || 0)
-    } catch {
-      return 0
-    }
-  }
-
-  async syncTvUp(db: DatabaseWrapper): Promise<void> {
-    if (!this.isAuthenticated()) return
-    const payload = exportTables(db, TV_SYNC_TABLES)
-    const existing = await this.findFileInAppData(this.getTvSyncFilename())
-    await this.uploadJson(this.getTvSyncFilename(), payload, existing?.id)
-  }
-
-  async syncTvDown(db: DatabaseWrapper): Promise<number> {
-    if (!this.isAuthenticated()) return 0
-    const file = await this.findFileInAppData(this.getTvSyncFilename())
-    if (!file) return 0
-    const raw = await this.downloadJson(file.id)
-    const payload = normalizeGenericPayload(raw, TV_SYNC_TABLES, 'Google TV')
-    importTables(db, TV_SYNC_TABLES, payload, {
-      libraryTables: ['tv_library', 'tv_progress'],
-      backupName: 'pre-sync-tv-backup.db',
-    })
-    return readPayloadVersion(payload)
-  }
-
-  async getAsmrRemoteVersion(): Promise<number> {
-    if (!this.isAuthenticated()) return 0
-    const file = await this.findFileInAppData(this.getAsmrSyncFilename())
-    if (!file) return 0
-    try {
-      const payload = (await this.downloadJson(file.id)) as {
-        version?: number
-        tables?: { sync_metadata?: Array<{ key: string; value: number | string }> }
-      }
-      const row = payload?.tables?.sync_metadata?.find((r) => r.key === 'db_version')
-      const v = row?.value
-      return typeof v === 'number' ? v : Number(v || payload?.version || 0)
-    } catch {
-      return 0
-    }
-  }
-
-  async syncAsmrUp(db: DatabaseWrapper): Promise<void> {
-    if (!this.isAuthenticated()) return
-    const payload = exportTables(db, ASMR_SYNC_TABLES)
-    const existing = await this.findFileInAppData(this.getAsmrSyncFilename())
-    await this.uploadJson(this.getAsmrSyncFilename(), payload, existing?.id)
-  }
-
-  async syncAsmrDown(db: DatabaseWrapper): Promise<number> {
-    if (!this.isAuthenticated()) return 0
-    const file = await this.findFileInAppData(this.getAsmrSyncFilename())
-    if (!file) return 0
-    const raw = await this.downloadJson(file.id)
-    const payload = normalizeGenericPayload(raw, ASMR_SYNC_TABLES, 'Google ASMR')
-    importTables(db, ASMR_SYNC_TABLES, payload, {
-      libraryTables: ['asmr_library', 'asmr_progress'],
-      backupName: 'pre-sync-asmr-backup.db',
-    })
-    return readPayloadVersion(payload)
-  }
-
-  private async exportDatabase(db: DatabaseWrapper) {
-    const tables = [
-      'watchlist',
-      'watched_episodes',
-      'queue',
-      'settings',
-      'shows_meta',
-      'sync_metadata',
-      'dismissed_notifications',
-      'discovered_notifications',
-    ] as const
-    const out = {} as Record<(typeof tables)[number], unknown[]>
-    for (const table of tables) {
-      out[table] = dbAll(db, `SELECT * FROM "${table.replace(/"/g, '""')}"`).filter(
-        (row) => !isTempSyncRow(row as Record<string, unknown>)
-      )
-    }
-    const versionRow = (out.sync_metadata as Array<{ key: string; value: number }>).find(
-      (r) => r.key === 'db_version'
-    )
-    return {
-      version: Number(versionRow?.value || 0),
-      exportedAt: new Date().toISOString(),
-      tables: out,
-    }
-  }
-
-  private importDatabase(
-    db: DatabaseWrapper,
-    payload: {
-      tables: Record<string, Array<Record<string, string | number | null>>>
-    }
-  ) {
-    const remoteLibraryRows =
-      (payload.tables.watchlist?.length ?? 0) + (payload.tables.watched_episodes?.length ?? 0)
-    const localLibraryRows =
-      dbGet<{ n: number }>(
-        db,
-        'SELECT (SELECT COUNT(*) FROM watchlist) + (SELECT COUNT(*) FROM watched_episodes) AS n'
-      )?.n ?? 0
-    if (remoteLibraryRows === 0 && localLibraryRows > 0) {
-      throw new Error('Sync down refused: remote library is empty while local library has data')
-    }
-    try {
-      db.backup(path.join(CONFIG.ROOT, 'pre-sync-backup.db'))
-    } catch (err) {
-      logger.warn({ err }, 'Pre-sync backup failed, continuing without backup')
-    }
-    const tables = [
-      'watchlist',
-      'watched_episodes',
-      'queue',
-      'settings',
-      'shows_meta',
-      'sync_metadata',
-      'dismissed_notifications',
-      'discovered_notifications',
-    ] as const
-    const localColumns = new Map<string, Set<string>>()
-    for (const table of tables) {
-      const cols = db.all<{ name: string }>(`PRAGMA table_info("${table}")`)
-      localColumns.set(table, new Set(cols.map((c) => c.name)))
-    }
-    db.serialize(() => {
-      for (const table of tables) {
-        db.run(`DELETE FROM "${table}"`)
-      }
-      for (const table of tables) {
-        const known = localColumns.get(table)
-        for (const row of payload.tables[table] || []) {
-          if (isTempSyncRow(row)) continue
-          const columns = Object.keys(row).filter((c) => known?.has(c))
-          if (columns.length === 0) continue
-          const columnSql = columns.map((c) => `"${c.replace(/"/g, '""')}"`).join(', ')
-          const placeholders = columns.map(() => '?').join(', ')
-          const values = columns.map((c) => row[c])
-          db.run(`INSERT INTO "${table}" (${columnSql}) VALUES (${placeholders})`, values)
-        }
-      }
-    })
   }
 }
 

@@ -15,6 +15,7 @@ import { searchAnilistMangaByTitle, getMangaMetaById, getMangaMetaByMalId } from
 import { fetchMalMangaList, mapMalMangaStatusCode } from '../mal.js'
 import { readTrackerSyncState, resolveStatus } from './sync-state.js'
 import type { TrackerSyncState, TrackerSyncStateEntry } from './sync-state.js'
+import { assertDeleteCap, collectMediaIds, pushRemoteChanges } from './sync-engine.js'
 
 const TOKEN_KEY = 'tracker_anilist_token'
 const MANGA_SYNC_STATE_KEY = 'tracker_anilist_manga_sync_state'
@@ -86,7 +87,7 @@ async function getLocalChapterProgress(
 ): Promise<number> {
   let best = parseChapterProgress(lastChapterNumber)
   try {
-    const rows = await MangaProgressRepository.getByManga(mangaDb, libraryId)
+    const rows = await MangaProgressRepository.getByKey(mangaDb, libraryId)
     for (const row of rows ?? []) {
       best = Math.max(best, parseChapterProgress(row.chapterNumber))
     }
@@ -295,13 +296,7 @@ export async function syncAniListManga(
     })
   }
 
-  const allMediaIds = new Set<number>([
-    ...localByMediaId.keys(),
-    ...remoteByMediaId.keys(),
-    ...Object.keys(syncState)
-      .map((k) => Number.parseInt(k, 10))
-      .filter((n) => Number.isFinite(n)),
-  ])
+  const allMediaIds = collectMediaIds(localByMediaId.keys(), remoteByMediaId.keys(), syncState)
 
   const summary: MangaSyncSummary = {
     pushed: 0,
@@ -628,31 +623,15 @@ export async function syncAniListManga(
   }
 
   if (pushUpdates.length > 0 || remoteDeleteEntryIds.length > 0 || libraryDeletes.length > 0) {
-    const deleteCap = Math.max(5, Math.ceil(localItems.length * 0.1))
-    const totalDeletes = libraryDeletes.length + remoteDeleteEntryIds.length
-    if (totalDeletes > deleteCap) {
-      throw new Error(
-        `AniList manga sync would delete ${totalDeletes} titles but only ${remoteEntries.length} were fetched. Aborting to protect your library - if you really removed that many manga on AniList, delete them locally first and sync again.`
-      )
-    }
+    assertDeleteCap({
+      totalDeletes: libraryDeletes.length + remoteDeleteEntryIds.length,
+      localItemCount: localItems.length,
+      fetched: remoteEntries.length,
+      message: `AniList manga sync would delete ${libraryDeletes.length + remoteDeleteEntryIds.length} titles but only ${remoteEntries.length} were fetched. Aborting to protect your library - if you really removed that many manga on AniList, delete them locally first and sync again.`,
+    })
   }
 
-  if (pushUpdates.length > 0) {
-    const batchSize = 10
-    for (let i = 0; i < pushUpdates.length; i += batchSize) {
-      const batch = pushUpdates.slice(i, i + batchSize)
-      await tracker.batchUpdateMediaEntries(batch)
-    }
-  }
-
-  if (remoteDeleteEntryIds.length > 0) {
-    const deleteBatch = remoteDeleteEntryIds.map((r) => r.entryId)
-    const batchSize = 10
-    for (let i = 0; i < deleteBatch.length; i += batchSize) {
-      const batch = deleteBatch.slice(i, i + batchSize)
-      await tracker.batchDeleteMediaEntries(batch)
-    }
-  }
+  await pushRemoteChanges(tracker, pushUpdates, remoteDeleteEntryIds)
 
   if (
     libraryUpserts.length > 0 ||
@@ -686,7 +665,7 @@ export async function syncAniListManga(
       }
       for (const id of libraryDeletes) {
         await MangaLibraryRepository.delete(tx, id)
-        await MangaProgressRepository.deleteByManga(tx, id)
+        await MangaProgressRepository.deleteByKey(tx, id)
       }
     })
   }
@@ -747,7 +726,7 @@ export async function insertMangaImportEntries(
       for (const row of await MangaLibraryRepository.getAll(tx)) {
         if (String(row.provider).toLowerCase() === MANGA_PROVIDER) {
           await MangaLibraryRepository.delete(tx, row.id)
-          await MangaProgressRepository.deleteByManga(tx, row.id)
+          await MangaProgressRepository.deleteByKey(tx, row.id)
         }
       }
     }

@@ -1,8 +1,8 @@
-import { eq, inArray, sql } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
 import { DatabaseWrapper } from '../db.js'
 import { getDrizzle } from '../db/drizzle.js'
-import { tvProgress } from '../db/schema-tv.js'
 import { makeLibraryRepo } from './library.repository.js'
+import { makeProgressRepo } from './progress.repository.js'
 
 export const TV_STATUSES: string[] = ['Watching', 'Completed', 'On-Hold', 'Dropped', 'Planned']
 
@@ -110,19 +110,15 @@ export const TvLibraryRepository = {
 }
 
 export const TvProgressRepository = {
-  getByMedia: (db: DatabaseWrapper, mediaId: string) =>
-    getDrizzle(db).all<TvProgressRow>(sql`
-      SELECT mediaId, season, episode, currentTime, duration, completed, updatedAt FROM tv_progress WHERE mediaId = ${mediaId} ORDER BY updatedAt DESC, rowid DESC`),
+  ...makeProgressRepo<TvProgressRow>({
+    table: 'tv_progress',
+    keyCol: 'mediaId',
+    columns: 'mediaId, season, episode, currentTime, duration, completed, updatedAt',
+  }),
 
   getEpisode: async (db: DatabaseWrapper, mediaId: string, season: number, episode: number) => {
     const rows = await getDrizzle(db).all<TvProgressRow>(sql`
       SELECT mediaId, season, episode, currentTime, duration, completed, updatedAt FROM tv_progress WHERE mediaId = ${mediaId} AND season = ${season} AND episode = ${episode}`)
-    return rows[0]
-  },
-
-  getLatest: async (db: DatabaseWrapper, mediaId: string) => {
-    const rows = await getDrizzle(db).all<TvProgressRow>(sql`
-      SELECT mediaId, season, episode, currentTime, duration, completed, updatedAt FROM tv_progress WHERE mediaId = ${mediaId} ORDER BY updatedAt DESC, rowid DESC LIMIT 1`)
     return rows[0]
   },
 
@@ -161,14 +157,6 @@ export const TvProgressRepository = {
          mediaType = COALESCE(EXCLUDED.mediaType, tv_progress.mediaType),
          adult = COALESCE(EXCLUDED.adult, tv_progress.adult),
          updatedAt = strftime('%s', 'now')`),
-
-  deleteByMedia: (db: DatabaseWrapper, mediaId: string) =>
-    getDrizzle(db).delete(tvProgress).where(eq(tvProgress.mediaId, mediaId)),
-
-  deleteMany: (db: DatabaseWrapper, ids: string[]) => {
-    if (ids.length === 0) return Promise.resolve()
-    return getDrizzle(db).delete(tvProgress).where(inArray(tvProgress.mediaId, ids))
-  },
 
   deleteEpisode: (db: DatabaseWrapper, mediaId: string, season: number, episode: number) =>
     getDrizzle(db).run(sql`

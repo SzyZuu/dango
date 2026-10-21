@@ -1,8 +1,9 @@
-import { eq, inArray, sql } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { DatabaseWrapper } from '../db.js'
 import { getDrizzle } from '../db/drizzle.js'
-import { mangaLibrary, mangaProgress } from '../db/schema-manga.js'
+import { mangaLibrary } from '../db/schema-manga.js'
 import { makeLibraryRepo } from './library.repository.js'
+import { makeProgressRepo } from './progress.repository.js'
 
 export const MANGA_STATUSES: string[] = ['Reading', 'Completed', 'On-Hold', 'Dropped', 'Planned']
 
@@ -115,19 +116,15 @@ export const MangaLibraryRepository = {
 }
 
 export const MangaProgressRepository = {
-  getByManga: (db: DatabaseWrapper, mangaId: string) =>
-    getDrizzle(db).all<MangaProgressRow>(sql`
-      SELECT mangaId, chapterId, chapterNumber, page, pageCount, updatedAt FROM manga_progress WHERE mangaId = ${mangaId} ORDER BY updatedAt DESC`),
+  ...makeProgressRepo<MangaProgressRow>({
+    table: 'manga_progress',
+    keyCol: 'mangaId',
+    columns: 'mangaId, chapterId, chapterNumber, page, pageCount, updatedAt',
+  }),
 
   getChapter: async (db: DatabaseWrapper, mangaId: string, chapterId: string) => {
     const rows = await getDrizzle(db).all<MangaProgressRow>(sql`
       SELECT mangaId, chapterId, chapterNumber, page, pageCount, updatedAt FROM manga_progress WHERE mangaId = ${mangaId} AND chapterId = ${chapterId}`)
-    return rows[0]
-  },
-
-  getLatest: async (db: DatabaseWrapper, mangaId: string) => {
-    const rows = await getDrizzle(db).all<MangaProgressRow>(sql`
-      SELECT mangaId, chapterId, chapterNumber, page, pageCount, updatedAt FROM manga_progress WHERE mangaId = ${mangaId} ORDER BY updatedAt DESC LIMIT 1`)
     return rows[0]
   },
 
@@ -159,14 +156,6 @@ export const MangaProgressRepository = {
          altTitle = COALESCE(EXCLUDED.altTitle, manga_progress.altTitle),
          contentRating = COALESCE(EXCLUDED.contentRating, manga_progress.contentRating),
          updatedAt = strftime('%s', 'now')`),
-
-  deleteByManga: (db: DatabaseWrapper, mangaId: string) =>
-    getDrizzle(db).delete(mangaProgress).where(eq(mangaProgress.mangaId, mangaId)),
-
-  deleteMany: (db: DatabaseWrapper, ids: string[]) => {
-    if (ids.length === 0) return Promise.resolve()
-    return getDrizzle(db).delete(mangaProgress).where(inArray(mangaProgress.mangaId, ids))
-  },
 
   deleteChapter: (db: DatabaseWrapper, mangaId: string, chapterId: string) =>
     getDrizzle(db).run(sql`

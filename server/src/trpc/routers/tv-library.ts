@@ -1,5 +1,4 @@
-import { TRPCError } from '@trpc/server'
-import { protectedProcedure, router } from '../index.js'
+import { router } from '../index.js'
 import { performTvWriteTransactionAsync } from '../../db/transaction.js'
 import {
   buildTvId,
@@ -7,29 +6,12 @@ import {
   TvLibraryRepository,
   TvProgressRepository,
 } from '../../repositories/tv.repository.js'
-import { defineSchema, reqObj, reqStr, optStr, reqStrArray, readPageLimit } from '../validation.js'
+import { createLibraryRouter } from './library-factory.js'
+import { badRequest, defineSchema, reqObj } from '../validation.js'
 
 function normalizeMediaType(raw: unknown): 'movie' | 'tv' {
   return String(raw).toLowerCase() === 'movie' ? 'movie' : 'tv'
 }
-
-export type TvLibraryListInput = { status?: string; page?: number; limit?: number }
-
-const tvLibraryListInput = () =>
-  defineSchema<TvLibraryListInput, TvLibraryListInput>((value) => {
-    const obj = reqObj(value)
-    const out: TvLibraryListInput = { ...readPageLimit(obj) }
-    const status = optStr(obj, 'status')
-    if (status !== undefined) out.status = status
-    return out
-  })
-
-export type TvLibraryIdInput = { id: string }
-
-const tvLibraryIdInput = () =>
-  defineSchema<TvLibraryIdInput, TvLibraryIdInput>((value) => ({
-    id: reqStr(reqObj(value), 'id'),
-  }))
 
 export type TvLibraryAddInput = {
   tmdbId?: unknown
@@ -61,126 +43,47 @@ const tvLibraryAddInput = () =>
     }
   })
 
-const tvLibraryRemoveInput = () =>
-  defineSchema<string, string>((value) => {
-    if (typeof value !== 'string' || value.length === 0) throw new Error('id must be a string')
-    return value
+export const tvLibraryRouter = router(
+  createLibraryRouter({
+    db: (ctx) => ctx.tvDb,
+    write: performTvWriteTransactionAsync,
+    repo: TvLibraryRepository,
+    progress: {
+      deleteByKey: (db, id) => TvProgressRepository.deleteByKey(db, id),
+      deleteMany: (db, ids) => TvProgressRepository.deleteMany(db, ids),
+    },
+    statuses: TV_STATUSES,
+    defaultStatus: 'Watching',
+    add: {
+      input: tvLibraryAddInput(),
+      build: (input, status) => {
+        const tmdbIdNum = Number(input.tmdbId)
+        if (!tmdbIdNum || (!input.id && !input.mediaType)) {
+          throw badRequest('tmdbId and mediaType are required')
+        }
+        const mediaType = normalizeMediaType(
+          input.mediaType || (String(input.id).startsWith('movie:') ? 'movie' : 'tv')
+        )
+        const id =
+          input.id && String(input.id).includes(':')
+            ? String(input.id)
+            : buildTvId(mediaType, tmdbIdNum)
+        return {
+          id,
+          row: {
+            id,
+            tmdbId: tmdbIdNum,
+            mediaType,
+            title: String(input.title || ''),
+            poster: String(input.poster || ''),
+            backdrop: input.backdrop ? String(input.backdrop) : undefined,
+            year: input.year ? String(input.year) : undefined,
+            overview: input.overview ? String(input.overview) : undefined,
+            status,
+            adult: input.adult === true,
+          },
+        }
+      },
+    },
   })
-
-export type TvLibraryStatusInput = { id: string; status: string }
-
-const tvLibraryStatusInput = () =>
-  defineSchema<TvLibraryStatusInput, TvLibraryStatusInput>((value) => {
-    const obj = reqObj(value)
-    return { id: reqStr(obj, 'id'), status: reqStr(obj, 'status') }
-  })
-
-export type TvLibraryBatchStatusInput = { ids: string[]; status: string }
-
-const tvLibraryBatchStatusInput = () =>
-  defineSchema<TvLibraryBatchStatusInput, TvLibraryBatchStatusInput>((value) => {
-    const obj = reqObj(value)
-    return { ids: reqStrArray(obj, 'ids', true), status: reqStr(obj, 'status') }
-  })
-
-const tvLibraryRemoveManyInput = () =>
-  defineSchema<string[], string[]>((value) => {
-    if (!Array.isArray(value) || value.length === 0)
-      throw new Error('ids must be a non-empty array')
-    return value.map((id) => String(id))
-  })
-
-export const tvLibraryRouter = router({
-  list: protectedProcedure.input(tvLibraryListInput()).query(async ({ ctx, input }) => {
-    const page = Math.max(parseInt(String(input.page ?? 1)) || 1, 1)
-    const limit = Math.min(Math.max(parseInt(String(input.limit ?? 24)) || 24, 1), 100)
-    const offset = (page - 1) * limit
-    const rows = await TvLibraryRepository.getAll(ctx.tvDb, input.status, limit, offset)
-    const total = await TvLibraryRepository.getCount(ctx.tvDb, input.status)
-    return { data: rows, total, page, limit }
-  }),
-
-  ids: protectedProcedure.query(async ({ ctx }) => {
-    return { ids: await TvLibraryRepository.getIds(ctx.tvDb) }
-  }),
-
-  check: protectedProcedure.input(tvLibraryIdInput()).query(async ({ ctx, input }) => {
-    const item = await TvLibraryRepository.getById(ctx.tvDb, input.id)
-    return { inLibrary: !!item, status: item?.status ?? null }
-  }),
-
-  add: protectedProcedure.input(tvLibraryAddInput()).mutation(async ({ ctx, input }) => {
-    const tmdbIdNum = Number(input.tmdbId)
-    if (!tmdbIdNum || (!input.id && !input.mediaType)) {
-      throw new TRPCError({ code: 'BAD_REQUEST', message: 'tmdbId and mediaType are required' })
-    }
-    const mediaType = normalizeMediaType(
-      input.mediaType || (String(input.id).startsWith('movie:') ? 'movie' : 'tv')
-    )
-    const id =
-      input.id && String(input.id).includes(':')
-        ? String(input.id)
-        : buildTvId(mediaType, tmdbIdNum)
-    const cleanStatus =
-      typeof input.status === 'string' && TV_STATUSES.includes(input.status)
-        ? input.status
-        : 'Watching'
-    await performTvWriteTransactionAsync(ctx.tvDb, async (tx) => {
-      await TvLibraryRepository.upsert(tx, {
-        id,
-        tmdbId: tmdbIdNum,
-        mediaType,
-        title: String(input.title || ''),
-        poster: String(input.poster || ''),
-        backdrop: input.backdrop ? String(input.backdrop) : undefined,
-        year: input.year ? String(input.year) : undefined,
-        overview: input.overview ? String(input.overview) : undefined,
-        status: cleanStatus,
-        adult: input.adult === true,
-      })
-    })
-    return { success: true, id }
-  }),
-
-  remove: protectedProcedure.input(tvLibraryRemoveInput()).mutation(async ({ ctx, input }) => {
-    await performTvWriteTransactionAsync(ctx.tvDb, async (tx) => {
-      await TvLibraryRepository.delete(tx, String(input))
-      await TvProgressRepository.deleteByMedia(tx, String(input))
-    })
-    return { success: true }
-  }),
-
-  setStatus: protectedProcedure.input(tvLibraryStatusInput()).mutation(async ({ ctx, input }) => {
-    if (!input.id || !TV_STATUSES.includes(input.status)) {
-      throw new TRPCError({ code: 'BAD_REQUEST', message: 'id and a valid status are required' })
-    }
-    await performTvWriteTransactionAsync(ctx.tvDb, async (tx) => {
-      await TvLibraryRepository.updateStatus(tx, String(input.id), String(input.status))
-    })
-    return { success: true }
-  }),
-
-  batchStatus: protectedProcedure
-    .input(tvLibraryBatchStatusInput())
-    .mutation(async ({ ctx, input }) => {
-      if (!input.status || !TV_STATUSES.includes(input.status)) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'a valid status is required' })
-      }
-      const ids = input.ids.map((id) => String(id))
-      await performTvWriteTransactionAsync(ctx.tvDb, async (tx) => {
-        await TvLibraryRepository.updateStatusMany(tx, ids, String(input.status))
-      })
-      return { success: true, updated: ids.length }
-    }),
-
-  removeMany: protectedProcedure
-    .input(tvLibraryRemoveManyInput())
-    .mutation(async ({ ctx, input }) => {
-      const ids = input.map((id) => String(id))
-      await performTvWriteTransactionAsync(ctx.tvDb, async (tx) => {
-        await TvLibraryRepository.deleteMany(tx, ids)
-        await TvProgressRepository.deleteMany(tx, ids)
-      })
-      return { success: true, removed: ids.length }
-    }),
-})
+)

@@ -1,14 +1,15 @@
-import { TRPCError } from '@trpc/server'
 import { protectedProcedure } from '../index.js'
 import type { DatabaseWrapper } from '../../db.js'
 import type { TrpcContext } from '../context.js'
+import { badRequest, unavailable } from '../errors.js'
 import {
   defineSchema,
   optStr,
-  readCount,
+  readIds,
+  readLimit,
+  readPage,
   reqObj,
   reqStr,
-  reqStrArray,
   type Schema,
 } from '../validation.js'
 
@@ -54,8 +55,8 @@ const listInput = () =>
     const obj = reqObj(value)
     return {
       status: optStr(obj, 'status'),
-      page: Math.max(readCount(obj, 'page', 1), 1),
-      limit: Math.min(Math.max(readCount(obj, 'limit', 24), 1), 100),
+      page: readPage(obj),
+      limit: readLimit(obj, 24, 100),
     }
   })
 
@@ -67,20 +68,14 @@ const idInput = () =>
 const removeInput = () =>
   defineSchema<string | { id: string }, string>((value) => {
     if (typeof value === 'string') {
-      if (value.length === 0) throw new Error('id must be a string')
+      if (value.length === 0) throw badRequest('id must be a string')
       return value
     }
     return reqStr(reqObj(value), 'id')
   })
 
 const removeManyInput = () =>
-  defineSchema<string[] | { ids: string[] }, string[]>((value) => {
-    if (Array.isArray(value)) {
-      if (value.length === 0) throw new Error('ids must be a non-empty array')
-      return value.map((id) => String(id))
-    }
-    return reqStrArray(reqObj(value), 'ids', true)
-  })
+  defineSchema<string[] | { ids: string[] }, string[]>((value) => readIds(value))
 
 const statusInput = () =>
   defineSchema<{ id: string; status: string }, { id: string; status: string }>((value) => {
@@ -91,7 +86,7 @@ const statusInput = () =>
 const batchStatusInput = () =>
   defineSchema<{ ids: string[]; status: string }, { ids: string[]; status: string }>((value) => {
     const obj = reqObj(value)
-    return { ids: reqStrArray(obj, 'ids', true), status: reqStr(obj, 'status') }
+    return { ids: readIds(obj), status: reqStr(obj, 'status') }
   })
 
 export function createLibraryRouter<Row extends LibraryRow, Add, In extends { status?: unknown }>(
@@ -102,7 +97,7 @@ export function createLibraryRouter<Row extends LibraryRow, Add, In extends { st
   const kindDb = (ctx: TrpcContext): DatabaseWrapper => {
     const db = config.db(ctx)
     if (!db || db.isClosedCheck()) {
-      throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'database is not ready' })
+      throw unavailable('database is not ready')
     }
     return db
   }
@@ -145,10 +140,7 @@ export function createLibraryRouter<Row extends LibraryRow, Add, In extends { st
 
     setStatus: protectedProcedure.input(statusInput()).mutation(async ({ ctx, input }) => {
       if (!statuses.includes(input.status)) {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'id and a valid status are required',
-        })
+        throw badRequest('id and a valid status are required')
       }
       await config.write(kindDb(ctx), async (tx) => {
         await repo.updateStatus(tx, input.id, input.status)
@@ -158,7 +150,7 @@ export function createLibraryRouter<Row extends LibraryRow, Add, In extends { st
 
     batchStatus: protectedProcedure.input(batchStatusInput()).mutation(async ({ ctx, input }) => {
       if (!statuses.includes(input.status)) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'a valid status is required' })
+        throw badRequest('a valid status is required')
       }
       const ids = input.ids.map((id) => String(id))
       await config.write(kindDb(ctx), async (tx) => {

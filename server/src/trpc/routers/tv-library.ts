@@ -7,7 +7,8 @@ import {
   TvProgressRepository,
 } from '../../repositories/tv.repository.js'
 import { createLibraryRouter } from './library-factory.js'
-import { badRequest, defineSchema, reqObj } from '../validation.js'
+import { defineSchema, reqObj } from '../validation.js'
+import { badRequest } from '../errors.js'
 
 function normalizeMediaType(raw: unknown): 'movie' | 'tv' {
   return String(raw).toLowerCase() === 'movie' ? 'movie' : 'tv'

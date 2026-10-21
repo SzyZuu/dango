@@ -1,6 +1,7 @@
 import { TRPCError } from '@trpc/server'
 import { protectedProcedure, router } from '../index.js'
-import { defineSchema, failed, optStr, readCount, reqId, reqObj, reqStr } from '../validation.js'
+import { defineSchema, optStr, readCount, readPage, reqId, reqObj, reqStr } from '../validation.js'
+import { badRequest, failed } from '../errors.js'
 import {
   tmdbMediaDetails,
   tmdbMediaMeta,
@@ -97,7 +98,7 @@ const tvSearchInput = () =>
     const out: TvSearchInput = {}
     const q = optStr(obj, 'q')
     if (q !== undefined) out.q = q
-    if (obj.page !== undefined) out.page = readCount(obj, 'page', 1)
+    if (obj.page !== undefined) out.page = readPage(obj)
     const type = optStr(obj, 'type')
     if (type !== undefined) out.type = type
     const genre = optStr(obj, 'genre')
@@ -119,7 +120,7 @@ const tvTrendingInput = () =>
     if (mediaType !== undefined) out.mediaType = mediaType
     const timeWindow = optStr(obj, 'timeWindow')
     if (timeWindow !== undefined) out.timeWindow = timeWindow
-    if (obj.page !== undefined) out.page = readCount(obj, 'page', 1)
+    if (obj.page !== undefined) out.page = readPage(obj)
     return out
   })
 

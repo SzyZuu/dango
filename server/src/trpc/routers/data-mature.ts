@@ -1,6 +1,6 @@
 import { TRPCError } from '@trpc/server'
 import { protectedProcedure, router } from '../index.js'
-import { badRequest, failed } from '../validation.js'
+import { badRequest, failed, notFound } from '../errors.js'
 import { cached } from '../cache.js'
 import { TempShowIdsRepository } from '../../repositories/temp-show-ids.repository.js'
 import { malCacheStore } from '../../repositories/mal-cache.repository.js'
@@ -40,7 +40,7 @@ export const dataMatureRouter = router({
             const malResult = await malSearchTitle(malCacheStore(), title)
             if (malResult) return { id: malResult, provider: 'mal' }
 
-            throw new TRPCError({ code: 'NOT_FOUND', message: 'No match found' })
+            throw notFound('No match found')
           } catch (e) {
             if (e instanceof TRPCError) throw e
             logger.error({ err: e }, 'mature resolve failed')

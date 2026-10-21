@@ -1,4 +1,3 @@
-import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../index.js'
 import { performTvWriteTransactionAsync } from '../../db/transaction.js'
 import { adultNonListIds } from '../../utils/db-utils.js'
@@ -12,6 +11,7 @@ import {
 } from '../../repositories/tv.repository.js'
 import { createProgressRouter } from './progress-factory.js'
 import { defineSchema, idFieldInput, reqObj, reqStr, strOrNull } from '../validation.js'
+import { badRequest } from '../errors.js'
 
 const getAdultNonListMediaIds = (db: DatabaseWrapper) =>
   adultNonListIds(db, 'tv_progress', 'tv_library', 'mediaId', 'COALESCE(l.adult, p.adult) = 1')
@@ -117,7 +117,7 @@ export const tvProgressRouter = router({
   save: protectedProcedure.input(tvProgressSaveInput()).mutation(async ({ ctx, input }) => {
     const mediaId = normalizeTvMediaId(input.mediaId)
     if (!mediaId) {
-      throw new TRPCError({ code: 'BAD_REQUEST', message: 'mediaId is required' })
+      throw badRequest('mediaId is required')
     }
     const seasonNum = Math.max(Number(input.season) || 1, 1)
     const episodeNum = Math.max(Number(input.episode) || 1, 1)

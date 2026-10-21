@@ -1,4 +1,3 @@
-import { TRPCError } from '@trpc/server'
 import { protectedProcedure, router } from '../index.js'
 import { SettingsRepository } from '../../repositories/settings.repository.js'
 import { performWriteTransactionAsync } from '../../db/transaction.js'
@@ -8,6 +7,7 @@ import { offlineDb } from '../../lib/offline-db/index.js'
 import { translateTexts } from '../../lib/translate.js'
 import { requestMalImportCancel } from '../../lib/mal-import.js'
 import { defineSchema, reqObj } from '../validation.js'
+import { badRequest, conflict } from '../errors.js'
 import { keyInput, setSettingInput } from '../validation.js'
 
 export const SETTING_DEFAULTS: Record<string, string> = {
@@ -23,7 +23,7 @@ export const SETTING_DEFAULTS: Record<string, string> = {
 const autoUpdateInput = () =>
   defineSchema<{ enabled: boolean }, { enabled: boolean }>((value) => {
     const obj = reqObj(value)
-    if (typeof obj.enabled !== 'boolean') throw new Error('enabled must be a boolean')
+    if (typeof obj.enabled !== 'boolean') throw badRequest('enabled must be a boolean')
     return { enabled: obj.enabled }
   })
 
@@ -74,10 +74,7 @@ export const settingsRouter = router({
   triggerOfflineDbUpdate: protectedProcedure.mutation(async ({ ctx }) => {
     const info = await offlineDb.getOfflineDbInfo(ctx.db)
     if (info.isRefreshing) {
-      throw new TRPCError({
-        code: 'CONFLICT',
-        message: 'Offline database refresh already in progress',
-      })
+      throw conflict('Offline database refresh already in progress')
     }
     offlineDb.refreshDatabase(ctx.db).catch((err) => {
       logger.warn({ err: err?.message }, 'Manual offline database update failed')

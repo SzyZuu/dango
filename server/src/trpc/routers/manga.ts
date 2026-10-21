@@ -1,6 +1,6 @@
-import { TRPCError } from '@trpc/server'
 import { protectedProcedure, router } from '../index.js'
-import { defineSchema, optStr, reqObj } from '../validation.js'
+import { defineSchema, optStr, readLimit, readPage, reqObj } from '../validation.js'
+import { badRequest, failed, notFound } from '../errors.js'
 import type {
   MangaContentRating,
   MangaProviderName,
@@ -112,15 +112,10 @@ async function cached(
     return status >= 200 && status < 400
   })
   if (result.status !== undefined && result.status !== 200) {
-    throw new TRPCError({
-      code:
-        result.status === 400
-          ? 'BAD_REQUEST'
-          : result.status === 404
-            ? 'NOT_FOUND'
-            : 'INTERNAL_SERVER_ERROR',
-      message: (result.body as { error?: string })?.error || 'Request failed',
-    })
+    const message = (result.body as { error?: string })?.error || 'Request failed'
+    if (result.status === 400) throw badRequest(message)
+    if (result.status === 404) throw notFound(message)
+    throw failed(message)
   }
   return result.body
 }
@@ -145,8 +140,8 @@ const mangaSearchInput = () =>
       const v = optStr(obj, k)
       if (v !== undefined) out[k] = v
     }
-    if (obj.page !== undefined) out.page = parseInt(String(obj.page), 10) || 1
-    if (obj.limit !== undefined) out.limit = Math.min(parseInt(String(obj.limit), 10) || 24, 50)
+    if (obj.page !== undefined) out.page = readPage(obj)
+    if (obj.limit !== undefined) out.limit = readLimit(obj, 24, 50)
     return out
   })
 

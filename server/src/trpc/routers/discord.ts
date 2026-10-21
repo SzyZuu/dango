@@ -1,5 +1,6 @@
 import { protectedProcedure, router } from '../index.js'
-import { badRequest, defineSchema, failed, optStr, reqObj } from '../validation.js'
+import { defineSchema, optStr, reqObj } from '../validation.js'
+import { badRequest, failed } from '../errors.js'
 import { discordRPCService } from '../../discord-rpc.js'
 import { discordGatewayService } from '../../discord-gateway.js'
 import { getDlsitePoster, getMangadexCover } from '../../lib/posters.js'

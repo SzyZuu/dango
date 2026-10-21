@@ -1,4 +1,4 @@
-import { defineSchema, optNum, optStr, readCount, reqObj, reqStr } from '../validation.js'
+import { defineSchema, optNum, optStr, readLimit, readPage, reqObj, reqStr } from '../validation.js'
 
 export type DataScheduleInput = { date: string; format?: string }
 
@@ -19,8 +19,8 @@ export const dataLatestReleasesInput = () =>
     const out: DataLatestReleasesInput = {}
     const format = optStr(obj, 'format')
     if (format !== undefined) out.format = format
-    if (obj.page !== undefined) out.page = readCount(obj, 'page', 1)
-    if (obj.size !== undefined) out.size = readCount(obj, 'size', 12)
+    if (obj.page !== undefined) out.page = readPage(obj)
+    if (obj.size !== undefined) out.size = readLimit(obj, 12, 50, 'size')
     return out
   })
 
@@ -66,8 +66,8 @@ export const dataSearchInput = () =>
     const out: DataSearchParsed = {}
     const query = optStr(obj, 'query')
     if (query !== undefined) out.query = query
-    if (obj.page !== undefined) out.page = readCount(obj, 'page', 1)
-    if (obj.limit !== undefined) out.limit = readCount(obj, 'limit', 14)
+    if (obj.page !== undefined) out.page = readPage(obj)
+    if (obj.limit !== undefined) out.limit = readLimit(obj, 14, 50)
     const sortBy = optStr(obj, 'sortBy')
     if (sortBy !== undefined) out.sortBy = sortBy
     const type = optStr(obj, 'type')
@@ -125,8 +125,8 @@ export const dataSeasonalInput = () =>
   defineSchema<DataSeasonalInput, DataSeasonalInput>((value) => {
     const obj = reqObj(value)
     const out: DataSeasonalInput = {}
-    if (obj.page !== undefined) out.page = readCount(obj, 'page', 1)
-    if (obj.size !== undefined) out.size = readCount(obj, 'size', 14)
+    if (obj.page !== undefined) out.page = readPage(obj)
+    if (obj.size !== undefined) out.size = readLimit(obj, 14, 50, 'size')
     const format = optStr(obj, 'format')
     if (format !== undefined) out.format = format
     return out
@@ -140,8 +140,8 @@ export const dataPopularListInput = () =>
     const out: DataPopularListInput = {}
     const sort = optStr(obj, 'sort')
     if (sort !== undefined) out.sort = sort
-    if (obj.page !== undefined) out.page = readCount(obj, 'page', 1)
-    if (obj.size !== undefined) out.size = readCount(obj, 'size', 20)
+    if (obj.page !== undefined) out.page = readPage(obj)
+    if (obj.size !== undefined) out.size = readLimit(obj, 20, 50, 'size')
     return out
   })
 
@@ -234,8 +234,8 @@ export const dataMatureSearchInput = () =>
       const v = optStr(obj, k)
       if (v !== undefined) out[k] = v
     }
-    if (obj.page !== undefined) out.page = readCount(obj, 'page', 1)
-    if (obj.limit !== undefined) out.limit = readCount(obj, 'limit', 14)
+    if (obj.page !== undefined) out.page = readPage(obj)
+    if (obj.limit !== undefined) out.limit = readLimit(obj, 14, 50)
     const year = optNum(obj, 'year')
     if (year !== undefined) out.year = year
     const minScore = optNum(obj, 'minScore')

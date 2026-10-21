@@ -1,10 +1,10 @@
-import { TRPCError } from '@trpc/server'
 import { protectedProcedure } from '../index.js'
 import type { DatabaseWrapper } from '../../db.js'
 import type { TrpcContext } from '../context.js'
+import { badRequest, unavailable } from '../errors.js'
 import { SettingsRepository } from '../../repositories/settings.repository.js'
 import type { ProgressRepo } from '../../repositories/progress.repository.js'
-import { defineSchema, reqObj, reqStrArray, type Schema } from '../validation.js'
+import { defineSchema, readIds, readLimit, reqObj, type Schema } from '../validation.js'
 
 export type ProgressRouterConfig<
   ProgressRow,
@@ -28,24 +28,12 @@ export type ProgressRouterConfig<
 }
 
 const removeManyInput = () =>
-  defineSchema<string[] | { ids: string[] }, string[]>((value) => {
-    if (Array.isArray(value)) {
-      if (value.length === 0) throw new Error('ids must be a non-empty array')
-      return value.map((id) => String(id))
-    }
-    return reqStrArray(reqObj(value), 'ids', true)
-  })
+  defineSchema<string[] | { ids: string[] }, string[]>((value) => readIds(value))
 
 const continueInput = () =>
-  defineSchema<{ limit?: number }, { limit?: number }>((value) => {
-    const obj = reqObj(value)
-    const out: { limit?: number } = {}
-    if (obj.limit !== undefined && obj.limit !== null && obj.limit !== '') {
-      const limit = Number(obj.limit)
-      if (Number.isFinite(limit)) out.limit = limit
-    }
-    return out
-  })
+  defineSchema<{ limit: number }, { limit: number }>((value) => ({
+    limit: readLimit(reqObj(value), 24, 100),
+  }))
 
 export function createProgressRouter<
   ProgressRow,
@@ -58,7 +46,7 @@ export function createProgressRouter<
   const kindDb = (ctx: TrpcContext): DatabaseWrapper => {
     const db = config.db(ctx)
     if (!db || db.isClosedCheck()) {
-      throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'database is not ready' })
+      throw unavailable('database is not ready')
     }
     return db
   }
@@ -67,7 +55,7 @@ export function createProgressRouter<
     const raw = (input as Record<string, unknown>)[config.keyField]
     const key = String(raw ?? '').trim()
     if (!key) {
-      throw new TRPCError({ code: 'BAD_REQUEST', message: `${config.keyField} is required` })
+      throw badRequest(`${config.keyField} is required`)
     }
     return config.normalizeKey ? config.normalizeKey(key) : key
   }
@@ -100,7 +88,7 @@ export function createProgressRouter<
     }),
 
     continue: protectedProcedure.input(continueInput()).query(async ({ ctx, input }) => {
-      const limit = Math.min(Math.max(parseInt(String(input.limit ?? 24)) || 24, 1), 100)
+      const limit = input.limit
       const { ignoreAdult, listOnly } = await SettingsRepository.readContinueFlags(
         ctx.db,
         config.continueSettings.ignoreAdult,

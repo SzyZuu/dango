@@ -1,5 +1,5 @@
 import { protectedProcedure, router } from '../index.js'
-import { failed } from '../validation.js'
+import { failed } from '../errors.js'
 import { cached } from '../cache.js'
 import logger from '../../logger.js'
 import {

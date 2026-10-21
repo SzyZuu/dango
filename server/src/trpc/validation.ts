@@ -1,4 +1,4 @@
-import { TRPCError } from '@trpc/server'
+import { badRequest } from './errors.js'
 
 type StandardIssue = { message: string }
 
@@ -33,16 +33,16 @@ export function defineSchema<Input, Output>(
 }
 
 function readKey(value: unknown): string {
-  if (typeof value !== 'object' || value === null) throw new Error('Expected an object')
+  if (typeof value !== 'object' || value === null) throw badRequest('Expected an object')
   const key = (value as Record<string, unknown>).key
-  if (typeof key !== 'string' || key.length === 0) throw new Error('key must be a string')
+  if (typeof key !== 'string' || key.length === 0) throw badRequest('key must be a string')
   return key
 }
 
 export function reqStr(obj: Record<string, unknown>, name: string): string {
   const value = obj[name]
   if (typeof value !== 'string' || value.length === 0) {
-    throw new Error(`${name} must be a string`)
+    throw badRequest(`${name} must be a string`)
   }
   return value
 }
@@ -73,18 +73,10 @@ function optBool(obj: Record<string, unknown>, name: string): boolean | undefine
   return value
 }
 
-export function badRequest(message: string): TRPCError {
-  return new TRPCError({ code: 'BAD_REQUEST', message })
-}
-
-export function failed(message: string): TRPCError {
-  return new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message })
-}
-
 export function reqId(obj: Record<string, unknown>, name: string): string {
   const value = obj[name]
   if ((typeof value !== 'string' && typeof value !== 'number') || String(value).length === 0) {
-    throw new Error(`${name} must be a string`)
+    throw badRequest(`${name} must be a string`)
   }
   return String(value)
 }
@@ -101,13 +93,25 @@ export function strOrNull(obj: Record<string, unknown>, name: string): string | 
   return typeof value === 'string' ? value : null
 }
 
-export function readPageLimit(obj: Record<string, unknown>): { page?: number; limit?: number } {
-  const out: { page?: number; limit?: number } = {}
-  const page = optNum(obj, 'page')
-  if (page !== undefined) out.page = page
-  const limit = optNum(obj, 'limit')
-  if (limit !== undefined) out.limit = limit
-  return out
+// the list input: page 1+ and a clamped limit
+export function readPage(obj: Record<string, unknown>, fallback = 1): number {
+  return Math.max(readCount(obj, 'page', fallback), 1)
+}
+
+export function readLimit(
+  obj: Record<string, unknown>,
+  fallback = 24,
+  max = 100,
+  name = 'limit'
+): number {
+  return Math.min(Math.max(readCount(obj, name, fallback), 1), max)
+}
+
+// the ids input: a raw array or { ids }, deduped
+export function readIds(value: unknown): string[] {
+  const raw = Array.isArray(value) ? value : reqStrArray(reqObj(value), 'ids', true)
+  if (raw.length === 0) throw badRequest('ids must be a non-empty array')
+  return [...new Set(raw.map((id) => String(id)))]
 }
 
 export function reqStrArray(
@@ -117,13 +121,13 @@ export function reqStrArray(
 ): string[] {
   const value = obj[name]
   if (!Array.isArray(value) || (nonEmpty && value.length === 0)) {
-    throw new Error(`${name} must be ${nonEmpty ? 'a non-empty ' : 'an '}array`)
+    throw badRequest(`${name} must be ${nonEmpty ? 'a non-empty ' : 'an '}array`)
   }
   return value.map((ep) => String(ep))
 }
 
 export function reqObj(value: unknown): Record<string, unknown> {
-  if (typeof value !== 'object' || value === null) throw new Error('Expected an object')
+  if (typeof value !== 'object' || value === null) throw badRequest('Expected an object')
   return value as Record<string, unknown>
 }
 
@@ -154,9 +158,7 @@ export const episodeProgressInput = () =>
   })
 
 export const idsInput = () =>
-  defineSchema<{ ids: string[] }, { ids: string[] }>((value) => ({
-    ids: [...new Set(reqStrArray(reqObj(value), 'ids', true))],
-  }))
+  defineSchema<{ ids: string[] }, { ids: string[] }>((value) => ({ ids: readIds(value) }))
 
 export type WatchlistAddInput = {
   id: string
@@ -198,9 +200,9 @@ export const watchlistStatusInput = () =>
 export type WatchlistBatchStatusInput = { ids: string[]; status: string }
 
 export const watchlistBatchStatusInput = () =>
-  defineSchema<WatchlistBatchStatusInput, WatchlistBatchStatusInput>((value) => {
+  defineSchema<{ ids: string[]; status: string }, { ids: string[]; status: string }>((value) => {
     const obj = reqObj(value)
-    return { ids: [...new Set(reqStrArray(obj, 'ids', true))], status: reqStr(obj, 'status') }
+    return { ids: readIds(obj), status: reqStr(obj, 'status') }
   })
 
 export type QueueMeta = {
@@ -268,7 +270,7 @@ export type QueueReorderItem = { id?: number; showId?: string; episodeNumber?: s
 
 export const queueReorderInput = () =>
   defineSchema<QueueReorderItem[], QueueReorderItem[]>((value) => {
-    if (!Array.isArray(value)) throw new Error('items must be an array')
+    if (!Array.isArray(value)) throw badRequest('items must be an array')
     return value.map((item) => {
       const entry = reqObj(item)
       const out: QueueReorderItem = {}
@@ -281,7 +283,7 @@ export const queueReorderInput = () =>
 
 export const setSettingInput = () =>
   defineSchema<{ key: string; value: unknown }, { key: string; value: unknown }>((value) => {
-    if (typeof value !== 'object' || value === null) throw new Error('Expected an object')
+    if (typeof value !== 'object' || value === null) throw badRequest('Expected an object')
     return { key: readKey(value), value: (value as Record<string, unknown>).value }
   })
 

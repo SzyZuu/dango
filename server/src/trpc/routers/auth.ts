@@ -1,5 +1,4 @@
 import logger from '../../logger.js'
-import { TRPCError } from '@trpc/server'
 import { googleDriveService } from '../../google.js'
 import { githubSyncService } from '../../github-sync.js'
 import type { DatabaseWrapper } from '../../db.js'
@@ -9,6 +8,7 @@ import { rcloneService } from '../../rclone.js'
 import { updateEnvFile } from '../../utils/env.utils.js'
 import { protectedProcedure, router } from '../index.js'
 import { defineSchema, reqObj } from '../validation.js'
+import { badRequest } from '../errors.js'
 import type { TrpcContext } from '../context.js'
 
 type SyncProvider = 'github' | 'google' | 'rclone' | 'none'
@@ -38,7 +38,7 @@ const googleAuthSaveInput = () =>
 const githubAuthSaveInput = () =>
   defineSchema<{ clientId: string }, { clientId: string }>((value) => {
     const obj = reqObj(value)
-    if (typeof obj.clientId !== 'string') throw new Error('clientId required')
+    if (typeof obj.clientId !== 'string') throw badRequest('clientId required')
     return { clientId: obj.clientId }
   })
 
@@ -192,10 +192,7 @@ export const authRouter = router({
   setServerPort: protectedProcedure.input(serverPortInput()).mutation(async ({ input }) => {
     const port = Number(input.port)
     if (!Number.isInteger(port) || port < 1 || port > 65535) {
-      throw new TRPCError({
-        code: 'BAD_REQUEST',
-        message: 'Port must be an integer between 1 and 65535',
-      })
+      throw badRequest('Port must be an integer between 1 and 65535')
     }
     await updateEnvFile({ PORT: String(port) })
     logger.info({ port }, 'Server port saved. Restart required to apply.')

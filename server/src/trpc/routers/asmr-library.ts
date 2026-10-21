@@ -7,7 +7,8 @@ import {
   AsmrProgressRepository,
 } from '../../repositories/asmr.repository.js'
 import { createLibraryRouter } from './library-factory.js'
-import { badRequest, defineSchema, optStr, reqObj } from '../validation.js'
+import { defineSchema, optStr, reqObj } from '../validation.js'
+import { badRequest } from '../errors.js'
 
 export type AsmrLibraryAddInput = {
   rjCode?: string

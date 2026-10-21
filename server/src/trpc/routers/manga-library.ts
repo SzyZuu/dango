@@ -1,4 +1,3 @@
-import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../index.js'
 import { performMangaWriteTransactionAsync } from '../../db/transaction.js'
 import {
@@ -8,7 +7,8 @@ import {
   MangaProgressRepository,
 } from '../../repositories/manga.repository.js'
 import { createLibraryRouter } from './library-factory.js'
-import { badRequest, defineSchema, idFieldInput, optStr, reqObj } from '../validation.js'
+import { defineSchema, idFieldInput, optStr, reqObj } from '../validation.js'
+import { badRequest, notFound } from '../errors.js'
 
 function normalizeId(provider: string, mangaId: string, idRaw?: string): string {
   if (idRaw && idRaw.includes(':')) return idRaw
@@ -102,7 +102,7 @@ export const mangaLibraryRouter = router({
   ...shared,
   entry: protectedProcedure.input(mangaLibraryIdInput()).query(async ({ ctx, input }) => {
     const item = await MangaLibraryRepository.getById(ctx.mangaDb, input.id)
-    if (!item) throw new TRPCError({ code: 'NOT_FOUND', message: 'Not in library' })
+    if (!item) throw notFound('Not in library')
     return { item }
   }),
 
@@ -114,7 +114,7 @@ export const mangaLibraryRouter = router({
     }
     const db = ctx.mangaDb
     const row = await MangaLibraryRepository.getById(db, targetId)
-    if (!row) throw new TRPCError({ code: 'NOT_FOUND', message: 'Library entry not found' })
+    if (!row) throw notFound('Library entry not found')
     if (String(row.provider).toLowerCase() === 'anilist') {
       throw badRequest('Link a provider bookmark to the AniList entry, not the reverse')
     }

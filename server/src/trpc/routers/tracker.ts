@@ -13,14 +13,18 @@ import {
   importFromUsernameManga,
   importMangaFromMalUsername,
 } from '../../lib/tracker/manga-sync/index.js'
-import { badRequest, defineSchema, failed, reqObj } from '../validation.js'
+import { defineSchema, reqObj } from '../validation.js'
+import {
+  badRequest,
+  failed,
+  notFound,
+  tooManyRequests,
+  unauthorized,
+  unavailable,
+} from '../errors.js'
 
 const TRACKER_TOKEN_KEY = 'tracker_anilist_token'
 const TRACKER_USER_KEY = 'tracker_anilist_user'
-
-function unavailable(message: string): TRPCError {
-  return new TRPCError({ code: 'SERVICE_UNAVAILABLE', message })
-}
 
 function optBody(value: unknown): Record<string, unknown> {
   if (value === undefined || value === null) return {}
@@ -77,10 +81,10 @@ const trackerMangaSyncInput = () =>
 
 function mapImportError(message: string): TRPCError {
   if (message.includes('private') || message.includes('not found')) {
-    return new TRPCError({ code: 'NOT_FOUND', message })
+    return notFound(message)
   }
   if (message.includes('blocked') || message.includes('HTTP 429')) {
-    return new TRPCError({ code: 'TOO_MANY_REQUESTS', message })
+    return tooManyRequests(message)
   }
   return failed(message)
 }
@@ -118,10 +122,7 @@ export const trackerRouter = router({
       })
       return { success: true, user: viewer }
     } catch (err) {
-      throw new TRPCError({
-        code: 'UNAUTHORIZED',
-        message: err instanceof Error ? err.message : 'Authentication failed',
-      })
+      throw unauthorized(err instanceof Error ? err.message : 'Authentication failed')
     }
   }),
 

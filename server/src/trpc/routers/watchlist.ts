@@ -24,8 +24,9 @@ import {
   defineSchema,
   idInput,
   idsInput,
-  optNum,
   optStr,
+  readLimit,
+  readPage,
   reqObj,
   showIdInput,
   watchlistAddInput,
@@ -36,13 +37,13 @@ import {
 const watchlistListInput = () =>
   defineSchema<WatchlistListInput, WatchlistListInput>((value) => {
     const obj = reqObj(value)
-    const out: WatchlistListInput = { ...readFilterFields(obj) }
+    const out: WatchlistListInput = {
+      ...readFilterFields(obj),
+      page: readPage(obj),
+      limit: readLimit(obj, 10, 100),
+    }
     const status = optStr(obj, 'status')
     if (status !== undefined) out.status = status
-    const page = optNum(obj, 'page')
-    if (page !== undefined) out.page = page
-    const limit = optNum(obj, 'limit')
-    if (limit !== undefined) out.limit = limit
     const showMature = optStr(obj, 'showMature')
     if (showMature !== undefined) out.showMature = showMature
     return out
@@ -51,11 +52,11 @@ const watchlistListInput = () =>
 const continueWatchingAllInput = () =>
   defineSchema<ContinueWatchingAllInput, ContinueWatchingAllInput>((value) => {
     const obj = reqObj(value)
-    const out: ContinueWatchingAllInput = { ...readFilterFields(obj) }
-    const page = optNum(obj, 'page')
-    if (page !== undefined) out.page = page
-    const limit = optNum(obj, 'limit')
-    if (limit !== undefined) out.limit = limit
+    const out: ContinueWatchingAllInput = {
+      ...readFilterFields(obj),
+      page: readPage(obj),
+      limit: readLimit(obj, 10, 100),
+    }
     return out
   })
 
@@ -152,8 +153,8 @@ export const watchlistRouter = router({
 
   list: protectedProcedure.input(watchlistListInput()).query(async ({ ctx, input }) => {
     const db = ctx.db
-    const page = Math.max(parseInt(String(input.page ?? 1)) || 1, 1)
-    const limit = Math.min(Math.max(parseInt(String(input.limit ?? 10)) || 10, 1), 100)
+    const page = input.page
+    const limit = input.limit
     const showMature = input.showMature
     const offset = (page - 1) * limit
     const filters = getWatchlistFilters({
@@ -220,8 +221,8 @@ export const watchlistRouter = router({
     .input(continueWatchingAllInput())
     .query(async ({ ctx, input }) => {
       const db = ctx.db
-      const page = Math.max(parseInt(String(input.page ?? 1)) || 1, 1)
-      const limit = Math.min(Math.max(parseInt(String(input.limit ?? 10)) || 10, 1), 100)
+      const page = input.page
+      const limit = input.limit
       const offset = (page - 1) * limit
       const filters = getWatchlistFilters({
         query: input.query,
@@ -333,8 +334,8 @@ interface WatchlistFilterOptions {
 
 export type WatchlistListInput = {
   status?: string
-  page?: number
-  limit?: number
+  page: number
+  limit: number
   showMature?: string
   query?: string
   type?: string
@@ -347,8 +348,8 @@ export type WatchlistListInput = {
 }
 
 export type ContinueWatchingAllInput = {
-  page?: number
-  limit?: number
+  page: number
+  limit: number
   query?: string
   type?: string
   season?: string

@@ -4,7 +4,12 @@ import type { SkipInterval, SubtitleTrack } from '../types/player'
 import { formatTime } from '../lib/utils'
 import { trpcClient, useTRPC } from '../lib/trpc'
 import { clearDiscordPresence, trpcKeepalive } from '../lib/trpcBeacon'
-import { loadSubtitleStyle, type SubtitleEdge } from '../lib/subtitleStyle'
+import {
+  loadSubtitleStyle,
+  SUBTITLE_STYLE_STORAGE_KEYS,
+  type SubtitleEdge,
+  type SubtitleStyleKey,
+} from '../lib/subtitleStyle'
 import {
   toggleFullscreen as toggleFullscreenCrossBrowser,
   isFullscreenActive,
@@ -87,6 +92,55 @@ const useVideoPlayer = ({
   const [subtitleTextColor, setSubtitleTextColor] = useState(initialSubtitleStyle.textColor)
   const [subtitleEdge, setSubtitleEdge] = useState<SubtitleEdge>(initialSubtitleStyle.edge)
   const [subtitleBold, setSubtitleBold] = useState(initialSubtitleStyle.bold)
+  // one action for the 7 style fields, the persistence lives here too
+  const setSubtitleStyle = useCallback(
+    (key: SubtitleStyleKey, value: number | string | boolean) => {
+      const setters: Record<SubtitleStyleKey, (v: number | string | boolean) => boolean> = {
+        fontSize: (v) => {
+          if (typeof v !== 'number') return false
+          setSubtitleFontSize(v)
+          return true
+        },
+        position: (v) => {
+          if (typeof v !== 'number') return false
+          setSubtitlePosition(v)
+          return true
+        },
+        bgOpacity: (v) => {
+          if (typeof v !== 'number') return false
+          setSubtitleBgOpacity(v)
+          return true
+        },
+        bgColor: (v) => {
+          if (typeof v !== 'string') return false
+          setSubtitleBgColor(v)
+          return true
+        },
+        textColor: (v) => {
+          if (typeof v !== 'string') return false
+          setSubtitleTextColor(v)
+          return true
+        },
+        edge: (v) => {
+          if (v !== 'shadow' && v !== 'outline' && v !== 'none') return false
+          setSubtitleEdge(v)
+          return true
+        },
+        bold: (v) => {
+          if (typeof v !== 'boolean') return false
+          setSubtitleBold(v)
+          return true
+        },
+      }
+      if (!setters[key](value)) return
+      try {
+        localStorage.setItem(SUBTITLE_STYLE_STORAGE_KEYS[key], String(value))
+      } catch {
+        // ignore
+      }
+    },
+    []
+  )
   const [availableSubtitles, setAvailableSubtitles] = useState<SubtitleTrack[]>([])
   const [activeSubtitleTrack, setActiveSubtitleTrack] = useState<string | null>(null)
   const [showSettings, setShowSettings] = useState(false)
@@ -692,6 +746,7 @@ const useVideoPlayer = ({
       setSubtitleTextColor,
       setSubtitleEdge,
       setSubtitleBold,
+      setSubtitleStyle,
       setAvailableSubtitles,
       setActiveSubtitleTrack,
       setShowSettings,
@@ -726,6 +781,7 @@ const useVideoPlayer = ({
       setUseNativeControls,
       resetMediaState,
       flashControls,
+      setSubtitleStyle,
     ]
   )
 

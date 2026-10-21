@@ -10,6 +10,18 @@ export interface SubtitleStyleSettings {
   bold: boolean
 }
 
+export type SubtitleStyleKey = keyof SubtitleStyleSettings
+
+export const SUBTITLE_STYLE_STORAGE_KEYS: Record<SubtitleStyleKey, string> = {
+  fontSize: 'subtitleFontSize',
+  position: 'subtitlePosition',
+  bgOpacity: 'subtitleBgOpacity',
+  bgColor: 'subtitleBgColor',
+  textColor: 'subtitleTextColor',
+  edge: 'subtitleEdge',
+  bold: 'subtitleBold',
+}
+
 export const DEFAULT_SUBTITLE_STYLE: SubtitleStyleSettings = {
   fontSize: 1.8,
   position: 0,

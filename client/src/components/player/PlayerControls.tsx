@@ -188,45 +188,7 @@ const PlayerControls: React.FC<PlayerControlsProps> = ({
           edge: state.subtitleEdge,
           bold: state.subtitleBold,
         }}
-        onSubtitleSettingsChange={(key, value) => {
-          const persist = (storageKey: string, v: string | number | boolean) => {
-            try {
-              localStorage.setItem(storageKey, String(v))
-            } catch {
-              // ignore
-            }
-          }
-          switch (key) {
-            case 'fontSize':
-              actions.setSubtitleFontSize(value as number)
-              persist('subtitleFontSize', value as number)
-              break
-            case 'position':
-              actions.setSubtitlePosition(value as number)
-              persist('subtitlePosition', value as number)
-              break
-            case 'bgOpacity':
-              actions.setSubtitleBgOpacity(value as number)
-              persist('subtitleBgOpacity', value as number)
-              break
-            case 'bgColor':
-              actions.setSubtitleBgColor(value as string)
-              persist('subtitleBgColor', value as string)
-              break
-            case 'textColor':
-              actions.setSubtitleTextColor(value as string)
-              persist('subtitleTextColor', value as string)
-              break
-            case 'edge':
-              actions.setSubtitleEdge(value as 'shadow' | 'outline' | 'none')
-              persist('subtitleEdge', value as string)
-              break
-            case 'bold':
-              actions.setSubtitleBold(value as boolean)
-              persist('subtitleBold', value as boolean)
-              break
-          }
-        }}
+        onSubtitleSettingsChange={actions.setSubtitleStyle}
         useNativeControls={state.useNativeControls}
         onNativeControlsToggle={actions.setUseNativeControls}
         anime4kEnabled={anime4kEnabled}

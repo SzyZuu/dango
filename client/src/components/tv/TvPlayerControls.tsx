@@ -6,7 +6,6 @@ import ControlTopBar from '../player/ControlTopBar'
 import TvBottomBar from './TvBottomBar'
 import TvSettings, { type TvSettingsView } from './TvSettings'
 import UnifiedVideoShell from '../player/UnifiedVideoShell'
-import { type SubtitleStyleKey } from '../player/SubtitleStyleMenu'
 import type { AmbientLightSettings } from '../../hooks/useAmbientLight'
 import type useVideoPlayer from '../../hooks/useVideoPlayer'
 import { buildCueCss, fitSubtitleSize, type SubtitleStyleSettings } from '../../lib/subtitleStyle'
@@ -96,59 +95,7 @@ const TvPlayerControls: React.FC<TvPlayerControlsProps> = ({
     observer.observe(video)
     return () => observer.disconnect()
   }, [videoRef])
-  const persistSubtitleSetting = (key: string, value: string | number | boolean) => {
-    try {
-      localStorage.setItem(key, String(value))
-    } catch {
-      // ignore
-    }
-  }
-  const handleSubtitleStyleChange = (key: SubtitleStyleKey, value: number | string | boolean) => {
-    switch (key) {
-      case 'fontSize':
-        if (typeof value === 'number') {
-          actions.setSubtitleFontSize(value)
-          persistSubtitleSetting('subtitleFontSize', value)
-        }
-        break
-      case 'position':
-        if (typeof value === 'number') {
-          actions.setSubtitlePosition(value)
-          persistSubtitleSetting('subtitlePosition', value)
-        }
-        break
-      case 'bgOpacity':
-        if (typeof value === 'number') {
-          actions.setSubtitleBgOpacity(value)
-          persistSubtitleSetting('subtitleBgOpacity', value)
-        }
-        break
-      case 'bgColor':
-        if (typeof value === 'string') {
-          actions.setSubtitleBgColor(value)
-          persistSubtitleSetting('subtitleBgColor', value)
-        }
-        break
-      case 'textColor':
-        if (typeof value === 'string') {
-          actions.setSubtitleTextColor(value)
-          persistSubtitleSetting('subtitleTextColor', value)
-        }
-        break
-      case 'edge':
-        if (value === 'shadow' || value === 'outline' || value === 'none') {
-          actions.setSubtitleEdge(value)
-          persistSubtitleSetting('subtitleEdge', value)
-        }
-        break
-      case 'bold':
-        if (typeof value === 'boolean') {
-          actions.setSubtitleBold(value)
-          persistSubtitleSetting('subtitleBold', value)
-        }
-        break
-    }
-  }
+  const handleSubtitleStyleChange = actions.setSubtitleStyle
 
   useEffect(() => {
     const styleId = 'tv-player-subtitle-style'

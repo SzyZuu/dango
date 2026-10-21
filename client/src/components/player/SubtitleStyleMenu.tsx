@@ -4,21 +4,13 @@ import {
   BG_COLOR_PRESETS,
   DEFAULT_SUBTITLE_STYLE,
   TEXT_COLOR_PRESETS,
+  type SubtitleStyleKey,
+  type SubtitleStyleSettings,
 } from '../../lib/subtitleStyle'
 import { MenuSlider, SegmentedRow, SwatchRow } from './MenuControls'
 
-export type SubtitleStyleKey =
-  'fontSize' | 'position' | 'bgOpacity' | 'bgColor' | 'textColor' | 'edge' | 'bold'
-
-export interface SubtitleStyleValues {
-  fontSize: number
-  position: number
-  bgOpacity: number
-  bgColor: string
-  textColor: string
-  edge: 'shadow' | 'outline' | 'none'
-  bold: boolean
-}
+export type { SubtitleStyleKey }
+export type SubtitleStyleValues = SubtitleStyleSettings
 
 export interface SubtitleStyleMenuClasses {
   item: string

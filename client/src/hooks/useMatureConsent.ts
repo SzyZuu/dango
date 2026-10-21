@@ -10,36 +10,48 @@ function readConsent(): boolean {
   }
 }
 
+// one window listener for every consumer, not one per consumer
+const subscribers = new Set<(value: boolean) => void>()
+
+function notify(value: boolean) {
+  for (const subscriber of subscribers) subscriber(value)
+}
+
+function sync() {
+  notify(readConsent())
+}
+
+function write(consented: boolean) {
+  try {
+    if (consented) localStorage.setItem(MATURE_CONSENT_KEY, 'true')
+    else localStorage.removeItem(MATURE_CONSENT_KEY)
+  } catch {
+    // ignore
+  }
+  notify(consented)
+}
+
 export function useMatureConsent() {
   const [hasConsent, setHasConsent] = useState(readConsent)
 
   useEffect(() => {
-    const sync = () => setHasConsent(readConsent())
-    window.addEventListener('storage', sync)
-    window.addEventListener('focus', sync)
+    subscribers.add(setHasConsent)
+    if (subscribers.size === 1) {
+      window.addEventListener('storage', sync)
+      window.addEventListener('focus', sync)
+    }
+    setHasConsent(readConsent())
     return () => {
-      window.removeEventListener('storage', sync)
-      window.removeEventListener('focus', sync)
+      subscribers.delete(setHasConsent)
+      if (subscribers.size === 0) {
+        window.removeEventListener('storage', sync)
+        window.removeEventListener('focus', sync)
+      }
     }
   }, [])
 
-  const grant = useCallback(() => {
-    try {
-      localStorage.setItem(MATURE_CONSENT_KEY, 'true')
-    } catch {
-      // ignore
-    }
-    setHasConsent(true)
-  }, [])
-
-  const revoke = useCallback(() => {
-    try {
-      localStorage.removeItem(MATURE_CONSENT_KEY)
-    } catch {
-      // ignore
-    }
-    setHasConsent(false)
-  }, [])
+  const grant = useCallback(() => write(true), [])
+  const revoke = useCallback(() => write(false), [])
 
   return { hasConsent, grant, revoke }
 }

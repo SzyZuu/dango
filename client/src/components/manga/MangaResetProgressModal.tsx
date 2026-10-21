@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import ResetProgressModal from '../common/ResetProgressModal'
 import { useRemoveMangaBookmark, useRemoveMangaProgress } from '../../hooks/useMangaLibrary'
 
@@ -13,24 +13,8 @@ const MangaResetProgressModal: React.FC<MangaResetProgressModalProps> = ({
   title,
   onClose,
 }) => {
-  const [alsoRemoveFromList, setAlsoRemoveFromList] = useState(false)
   const removeProgress = useRemoveMangaProgress()
   const removeBookmark = useRemoveMangaBookmark()
-
-  const handleConfirm = () => {
-    if (!mangaId) return
-    removeProgress.mutate({ mangaId })
-    if (alsoRemoveFromList) {
-      removeBookmark.mutate(mangaId)
-    }
-    setAlsoRemoveFromList(false)
-    onClose()
-  }
-
-  const handleClose = () => {
-    setAlsoRemoveFromList(false)
-    onClose()
-  }
 
   return (
     <ResetProgressModal
@@ -38,10 +22,12 @@ const MangaResetProgressModal: React.FC<MangaResetProgressModalProps> = ({
       itemName={title}
       progressKind="reading"
       listLabel="my reading list"
-      alsoRemove={alsoRemoveFromList}
-      onAlsoRemoveChange={setAlsoRemoveFromList}
-      onClose={handleClose}
-      onConfirm={handleConfirm}
+      onClose={onClose}
+      onConfirm={(alsoRemove) => {
+        if (!mangaId) return
+        removeProgress.mutate({ mangaId })
+        if (alsoRemove) removeBookmark.mutate(mangaId)
+      }}
     />
   )
 }

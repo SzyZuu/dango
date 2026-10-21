@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import ResetProgressModal from '../common/ResetProgressModal'
 import { useRemoveAsmrBookmark, useRemoveAsmrProgress } from '../../hooks/useAsmrLibrary'
 
@@ -13,24 +13,8 @@ const AsmrResetProgressModal: React.FC<AsmrResetProgressModalProps> = ({
   title,
   onClose,
 }) => {
-  const [alsoRemoveFromList, setAlsoRemoveFromList] = useState(false)
   const removeProgress = useRemoveAsmrProgress()
   const removeBookmark = useRemoveAsmrBookmark()
-
-  const handleConfirm = () => {
-    if (!workId) return
-    removeProgress.mutate({ workId })
-    if (alsoRemoveFromList) {
-      removeBookmark.mutate({ id: workId })
-    }
-    setAlsoRemoveFromList(false)
-    onClose()
-  }
-
-  const handleClose = () => {
-    setAlsoRemoveFromList(false)
-    onClose()
-  }
 
   return (
     <ResetProgressModal
@@ -38,10 +22,12 @@ const AsmrResetProgressModal: React.FC<AsmrResetProgressModalProps> = ({
       itemName={title}
       progressKind="listening"
       listLabel="my listening list"
-      alsoRemove={alsoRemoveFromList}
-      onAlsoRemoveChange={setAlsoRemoveFromList}
-      onClose={handleClose}
-      onConfirm={handleConfirm}
+      onClose={onClose}
+      onConfirm={(alsoRemove) => {
+        if (!workId) return
+        removeProgress.mutate({ workId })
+        if (alsoRemove) removeBookmark.mutate({ id: workId })
+      }}
     />
   )
 }

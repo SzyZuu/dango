@@ -3,12 +3,12 @@ import Icon from '../components/common/Icon'
 import { useParams, useNavigate, useSearchParams } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import ToggleSwitch from '../components/common/ToggleSwitch'
-import { Modal } from '../components/common/Modal'
-import { Button } from '../components/common/Button'
+import MatureConsentModal from '../components/common/MatureConsentModal'
 import MediaCard from '../components/common/MediaCard'
 import AsmrDetail from '../components/asmr/AsmrDetail'
 import AsmrPopup from '../components/asmr/AsmrPopup'
 import { useAsmrPopup } from '../hooks/useAsmrPopup'
+import { useMatureConsent } from '../hooks/useMatureConsent'
 import AsmrPlayer from '../components/asmr/AsmrPlayer'
 import JasmrCookieModal from '../components/asmr/JasmrCookieModal'
 import { subscribeAuthRequired } from '../lib/auth-bus'
@@ -74,15 +74,11 @@ const TYPE_OPTIONS = [
 
 const SAFE_TYPE_OPTIONS = [{ value: 'sfw', label: 'SFW / 全年齢' }]
 
-const MATURE_CONSENT_KEY = 'agreedToViewMature'
-
 const Asmr: React.FC = () => {
   const { rj: rjParam } = useParams<{ rj: string }>()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const [hasConsent, setHasConsent] = useState(
-    () => localStorage.getItem(MATURE_CONSENT_KEY) === 'true'
-  )
+  const { hasConsent, grant: grantMatureConsent } = useMatureConsent()
   const [showMatureModal, setShowMatureModal] = useState(false)
   const [queryInput, setQueryInput] = useState(() => searchParams.get('q') || '')
   const [query, setQuery] = useState(() => searchParams.get('q') || '')
@@ -111,16 +107,6 @@ const Asmr: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('asmrTranslateEN', String(translateEN))
   }, [translateEN])
-
-  useEffect(() => {
-    const sync = () => setHasConsent(localStorage.getItem(MATURE_CONSENT_KEY) === 'true')
-    window.addEventListener('focus', sync)
-    window.addEventListener('storage', sync)
-    return () => {
-      window.removeEventListener('focus', sync)
-      window.removeEventListener('storage', sync)
-    }
-  }, [])
 
   const showMature = hasConsent
 
@@ -217,8 +203,7 @@ const Asmr: React.FC = () => {
   }
 
   const handleAcceptMature = () => {
-    localStorage.setItem(MATURE_CONSENT_KEY, 'true')
-    setHasConsent(true)
+    grantMatureConsent()
     setShowMatureModal(false)
     setPage(1)
   }
@@ -470,37 +455,13 @@ const Asmr: React.FC = () => {
       )}
 
       {showMatureModal && (
-        <Modal isOpen={showMatureModal} title="Content Warning" onClose={handleDeclineMature}>
-          <div style={{ padding: 'var(--space-4)', textAlign: 'center' }}>
-            <p>This section contains mature content intended for adult audiences.</p>
-            <p>
-              By proceeding, you confirm that you are <strong>18 years of age or older</strong> (or
-              the age of majority in your jurisdiction) and wish to view this content.
-            </p>
-            <p
-              style={{
-                fontSize: 'var(--font-size-xs)',
-                color: 'var(--text-secondary)',
-                marginTop: 'var(--space-4)',
-              }}
-            >
-              You can reset this preference at any time in the <strong>Settings</strong> page.
-            </p>
-            <div
-              style={{
-                marginTop: 'var(--space-4)',
-                display: 'flex',
-                gap: 'var(--space-2-5)',
-                justifyContent: 'center',
-              }}
-            >
-              <Button variant="secondary" onClick={handleDeclineMature}>
-                Go Back
-              </Button>
-              <Button onClick={handleAcceptMature}>I'm 18+, Continue</Button>
-            </div>
-          </div>
-        </Modal>
+        <MatureConsentModal
+          isOpen
+          scope="section"
+          showResetHint
+          onClose={handleDeclineMature}
+          onGrant={handleAcceptMature}
+        />
       )}
 
       {player && (

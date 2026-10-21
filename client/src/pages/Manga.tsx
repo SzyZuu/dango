@@ -2,11 +2,11 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { useSearchParams, Navigate } from 'react-router'
 import Icon from '../components/common/Icon'
 import ToggleSwitch from '../components/common/ToggleSwitch'
-import { Modal } from '../components/common/Modal'
-import { Button } from '../components/common/Button'
+import MatureConsentModal from '../components/common/MatureConsentModal'
 import ErrorMessage from '../components/common/ErrorMessage'
 import MediaCard from '../components/common/MediaCard'
 import MangaPopup from '../components/manga/MangaPopup'
+import { useMatureConsent } from '../hooks/useMatureConsent'
 import { isMangaAdult, mangaNameVariants } from '../lib/manga'
 import {
   useMangaBrowse,
@@ -60,13 +60,9 @@ const FULL_RATINGS = [
   { value: 'pornographic', label: 'Pornographic' },
 ]
 
-const MATURE_CONSENT_KEY = 'agreedToViewMature'
-
 export default function Manga() {
   const [searchParams, setSearchParams] = useSearchParams()
-  const [hasConsent, setHasConsent] = useState(
-    () => localStorage.getItem(MATURE_CONSENT_KEY) === 'true'
-  )
+  const { hasConsent, grant: grantMatureConsent } = useMatureConsent()
   const [showMatureModal, setShowMatureModal] = useState(false)
   const [queryInput, setQueryInput] = useState(searchParams.get('q') || '')
 
@@ -97,16 +93,6 @@ export default function Manga() {
 
   useEffect(() => {
     document.title = 'Manga - dango'
-  }, [])
-
-  useEffect(() => {
-    const sync = () => setHasConsent(localStorage.getItem(MATURE_CONSENT_KEY) === 'true')
-    window.addEventListener('focus', sync)
-    window.addEventListener('storage', sync)
-    return () => {
-      window.removeEventListener('focus', sync)
-      window.removeEventListener('storage', sync)
-    }
   }, [])
 
   const showMature = hasConsent
@@ -168,8 +154,7 @@ export default function Manga() {
   }
 
   const handleAcceptMature = () => {
-    localStorage.setItem(MATURE_CONSENT_KEY, 'true')
-    setHasConsent(true)
+    grantMatureConsent()
     setShowMatureModal(false)
     update({}, true)
   }
@@ -426,37 +411,13 @@ export default function Manga() {
       )}
 
       {showMatureModal && (
-        <Modal isOpen={showMatureModal} title="Content Warning" onClose={handleDeclineMature}>
-          <div style={{ padding: 'var(--space-4)', textAlign: 'center' }}>
-            <p>This section contains mature content intended for adult audiences.</p>
-            <p>
-              By proceeding, you confirm that you are <strong>18 years of age or older</strong> (or
-              the age of majority in your jurisdiction) and wish to view this content.
-            </p>
-            <p
-              style={{
-                fontSize: 'var(--font-size-xs)',
-                color: 'var(--text-secondary)',
-                marginTop: 'var(--space-4)',
-              }}
-            >
-              You can reset this preference at any time in the <strong>Settings</strong> page.
-            </p>
-            <div
-              style={{
-                marginTop: 'var(--space-4)',
-                display: 'flex',
-                gap: 'var(--space-2-5)',
-                justifyContent: 'center',
-              }}
-            >
-              <Button variant="secondary" onClick={handleDeclineMature}>
-                Go Back
-              </Button>
-              <Button onClick={handleAcceptMature}>I'm 18+, Continue</Button>
-            </div>
-          </div>
-        </Modal>
+        <MatureConsentModal
+          isOpen
+          scope="section"
+          showResetHint
+          onClose={handleDeclineMature}
+          onGrant={handleAcceptMature}
+        />
       )}
     </div>
   )

@@ -70,7 +70,6 @@ const Home: React.FC = () => {
   const { titlePreference } = useTitlePreference()
   const { contentType, setContentType } = useContentType()
   const [itemToRemove, setItemToRemove] = React.useState<{ id: string; name: string } | null>(null)
-  const [alsoRemoveFromWatchlist, setAlsoRemoveFromWatchlist] = React.useState(false)
   const removeWatchlistMutation = useRemoveFromWatchlist()
   const { data: queueData = [] } = useQueue()
 
@@ -163,14 +162,6 @@ const Home: React.FC = () => {
     },
     [cwList, titlePreference]
   )
-
-  const handleConfirmRemove = useCallback(() => {
-    if (!itemToRemove) return
-    removeCw.mutate({ showId: itemToRemove.id })
-    if (alsoRemoveFromWatchlist) removeWatchlistMutation.mutate({ id: itemToRemove.id })
-    setItemToRemove(null)
-    setAlsoRemoveFromWatchlist(false)
-  }, [itemToRemove, removeCw, removeWatchlistMutation, alsoRemoveFromWatchlist])
 
   const tabs: { key: ActiveTab; label: string }[] = [
     { key: 'latest', label: 'Latest Releases' },
@@ -377,13 +368,14 @@ const Home: React.FC = () => {
             itemName={itemToRemove?.name}
             progressKind="watch"
             listLabel="my watchlist"
-            alsoRemove={alsoRemoveFromWatchlist}
-            onAlsoRemoveChange={setAlsoRemoveFromWatchlist}
             onClose={() => {
               setItemToRemove(null)
-              setAlsoRemoveFromWatchlist(false)
             }}
-            onConfirm={handleConfirmRemove}
+            onConfirm={(alsoRemove) => {
+              if (!itemToRemove) return
+              removeCw.mutate({ showId: itemToRemove.id })
+              if (alsoRemove) removeWatchlistMutation.mutate({ id: itemToRemove.id })
+            }}
           />
         </>
       )}

@@ -43,7 +43,6 @@ export default function TvWatchlist() {
   const { filter: filterBy = 'All' } = useParams<{ filter: string }>()
   const [page, setPage] = useState(1)
   const [resetTarget, setResetTarget] = useState<GridEntry | null>(null)
-  const [alsoRemoveFromWatchlist, setAlsoRemoveFromWatchlist] = useState(false)
 
   useEffect(() => {
     document.title = 'TV Watchlist - dango'
@@ -131,12 +130,10 @@ export default function TvWatchlist() {
   const isLoading = isCW ? cwQuery.isLoading : libraryQuery.isLoading
   const error = isCW ? cwQuery.error : libraryQuery.error
 
-  const handleConfirmReset = () => {
+  const handleConfirmReset = (alsoRemove: boolean) => {
     if (!resetTarget) return
     removeProgress.mutate({ mediaId: resetTarget.libId })
-    if (alsoRemoveFromWatchlist) removeBookmark.mutate(resetTarget.libId)
-    setResetTarget(null)
-    setAlsoRemoveFromWatchlist(false)
+    if (alsoRemove) removeBookmark.mutate(resetTarget.libId)
   }
 
   return (
@@ -213,11 +210,8 @@ export default function TvWatchlist() {
           itemName={resetTarget?.title}
           progressKind="watch"
           listLabel="my TV watchlist"
-          alsoRemove={alsoRemoveFromWatchlist}
-          onAlsoRemoveChange={setAlsoRemoveFromWatchlist}
           onClose={() => {
             setResetTarget(null)
-            setAlsoRemoveFromWatchlist(false)
           }}
           onConfirm={handleConfirmReset}
         />

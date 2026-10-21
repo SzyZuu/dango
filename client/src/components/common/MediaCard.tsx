@@ -1,8 +1,7 @@
 import React, { memo, useState, useCallback } from 'react'
 import { Link, useNavigate, type To } from 'react-router'
 import Icon from './Icon'
-import { Modal } from './Modal'
-import { Button } from './Button'
+import MatureConsentModal from './MatureConsentModal'
 import { fixThumbnailUrl } from '../../lib/utils'
 import { useTitlePreference } from '../../contexts/TitlePreferenceContext'
 import { useEnrichedThumbnail } from '../../hooks/useEnrichedThumbnail'
@@ -10,7 +9,7 @@ import styles from './MediaCard.module.css'
 import useIsMobile from '../../hooks/useIsMobile'
 import { useLowEndMode } from '../../contexts/LowEndModeContext'
 import { useCardInteraction } from '../../hooks/useCardInteraction'
-import { useLocalStorage } from '../../hooks/useLocalStorage'
+import { useMatureConsent } from '../../hooks/useMatureConsent'
 
 export interface MediaCardItem {
   id: string
@@ -224,13 +223,12 @@ const MediaCard: React.FC<MediaCardProps> = memo(
 
     const adultContent = !!item.isAdult
 
-    const [matureConsent, setMatureConsent] = useLocalStorage<string>('agreedToViewMature', 'false')
-    const isAgreedToViewMature = matureConsent === 'true'
+    const { hasConsent: isAgreedToViewMature, grant: grantMatureConsent } = useMatureConsent()
     const [showModal, setShowModal] = React.useState(false)
     const pendingMatureTargetRef = React.useRef<To | null>(null)
 
     const handleConfirmViewMature = () => {
-      setMatureConsent('true')
+      grantMatureConsent()
       setShowModal(false)
       if (pendingMatureTargetRef.current) {
         navigate(pendingMatureTargetRef.current)
@@ -363,31 +361,12 @@ const MediaCard: React.FC<MediaCardProps> = memo(
         </Link>
 
         {showModal && (
-          <Modal isOpen={showModal} title="Content Warning" onClose={() => setShowModal(false)}>
-            <div style={{ padding: '1rem', textAlign: 'center' }}>
-              <p>This title contains mature content intended for adult audiences.</p>
-              <p>
-                By proceeding, you confirm that you are <strong>18 years of age or older</strong>{' '}
-                (or the age of majority in your jurisdiction) and wish to view this content.
-              </p>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '1rem' }}>
-                You can reset this preference at any time in the <strong>Settings</strong> page.
-              </p>
-              <div
-                style={{
-                  marginTop: '1rem',
-                  display: 'flex',
-                  gap: '10px',
-                  justifyContent: 'center',
-                }}
-              >
-                <Button variant="secondary" onClick={() => setShowModal(false)}>
-                  Go Back
-                </Button>
-                <Button onClick={handleConfirmViewMature}>I'm 18+, Continue</Button>
-              </div>
-            </div>
-          </Modal>
+          <MatureConsentModal
+            isOpen
+            showResetHint
+            onClose={() => setShowModal(false)}
+            onGrant={handleConfirmViewMature}
+          />
         )}
 
         {showRemoveBtn && (

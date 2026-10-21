@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Modal } from './Modal'
 import { Button } from './Button'
 
@@ -7,10 +7,8 @@ interface ResetProgressModalProps {
   itemName?: string
   progressKind: 'watch' | 'reading' | 'listening'
   listLabel: string
-  alsoRemove: boolean
-  onAlsoRemoveChange: (value: boolean) => void
   onClose: () => void
-  onConfirm: () => void
+  onConfirm: (alsoRemoveFromList: boolean) => void
 }
 
 const ResetProgressModal: React.FC<ResetProgressModalProps> = ({
@@ -18,13 +16,24 @@ const ResetProgressModal: React.FC<ResetProgressModalProps> = ({
   itemName,
   progressKind,
   listLabel,
-  alsoRemove,
-  onAlsoRemoveChange,
   onClose,
   onConfirm,
 }) => {
+  const [alsoRemove, setAlsoRemove] = useState(false)
+
+  useEffect(() => {
+    if (isOpen) setAlsoRemove(false)
+  }, [isOpen])
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Reset Progress">
+    <Modal
+      isOpen={isOpen}
+      onClose={() => {
+        setAlsoRemove(false)
+        onClose()
+      }}
+      title="Reset Progress"
+    >
       <Modal.Body>
         <p>
           Are you sure you want to remove your {progressKind} progress for &quot;{itemName}&quot;?
@@ -33,16 +42,30 @@ const ResetProgressModal: React.FC<ResetProgressModalProps> = ({
           <input
             type="checkbox"
             checked={alsoRemove}
-            onChange={(e) => onAlsoRemoveChange(e.currentTarget.checked)}
+            onChange={(e) => setAlsoRemove(e.currentTarget.checked)}
           />
           Also remove from {listLabel}
         </label>
       </Modal.Body>
       <Modal.Actions>
-        <Button variant="secondary" onClick={onClose}>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            setAlsoRemove(false)
+            onClose()
+          }}
+        >
           No
         </Button>
-        <Button variant="danger" onClick={onConfirm}>
+        <Button
+          variant="danger"
+          onClick={() => {
+            const value = alsoRemove
+            setAlsoRemove(false)
+            onConfirm(value)
+            onClose()
+          }}
+        >
           Yes
         </Button>
       </Modal.Actions>

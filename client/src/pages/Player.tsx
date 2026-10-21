@@ -23,6 +23,7 @@ import {
 import type Hls from 'hls.js'
 import { Modal } from '../components/common/Modal'
 import { Button } from '../components/common/Button'
+import MatureConsentModal from '../components/common/MatureConsentModal'
 import ResumeModal from '../components/common/ResumeModal'
 import { useMatureConsent } from '../hooks/useMatureConsent'
 import useIsMobile from '../hooks/useIsMobile'
@@ -1496,28 +1497,7 @@ const Player: React.FC = () => {
   if (matureBlocked) {
     return (
       <div className={layoutStyles.playerPageLayout}>
-        <Modal isOpen title="Content Warning" onClose={() => navigate('/home')}>
-          <div style={{ padding: '1rem', textAlign: 'center' }}>
-            <p>This title contains mature content intended for adult audiences.</p>
-            <p>
-              By proceeding, you confirm that you are <strong>18 years of age or older</strong> (or
-              the age of majority in your jurisdiction) and wish to view this content.
-            </p>
-            <div
-              style={{
-                marginTop: '1rem',
-                display: 'flex',
-                gap: '10px',
-                justifyContent: 'center',
-              }}
-            >
-              <Button variant="secondary" onClick={() => navigate('/home')}>
-                Go Back
-              </Button>
-              <Button onClick={grantMatureConsent}>I'm 18+, Continue</Button>
-            </div>
-          </div>
-        </Modal>
+        <MatureConsentModal isOpen onClose={() => navigate('/home')} onGrant={grantMatureConsent} />
       </div>
     )
   }

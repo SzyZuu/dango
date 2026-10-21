@@ -38,7 +38,6 @@ const TvHome: React.FC = () => {
   const removeBookmark = useRemoveTvBookmark()
   const removeProgress = useRemoveTvProgress()
   const [resetTarget, setResetTarget] = useState<{ libId: string; title: string } | null>(null)
-  const [alsoRemoveFromWatchlist, setAlsoRemoveFromWatchlist] = useState(false)
 
   const [activeTab, setActiveTab] = useState<ActiveTab>(() => {
     return (localStorage.getItem('tv_home_activeTab') as ActiveTab) || 'latest'
@@ -83,12 +82,10 @@ const TvHome: React.FC = () => {
   })
   const latestItems: TvSearchResult[] = latestData?.results || []
 
-  const handleConfirmReset = () => {
+  const handleConfirmReset = (alsoRemove: boolean) => {
     if (!resetTarget) return
     removeProgress.mutate({ mediaId: resetTarget.libId })
-    if (alsoRemoveFromWatchlist) removeBookmark.mutate(resetTarget.libId)
-    setResetTarget(null)
-    setAlsoRemoveFromWatchlist(false)
+    if (alsoRemove) removeBookmark.mutate(resetTarget.libId)
   }
 
   const renderTvCard = useCallback(
@@ -323,11 +320,8 @@ const TvHome: React.FC = () => {
         itemName={resetTarget?.title}
         progressKind="watch"
         listLabel="my TV watchlist"
-        alsoRemove={alsoRemoveFromWatchlist}
-        onAlsoRemoveChange={setAlsoRemoveFromWatchlist}
         onClose={() => {
           setResetTarget(null)
-          setAlsoRemoveFromWatchlist(false)
         }}
         onConfirm={handleConfirmReset}
       />

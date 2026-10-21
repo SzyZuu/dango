@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
-import styles from '../../pages/Settings.module.css'
 import { toast } from 'react-hot-toast'
 import { trpcClient } from '../../lib/trpc'
+import sharedStyles from './Settings.module.css'
 
 interface SyncSettings {
   activeProvider: string
@@ -79,7 +79,7 @@ const SyncProviderSelector: React.FC = () => {
   }
 
   return (
-    <div className={styles.sectionCard}>
+    <div className={sharedStyles.sectionCard}>
       <h3>Active Sync Provider</h3>
       <p>
         Choose which provider to use for synchronization. "Default" uses the first available
@@ -102,7 +102,7 @@ const SyncProviderSelector: React.FC = () => {
         </strong>
       </div>
 
-      <div className={styles.settingRow}>
+      <div className={sharedStyles.settingRow}>
         <label htmlFor="sync-provider-select">Selected Preference</label>
         <select
           id="sync-provider-select"

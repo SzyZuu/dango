@@ -2,88 +2,7 @@
 // Material Icons, Apache 2.0; Simple Icons, CC0). Attribution: Fonticons, Inc.
 import type { CSSProperties } from 'react'
 
-export type IconName =
-  | 'anilist'
-  | 'arrow-left'
-  | 'backward'
-  | 'bars'
-  | 'bell'
-  | 'book'
-  | 'bookmark'
-  | 'broadcast-tower'
-  | 'chart-pie'
-  | 'check'
-  | 'check-circle'
-  | 'chevron-down'
-  | 'chevron-left'
-  | 'chevron-right'
-  | 'chevron-up'
-  | 'clock'
-  | 'closed-captioning'
-  | 'cloud'
-  | 'cog'
-  | 'compress'
-  | 'database'
-  | 'discord'
-  | 'download'
-  | 'exclamation-triangle'
-  | 'expand'
-  | 'external-link-alt'
-  | 'eye-slash'
-  | 'file-alt'
-  | 'filter'
-  | 'fire'
-  | 'forward'
-  | 'forward-10'
-  | 'github'
-  | 'headphones'
-  | 'heart'
-  | 'history'
-  | 'home'
-  | 'image'
-  | 'info'
-  | 'info-circle'
-  | 'keyboard'
-  | 'layer-group'
-  | 'list'
-  | 'list-ol'
-  | 'list-ul'
-  | 'microphone'
-  | 'myanimelist'
-  | 'pause'
-  | 'pencil-alt'
-  | 'pepper-hot'
-  | 'play'
-  | 'plus'
-  | 'redo'
-  | 'replay-10'
-  | 'search'
-  | 'server'
-  | 'shuffle'
-  | 'sign-out-alt'
-  | 'spinner'
-  | 'star'
-  | 'step-backward'
-  | 'step-forward'
-  | 'sync-alt'
-  | 'times'
-  | 'trash'
-  | 'tv'
-  | 'undo'
-  | 'upload'
-  | 'user-astronaut'
-  | 'user-clock'
-  | 'users'
-  | 'volume-down'
-  | 'volume-mute'
-  | 'volume-up'
-
-interface IconPaths {
-  viewBox: string
-  body: React.ReactNode
-}
-
-const ICONS: Record<IconName, IconPaths> = {
+const ICONS = {
   anilist: {
     viewBox: '0 0 24 24',
     body: (
@@ -681,6 +600,8 @@ const ICONS: Record<IconName, IconPaths> = {
     ),
   },
 }
+
+export type IconName = keyof typeof ICONS
 
 export interface IconProps {
   name: IconName

@@ -5,6 +5,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import ToggleSwitch from '../components/common/ToggleSwitch'
 import MatureConsentModal from '../components/common/MatureConsentModal'
 import MediaCard from '../components/common/MediaCard'
+import Pagination from '../components/common/Pagination'
 import AsmrDetail from '../components/asmr/AsmrDetail'
 import AsmrPopup from '../components/asmr/AsmrPopup'
 import { useAsmrPopup } from '../hooks/useAsmrPopup'
@@ -399,23 +400,12 @@ const Asmr: React.FC = () => {
                 })}
               </div>
 
-              <nav className={styles.pagination}>
-                <button
-                  className={styles.pageBtn}
-                  disabled={page <= 1}
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                >
-                  Previous
-                </button>
-                <span className={styles.pageIndicator}>Page {page}</span>
-                <button
-                  className={styles.pageBtn}
-                  disabled={!hasNext}
-                  onClick={() => setPage((p) => p + 1)}
-                >
-                  Next
-                </button>
-              </nav>
+              <Pagination
+                page={page}
+                canGoNext={hasNext}
+                onChange={(next) => setPage(next)}
+                variant="labeled"
+              />
             </>
           )}
         </>

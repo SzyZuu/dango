@@ -7,7 +7,7 @@ import ErrorMessage from './ErrorMessage'
 import { Modal } from './Modal'
 import { Button } from './Button'
 import { useSetting, useUpdateSetting } from '../../hooks/useSettings'
-import styles from '../../pages/Watchlist.module.css'
+import styles from './LibraryListPage.module.css'
 
 export interface LibraryListEntry {
   key: string

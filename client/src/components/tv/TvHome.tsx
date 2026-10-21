@@ -17,6 +17,7 @@ import {
   useRemoveTvProgress,
 } from '../../hooks/useTvLibrary'
 import styles from '../../pages/Home.module.css'
+import homeStyles from '../common/HomeLayout.module.css'
 
 type ActiveTab = 'latest' | 'trending'
 
@@ -154,7 +155,7 @@ const TvHome: React.FC = () => {
                 {latestItems.map(renderTvCard)}
               </MediaSection>
             ) : (
-              <div className={styles.emptyState}>
+              <div className={homeStyles.emptyState}>
                 <p>No latest releases available right now.</p>
               </div>
             )}
@@ -216,7 +217,7 @@ const TvHome: React.FC = () => {
                 {trendingItems.map(renderTvCard)}
               </MediaSection>
             ) : (
-              <div className={styles.emptyState}>
+              <div className={homeStyles.emptyState}>
                 <p>No trending content available right now.</p>
               </div>
             )}
@@ -313,7 +314,7 @@ const TvHome: React.FC = () => {
         onChange={setActiveTab}
       />
 
-      <div className={styles.tabContent}>{renderTabContent()}</div>
+      <div>{renderTabContent()}</div>
 
       <ResetProgressModal
         isOpen={!!resetTarget}

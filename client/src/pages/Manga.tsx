@@ -5,6 +5,7 @@ import ToggleSwitch from '../components/common/ToggleSwitch'
 import MatureConsentModal from '../components/common/MatureConsentModal'
 import ErrorMessage from '../components/common/ErrorMessage'
 import MediaCard from '../components/common/MediaCard'
+import Pagination from '../components/common/Pagination'
 import MangaPopup from '../components/manga/MangaPopup'
 import { useMatureConsent } from '../hooks/useMatureConsent'
 import { isMangaAdult, mangaNameVariants } from '../lib/manga'
@@ -369,23 +370,12 @@ export default function Manga() {
               )
             })}
           </div>
-          <nav className={styles.pagination}>
-            <button
-              className={styles.pageBtn}
-              disabled={page <= 1}
-              onClick={() => update({ page: String(page - 1) })}
-            >
-              Previous
-            </button>
-            <span className={styles.pageIndicator}>Page {page}</span>
-            <button
-              className={styles.pageBtn}
-              disabled={!hasNext}
-              onClick={() => update({ page: String(page + 1) })}
-            >
-              Next
-            </button>
-          </nav>
+          <Pagination
+            page={page}
+            canGoNext={hasNext}
+            onChange={(next) => update({ page: String(next) })}
+            variant="labeled"
+          />
         </>
       )}
 

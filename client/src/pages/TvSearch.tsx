@@ -9,6 +9,7 @@ import ErrorMessage from '../components/common/ErrorMessage'
 import { useTvSearchPaginated, type TvSearchResult } from '../hooks/useTv'
 import { useLowEndMode } from '../contexts/LowEndModeContext'
 import { hideVirtualKeyboard } from '../hooks/useVirtualKeyboard'
+import { MOVIE_GENRES, TV_GENRES } from '../lib/tv'
 import styles from './Search.module.css'
 
 interface Option {
@@ -29,40 +30,6 @@ const sortOptions: Option[] = [
   { value: 'primary_release_date.asc', label: 'Oldest' },
   { value: 'vote_count.desc', label: 'Most Voted' },
 ]
-
-const TV_GENRES: Record<number, string> = {
-  10759: 'Action & Adventure',
-  16: 'Animation',
-  35: 'Comedy',
-  80: 'Crime',
-  99: 'Documentary',
-  18: 'Drama',
-  10751: 'Family',
-  10762: 'Kids',
-  9648: 'Mystery',
-  10765: 'Sci-Fi & Fantasy',
-  37: 'Western',
-}
-
-const MOVIE_GENRES: Record<number, string> = {
-  28: 'Action',
-  12: 'Adventure',
-  16: 'Animation',
-  35: 'Comedy',
-  80: 'Crime',
-  99: 'Documentary',
-  18: 'Drama',
-  10751: 'Family',
-  14: 'Fantasy',
-  36: 'History',
-  27: 'Horror',
-  9648: 'Mystery',
-  10749: 'Romance',
-  878: 'Sci-Fi',
-  53: 'Thriller',
-  10752: 'War',
-  37: 'Western',
-}
 
 const currentYear = new Date().getFullYear()
 const yearOptions: Option[] = [

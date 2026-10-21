@@ -2,6 +2,7 @@ import React, { useMemo } from 'react'
 import { useNavigate } from 'react-router'
 import SpotlightBannerShell, { type SpotlightSlide } from '../common/SpotlightBanner'
 import { mangaCoverSrc, type MangaTrendingItem } from '../../hooks/useManga'
+import { truncate } from '../../lib/utils'
 
 interface MangaSpotlightBannerProps {
   mangaList: MangaTrendingItem[]
@@ -28,7 +29,7 @@ const MangaSpotlightBanner: React.FC<MangaSpotlightBannerProps> = ({ mangaList }
             manga.status ?? undefined,
           ].filter((item): item is string => Boolean(item)),
           tags: manga.tags.slice(0, 3),
-          synopsis: manga.description?.slice(0, 200) || '',
+          synopsis: truncate(manga.description, 200, ''),
           primaryLabel: 'Read Now',
           primaryIcon: 'book',
           onPrimary: () => navigate(link),
@@ -38,7 +39,7 @@ const MangaSpotlightBanner: React.FC<MangaSpotlightBannerProps> = ({ mangaList }
     [mangaList, navigate]
   )
 
-  return <SpotlightBannerShell slides={slides} />
+  return <SpotlightBannerShell slides={slides} eyebrow="Manga Spotlight" />
 }
 
 export default MangaSpotlightBanner

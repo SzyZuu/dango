@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { Link } from 'react-router'
 import Icon, { type IconName } from './Icon'
-import styles from '../anime/SpotlightBanner.module.css'
+import styles from './SpotlightBanner.module.css'
 
 export interface SpotlightSlide {
   key: string
@@ -22,7 +22,8 @@ export interface SpotlightSlide {
 
 interface SpotlightBannerProps {
   slides: SpotlightSlide[]
-  posterClassName?: string
+  posterAspect?: 'portrait' | 'landscape'
+  eyebrow?: string
 }
 
 const AUTOPLAY_MS = 8000
@@ -45,7 +46,11 @@ export const SpotlightSkeleton: React.FC = () => (
   />
 )
 
-const SpotlightBanner: React.FC<SpotlightBannerProps> = ({ slides, posterClassName }) => {
+const SpotlightBanner: React.FC<SpotlightBannerProps> = ({
+  slides,
+  posterAspect = 'portrait',
+  eyebrow = 'Spotlight',
+}) => {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [autoplayResetKey, setAutoplayResetKey] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
@@ -307,12 +312,14 @@ const SpotlightBanner: React.FC<SpotlightBannerProps> = ({ slides, posterClassNa
                   <img
                     src={slide.posterSrc}
                     alt={slide.posterAlt}
-                    className={posterClassName ?? styles.poster}
+                    className={
+                      posterAspect === 'landscape' ? styles.posterLandscape : styles.poster
+                    }
                     decoding="async"
                   />
                   <div className={styles.info}>
                     <div className={`${styles.kicker} ${styles.rise}`}>
-                      <span className={styles.featureLabel}>Spotlight</span>
+                      <span className={styles.featureLabel}>{eyebrow}</span>
                       {slide.score !== undefined && slide.score !== null && slide.score !== '' && (
                         <span className={styles.scoreChip}>
                           <Icon name="star" size={12} />

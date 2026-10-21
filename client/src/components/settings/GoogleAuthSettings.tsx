@@ -3,6 +3,7 @@ import { Button } from '../common/Button'
 import { Modal } from '../common/Modal'
 import { trpcClient } from '../../lib/trpc'
 import styles from './GoogleAuthSettings.module.css'
+import sharedStyles from './Settings.module.css'
 
 interface User {
   name: string
@@ -180,7 +181,7 @@ const GoogleAuthSettings: React.FC = () => {
     return <div style={{ color: 'var(--text-secondary)', padding: '1.5rem' }}>Loading...</div>
 
   return (
-    <div className={styles.sectionCard}>
+    <div className={sharedStyles.sectionCard}>
       <h3 className={styles.title}>Google Drive Sync</h3>
 
       {user ? (

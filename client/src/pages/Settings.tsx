@@ -28,6 +28,7 @@ import { useSetting, useUpdateSetting } from '../hooks/useSettings'
 import { Alert } from '../components/common/Alert'
 import { useContentType } from '../contexts/ContentTypeContext'
 import { useMatureConsent } from '../hooks/useMatureConsent'
+import sharedStyles from '../components/settings/Settings.module.css'
 
 const LIST_TAB_LABELS = {
   anime: 'Watchlist',
@@ -256,7 +257,7 @@ const Settings: React.FC = () => {
       case 'general':
         return (
           <div className={styles.tabContent}>
-            <div className={styles.sectionCard}>
+            <div className={sharedStyles.sectionCard}>
               <h3>Appearance & Preferences</h3>
               <p>Configure how titles are displayed and other general preferences.</p>
               <div className={styles.settingItem}>
@@ -266,7 +267,7 @@ const Settings: React.FC = () => {
                 <ThemeSettings />
               </div>
               <div className={styles.settingItem} style={{ marginTop: '1.5rem' }}>
-                <div className={styles.settingRow}>
+                <div className={sharedStyles.settingRow}>
                   <div style={{ minWidth: 0 }}>
                     <h4 style={{ margin: 0, fontSize: '1rem' }}>Low End Mode</h4>
                     <p
@@ -289,7 +290,7 @@ const Settings: React.FC = () => {
               </div>
 
               <div className={styles.settingItem} style={{ marginTop: '1.5rem' }}>
-                <div className={styles.settingRow}>
+                <div className={sharedStyles.settingRow}>
                   <div style={{ minWidth: 0 }}>
                     <h4 style={{ margin: 0, fontSize: '1rem' }}>Dango Animations</h4>
                     <p
@@ -312,7 +313,7 @@ const Settings: React.FC = () => {
               </div>
 
               <div className={styles.settingItem} style={{ marginTop: '1.5rem' }}>
-                <div className={styles.settingRow}>
+                <div className={sharedStyles.settingRow}>
                   <div style={{ minWidth: 0 }}>
                     <h4 style={{ margin: 0, fontSize: '1rem' }}>Virtual Keyboard</h4>
                     <p
@@ -334,7 +335,7 @@ const Settings: React.FC = () => {
               </div>
 
               <div className={styles.settingItem} style={{ marginTop: '1.5rem' }}>
-                <div className={styles.settingRow}>
+                <div className={sharedStyles.settingRow}>
                   <div style={{ minWidth: 0 }}>
                     <h4 style={{ margin: 0, fontSize: '1rem' }}>Discord Rich Presence</h4>
                     <p
@@ -365,7 +366,7 @@ const Settings: React.FC = () => {
 
               {discordEnabled && (
                 <div className={styles.settingItem} style={{ marginTop: '1rem' }}>
-                  <div className={styles.settingRow}>
+                  <div className={sharedStyles.settingRow}>
                     <div style={{ minWidth: 0 }}>
                       <h4 style={{ margin: 0, fontSize: '1rem' }}>Hide Mature Content</h4>
                       <p
@@ -397,7 +398,7 @@ const Settings: React.FC = () => {
                   border: '1px solid var(--border-color)',
                 }}
               >
-                <div className={styles.settingRow}>
+                <div className={sharedStyles.settingRow}>
                   <div style={{ minWidth: 0 }}>
                     <h4 style={{ margin: 0, fontSize: '1rem' }}>
                       Discord Mobile Presence (Gateway)
@@ -504,7 +505,7 @@ const Settings: React.FC = () => {
 
               {hasMatureConsent && (
                 <div className={styles.settingItem} style={{ marginTop: '1.5rem' }}>
-                  <div className={styles.settingRow}>
+                  <div className={sharedStyles.settingRow}>
                     <div style={{ minWidth: 0 }}>
                       <h4 style={{ margin: 0, fontSize: '1rem' }}>Mature Content</h4>
                       <p
@@ -552,7 +553,7 @@ const Settings: React.FC = () => {
       case 'database':
         return (
           <div className={styles.tabContent}>
-            <div className={styles.sectionCard}>
+            <div className={sharedStyles.sectionCard}>
               <h3>Database Management</h3>
               <p>
                 Download a backup of all databases (anime, manga, TV and ASMR) or restore from a

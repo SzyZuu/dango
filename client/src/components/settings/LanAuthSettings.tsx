@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Button } from '../common/Button'
 import { fetchWithLocalHeaders } from '../../lib/fetchApi'
 import styles from './LanAuthSettings.module.css'
+import sharedStyles from './Settings.module.css'
 
 const LanAuthSettings: React.FC = () => {
   const [hasPassword, setHasPassword] = useState(false)
@@ -105,14 +106,14 @@ const LanAuthSettings: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className={styles.sectionCard}>
+      <div className={sharedStyles.sectionCard}>
         <p>Loading...</p>
       </div>
     )
   }
 
   return (
-    <div className={styles.sectionCard}>
+    <div className={sharedStyles.sectionCard}>
       <h3>LAN Lock</h3>
       <p>
         Require a password to access this instance from any device, including this one. Sessions

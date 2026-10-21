@@ -30,6 +30,7 @@ import {
 } from '../lib/watchlistSelection'
 import Pagination from '../components/common/Pagination'
 import styles from './Watchlist.module.css'
+import listStyles from '../components/common/LibraryListPage.module.css'
 import { qk } from '../lib/queryKeys'
 
 const FILTERS = [
@@ -385,17 +386,17 @@ const Watchlist: React.FC = () => {
 
   return (
     <div className="page-container">
-      <header className={styles.header}>
-        <h2 className={styles.title}>My Watchlist</h2>
-        <p className={styles.subtitle}>Track and manage your anime collection</p>
+      <header className={listStyles.header}>
+        <h2 className={listStyles.title}>My Watchlist</h2>
+        <p className={listStyles.subtitle}>Track and manage your anime collection</p>
       </header>
 
-      <div className={styles.controls}>
-        <div className={styles.filters}>
+      <div className={listStyles.controls}>
+        <div className={listStyles.filters}>
           {FILTERS.map((f) => (
             <button
               key={f}
-              className={`${styles.filterBtn} ${filterBy === f ? styles.active : ''}`}
+              className={`${listStyles.filterBtn} ${filterBy === f ? listStyles.active : ''}`}
               onClick={() => {
                 const params = new URLSearchParams(searchParams)
                 params.delete('page')
@@ -444,7 +445,7 @@ const Watchlist: React.FC = () => {
               Search
             </Button>
             <button
-              className={`${styles.filterToggleBtn} ${showFilters ? styles.active : ''}`}
+              className={`${styles.filterToggleBtn} ${showFilters ? listStyles.active : ''}`}
               onClick={() => setShowFilters(!showFilters)}
             >
               <Icon name="filter" size={14} />
@@ -522,15 +523,15 @@ const Watchlist: React.FC = () => {
         </div>
       </div>
 
-      <div className={styles.resultsHeader} ref={gridRef}>
-        <h3 className={styles.resultsTitle}>
+      <div className={listStyles.resultsHeader} ref={gridRef}>
+        <h3 className={listStyles.resultsTitle}>
           {isCW ? 'Continue Watching' : filterBy}
-          <span className={styles.itemCount}>({total} items)</span>
+          <span className={listStyles.itemCount}>({total} items)</span>
         </h3>
 
-        <div className={styles.headerActions}>
+        <div className={listStyles.headerActions}>
           <button
-            className={`${styles.manageBtn} ${manageMode ? styles.active : ''}`}
+            className={`${listStyles.manageBtn} ${manageMode ? listStyles.active : ''}`}
             onClick={toggleManageMode}
           >
             <Icon name="pencil-alt" size={13} />
@@ -549,19 +550,19 @@ const Watchlist: React.FC = () => {
       </div>
 
       {manageMode && (
-        <div className={styles.manageBar}>
-          <button className={styles.selectAllBtn} onClick={handleSelectAll}>
+        <div className={listStyles.manageBar}>
+          <button className={listStyles.selectAllBtn} onClick={handleSelectAll}>
             <span
-              className={`${styles.selectAllBox} ${allSelected ? styles.selectAllBoxChecked : ''}`}
+              className={`${listStyles.selectAllBox} ${allSelected ? listStyles.selectAllBoxChecked : ''}`}
               aria-hidden="true"
             />
             <span>{allSelected ? 'Clear Page' : 'Select All'}</span>
           </button>
-          <span className={styles.manageCount}>{selectedIds.size} selected</span>
-          <div className={styles.manageSpacer} />
+          <span className={listStyles.manageCount}>{selectedIds.size} selected</span>
+          <div className={listStyles.manageSpacer} />
           {!isCW && (
             <select
-              className={styles.manageStatusSelect}
+              className={listStyles.manageStatusSelect}
               value=""
               onChange={(e) => {
                 if (e.currentTarget.value) {
@@ -580,7 +581,7 @@ const Watchlist: React.FC = () => {
             </select>
           )}
           <button
-            className={styles.manageRemoveBtn}
+            className={listStyles.manageRemoveBtn}
             onClick={handleBulkRemove}
             disabled={selectedIds.size === 0}
           >
@@ -746,21 +747,21 @@ const Watchlist: React.FC = () => {
             </div>
           )}
 
-          <div className={`${styles.grid} ${lowEndMode ? styles.lowEnd : ''}`}>
+          <div className={`${listStyles.grid} ${lowEndMode ? styles.lowEnd : ''}`}>
             {sortedList.map((item) => {
               const selected = selectedIds.has(item.id)
               return (
                 <div
                   key={item._id}
-                  className={`${styles.itemWrapper} ${selected ? styles.selected : ''}`}
+                  className={`${listStyles.itemWrapper} ${selected ? listStyles.selected : ''}`}
                 >
                   {manageMode && (
                     <div
-                      className={styles.selectOverlay}
+                      className={listStyles.selectOverlay}
                       onClick={() => toggleSelect(item.id)}
                       title={selected ? 'Deselect' : 'Select'}
                     >
-                      <span className={styles.selectBadge}>
+                      <span className={listStyles.selectBadge}>
                         {selected ? <Icon name="check" size={12} /> : null}
                       </span>
                     </div>
@@ -772,9 +773,9 @@ const Watchlist: React.FC = () => {
                     layout="vertical"
                   />
                   {!isCW && !manageMode && (
-                    <div className={styles.cardActions}>
+                    <div className={listStyles.cardActions}>
                       <select
-                        className={styles.statusSelect}
+                        className={listStyles.statusSelect}
                         value={item.status}
                         onChange={(e) =>
                           updateStatus.mutate({ id: item.id, status: e.currentTarget.value })
@@ -787,7 +788,7 @@ const Watchlist: React.FC = () => {
                         ))}
                       </select>
                       <button
-                        className={styles.removeBtn}
+                        className={listStyles.removeBtn}
                         onClick={() => handleRemove(item.id, item.name)}
                         title="Remove from Watchlist"
                         aria-label="Remove from Watchlist"
@@ -804,9 +805,9 @@ const Watchlist: React.FC = () => {
       )}
 
       {!isLoading && sortedList.length === 0 && (
-        <div className={styles.emptyState}>
-          <h3 className={styles.emptyTitle}>Your watchlist is looking a bit lonely</h3>
-          <p className={styles.emptyText}>
+        <div className={listStyles.emptyState}>
+          <h3 className={listStyles.emptyTitle}>Your watchlist is looking a bit lonely</h3>
+          <p className={listStyles.emptyText}>
             {filterBy !== 'All' ||
             query ||
             type !== 'ALL' ||
@@ -816,7 +817,7 @@ const Watchlist: React.FC = () => {
               ? 'No anime match these filters. Try adjusting them to see more titles.'
               : "Let's find something to watch!"}
           </p>
-          <button className={styles.emptyBtn} onClick={() => navigate('/search')}>
+          <button className={listStyles.emptyBtn} onClick={() => navigate('/search')}>
             <Icon name="search" size={14} />
             <span>Browse Anime</span>
           </button>
@@ -824,7 +825,7 @@ const Watchlist: React.FC = () => {
       )}
 
       {total > 0 && (
-        <div className={styles.bottomPagination}>
+        <div className={listStyles.bottomPagination}>
           <Pagination
             page={page}
             totalPages={totalPages}

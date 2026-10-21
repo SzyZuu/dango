@@ -124,3 +124,8 @@ export function normalizeScore(score: number | null | undefined): number | null 
 
 export const cx = (...parts: Array<string | false | null | undefined>): string =>
   parts.filter(Boolean).join(' ')
+
+export function truncate(text: string | undefined | null, max: number, ellipsis = '...'): string {
+  if (!text) return ''
+  return text.length > max ? text.slice(0, max) + ellipsis : text
+}

@@ -3,6 +3,7 @@ import { Button } from '../common/Button'
 import { Modal } from '../common/Modal'
 import { trpcClient } from '../../lib/trpc'
 import styles from './GoogleAuthSettings.module.css'
+import sharedStyles from './Settings.module.css'
 
 interface GitHubUser {
   login: string
@@ -189,7 +190,7 @@ const GitHubSyncSettings: React.FC = () => {
   }
 
   return (
-    <div className={styles.sectionCard}>
+    <div className={sharedStyles.sectionCard}>
       <h3 className={styles.title}>GitHub Cloud Sync</h3>
       <p className={styles.signIn}>
         Sync local data through a private GitHub repository named dango-sync-data.

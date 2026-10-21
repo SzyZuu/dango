@@ -12,6 +12,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query'
 import styles from './Notification.module.css'
 import { qk } from '../../lib/queryKeys'
+import { truncate } from '../../lib/utils'
 
 const NotificationDropdown: React.FC = () => {
   const { data: notifications = [], isLoading } = useNotifications()
@@ -110,7 +111,7 @@ const NotificationDropdown: React.FC = () => {
                     onClick={() => setFullMessageId(sn.id)}
                     title="View full status"
                   >
-                    {sn.message.length > 40 ? sn.message.slice(0, 40) + '…' : sn.message}
+                    {truncate(sn.message, 40, '…')}
                   </button>
                 </div>
                 <button

@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react'
 import { useNavigate } from 'react-router'
 import SpotlightBannerShell, { type SpotlightSlide } from '../common/SpotlightBanner'
-import { tvDetailPath } from '../../lib/tv'
+import { MOVIE_GENRES, TV_GENRES, tvDetailPath } from '../../lib/tv'
+import { truncate } from '../../lib/utils'
 
 interface TvSpotlightItem {
   id: number
@@ -17,23 +18,6 @@ interface TvSpotlightItem {
 
 interface TvSpotlightBannerProps {
   items: TvSpotlightItem[]
-}
-
-const GENRE_NAMES: Record<number, string> = {
-  10759: 'Action & Adventure',
-  16: 'Animation',
-  35: 'Comedy',
-  80: 'Crime',
-  18: 'Drama',
-  10765: 'Sci-Fi & Fantasy',
-  9648: 'Mystery',
-  28: 'Action',
-  12: 'Adventure',
-  14: 'Fantasy',
-  27: 'Horror',
-  878: 'Sci-Fi',
-  53: 'Thriller',
-  10749: 'Romance',
 }
 
 const TvSpotlightBanner: React.FC<TvSpotlightBannerProps> = ({ items }) => {
@@ -54,10 +38,9 @@ const TvSpotlightBanner: React.FC<TvSpotlightBannerProps> = ({ items }) => {
           metaItems: [item.type === 'tv' ? 'TV Show' : 'Movie', item.year].filter(Boolean),
           tags: item.genre_ids
             .slice(0, 3)
-            .map((id) => GENRE_NAMES[id])
+            .map((id) => MOVIE_GENRES[id] ?? TV_GENRES[id])
             .filter(Boolean),
-          synopsis:
-            item.overview.length > 200 ? item.overview.slice(0, 200) + '...' : item.overview,
+          synopsis: truncate(item.overview, 200),
           primaryLabel: 'Watch Now',
           primaryIcon: 'play',
           onPrimary: () => navigate(path),
@@ -67,7 +50,7 @@ const TvSpotlightBanner: React.FC<TvSpotlightBannerProps> = ({ items }) => {
     [items, navigate]
   )
 
-  return <SpotlightBannerShell slides={slides} />
+  return <SpotlightBannerShell slides={slides} eyebrow="TV Spotlight" />
 }
 
 export default TvSpotlightBanner

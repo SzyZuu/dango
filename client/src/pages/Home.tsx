@@ -360,7 +360,7 @@ const Home: React.FC = () => {
             onChange={setActiveTab}
           />
 
-          <div className={styles.tabContent}>{renderTabContent()}</div>
+          <div>{renderTabContent()}</div>
 
           <Schedule eyebrow="Never miss an episode" />
 

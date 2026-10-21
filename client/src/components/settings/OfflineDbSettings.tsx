@@ -3,6 +3,7 @@ import { Button } from '../common/Button'
 import ToggleSwitch from '../common/ToggleSwitch'
 import { trpcClient } from '../../lib/trpc'
 import styles from './OfflineDbSettings.module.css'
+import sharedStyles from './Settings.module.css'
 
 interface OfflineDbInfo {
   totalMapped: number
@@ -122,7 +123,7 @@ export const OfflineDbSettings: React.FC = () => {
   const isRefreshing = info?.isRefreshing || triggerLoading
 
   return (
-    <div className={styles.sectionCard}>
+    <div className={sharedStyles.sectionCard}>
       <h3>Offline Metadata Database</h3>
       <p>
         Local MAL to AniList ID map used for instant imports and metadata enrichment without hitting
@@ -172,7 +173,7 @@ export const OfflineDbSettings: React.FC = () => {
       )}
 
       <div className={styles.settingItem}>
-        <div className={styles.settingRow}>
+        <div className={sharedStyles.settingRow}>
           <div>
             <span className={styles.settingTitle}>Weekly Automatic Updates (Saturdays)</span>
             <div className={styles.settingSubtitle}>

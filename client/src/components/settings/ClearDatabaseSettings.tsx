@@ -5,6 +5,7 @@ import { Modal } from '../common/Modal'
 import { fetchWithLocalHeaders } from '../../lib/fetchApi'
 import styles from './ClearDatabaseSettings.module.css'
 import { qk } from '../../lib/queryKeys'
+import sharedStyles from './Settings.module.css'
 
 const ClearDatabaseSettings: React.FC = () => {
   const queryClient = useQueryClient()
@@ -70,7 +71,7 @@ const ClearDatabaseSettings: React.FC = () => {
   }
 
   return (
-    <div className={`${styles.sectionCard} ${styles.dangerCard}`}>
+    <div className={`${sharedStyles.sectionCard} ${sharedStyles.dangerCard}`}>
       <h3>Danger Zone</h3>
       <p>
         Permanently delete your library (watchlist, watched episodes, queue, cached show metadata,

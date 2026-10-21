@@ -3,6 +3,7 @@ import { Button } from '../common/Button'
 import { trpcClient } from '../../lib/trpc'
 import { fetchApi } from '../../lib/fetchApi'
 import styles from './LanAuthSettings.module.css'
+import sharedStyles from './Settings.module.css'
 
 const ServerPortSettings: React.FC = () => {
   const [port, setPort] = useState('')
@@ -39,14 +40,14 @@ const ServerPortSettings: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className={styles.sectionCard}>
+      <div className={sharedStyles.sectionCard}>
         <p>Loading...</p>
       </div>
     )
   }
 
   return (
-    <div className={styles.sectionCard}>
+    <div className={sharedStyles.sectionCard}>
       <h3>Server Port</h3>
       <p>
         Port the backend listens on. Takes effect after a restart. Google and AniList sign-in need

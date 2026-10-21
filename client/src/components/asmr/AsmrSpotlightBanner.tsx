@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import SpotlightBannerShell, { type SpotlightSlide } from '../common/SpotlightBanner'
 import type { AsmrWork } from '../../hooks/useAsmr'
 import { asmrWorkId } from '../../lib/asmr'
-import localStyles from './AsmrSpotlightBanner.module.css'
+import { truncate } from '../../lib/utils'
 
 interface AsmrSpotlightBannerProps {
   works: AsmrWork[]
@@ -41,7 +41,7 @@ const AsmrSpotlightBanner: React.FC<AsmrSpotlightBannerProps> = ({ works }) => {
             trackCount ? `${trackCount} track${trackCount === 1 ? '' : 's'}` : undefined,
           ].filter((item): item is string => Boolean(item)),
           tags: [],
-          synopsis: work.description?.slice(0, 160) || '',
+          synopsis: truncate(work.description, 160, ''),
           primaryLabel: 'Listen Now',
           primaryIcon: 'play',
           onPrimary: () => navigate(target),
@@ -51,7 +51,7 @@ const AsmrSpotlightBanner: React.FC<AsmrSpotlightBannerProps> = ({ works }) => {
     [works, navigate]
   )
 
-  return <SpotlightBannerShell slides={slides} posterClassName={localStyles.posterLandscape} />
+  return <SpotlightBannerShell slides={slides} eyebrow="ASMR Spotlight" posterAspect="landscape" />
 }
 
 export default AsmrSpotlightBanner

@@ -5,6 +5,7 @@ import ToggleSwitch from '../common/ToggleSwitch'
 import { useContentType, type ContentType } from '../../contexts/ContentTypeContext'
 import { trpcClient, useTRPC } from '../../lib/trpc'
 import styles from './WatchlistSettings.module.css'
+import sharedStyles from './Settings.module.css'
 
 interface ListSettingsConfig {
   heading: string
@@ -268,11 +269,11 @@ const WatchlistSettings: React.FC = () => {
   }
 
   return (
-    <div className={styles.sectionCard}>
+    <div className={sharedStyles.sectionCard}>
       <h3>{config.heading}</h3>
       <p>{config.blurb}</p>
       <div className={styles.settingItem}>
-        <div className={styles.settingRow}>
+        <div className={sharedStyles.settingRow}>
           <label htmlFor="skip-confirmation-toggle">{config.skipLabel}</label>
           <ToggleSwitch
             isChecked={skipConfirmation}
@@ -283,7 +284,7 @@ const WatchlistSettings: React.FC = () => {
         </div>
       </div>
       <div className={styles.settingItem}>
-        <div className={styles.settingRow}>
+        <div className={sharedStyles.settingRow}>
           <label htmlFor="ignore-adult-toggle">{config.ignoreLabel}</label>
           <ToggleSwitch
             isChecked={ignoreAdult.value}
@@ -294,7 +295,7 @@ const WatchlistSettings: React.FC = () => {
         </div>
       </div>
       <div className={styles.settingItem}>
-        <div className={styles.settingRow}>
+        <div className={sharedStyles.settingRow}>
           <label htmlFor="cw-watchlist-only-toggle">{config.listOnlyLabel}</label>
           <ToggleSwitch
             isChecked={watchlistOnly.value}

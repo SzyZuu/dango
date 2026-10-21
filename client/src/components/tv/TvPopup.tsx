@@ -5,6 +5,7 @@ import { trpcClient } from '../../lib/trpc'
 import MediaPopup from '../common/MediaPopup'
 import type { MediaPopupMeta } from '../common/MediaPopup'
 import type { TvItem } from './TvCard'
+import { truncate } from '../../lib/utils'
 
 interface TvPopupDetails {
   overview?: string
@@ -81,13 +82,7 @@ const TvPopup: React.FC<TvPopupProps> = ({
       loading={loading}
       meta={meta}
       genres={genres}
-      synopsis={
-        details?.overview
-          ? details.overview.length > 200
-            ? details.overview.slice(0, 200) + '...'
-            : details.overview
-          : undefined
-      }
+      synopsis={truncate(details?.overview, 200)}
       primaryAction={{ to: tvWatchPath(item.type, item.id), label: 'Watch now', icon: 'play' }}
       secondaryAction={{
         to: tvDetailPath(item.type, item.id),

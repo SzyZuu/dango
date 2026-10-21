@@ -3,6 +3,7 @@ import { Button } from '../common/Button'
 import { Modal } from '../common/Modal'
 import { trpcClient } from '../../lib/trpc'
 import styles from './GoogleAuthSettings.module.css'
+import sharedStyles from './Settings.module.css'
 
 const RcloneSettings: React.FC = () => {
   const [remote, setRemote] = useState('')
@@ -61,7 +62,7 @@ const RcloneSettings: React.FC = () => {
     return <div style={{ color: 'var(--text-secondary)', padding: '1.5rem' }}>Loading...</div>
 
   return (
-    <div className={styles.sectionCard}>
+    <div className={sharedStyles.sectionCard}>
       <h3 className={styles.title}>Rclone Cloud Sync</h3>
       <p className={styles.signIn}>
         Configure which Rclone remote to use for database synchronization.

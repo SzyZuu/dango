@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import layoutStyles from '../../pages/PlayerPageLayout.module.css'
+import layoutStyles from './AmbientLightCanvas.module.css'
 import type { AmbientLightSettings } from '../../hooks/useAmbientLight'
 
 interface AmbientLightCanvasProps {

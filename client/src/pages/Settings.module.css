@@ -90,56 +90,11 @@
 }
 
 @keyframes tabFadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.sectionCard {
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid var(--glass-border);
-  padding: var(--space-8);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--glass-shadow);
-}
-
-.sectionCard h3 {
-  margin: 0 0 var(--space-2);
-  font-size: var(--font-size-lg);
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.sectionCard p {
-  color: var(--text-secondary);
-  font-size: var(--font-size-sm);
-  margin: 0 0 var(--space-6);
-  line-height: 1.6;
 }
 
 .settingItem {
   border-top: 1px solid var(--border-primary);
   padding-top: var(--space-6);
-}
-
-.settingRow {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: var(--space-4);
-}
-
-.settingRow label {
-  font-size: var(--font-size-base);
-  color: var(--text-secondary);
-  font-weight: 500;
 }
 
 .controls {
@@ -159,66 +114,7 @@
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
 }
 
 @keyframes slideUpIn {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@media (max-width: 900px) {
-  .settingsLayout {
-    flex-direction: column;
-  }
-
-  .sidebar {
-    width: 100%;
-    flex-direction: row;
-    overflow-x: auto;
-    padding-bottom: var(--space-2);
-  }
-
-  .sidebarIndicator {
-    right: auto;
-    top: auto !important;
-    bottom: 0;
-    height: 3px !important;
-  }
-
-  .sidebarItem {
-    padding: var(--space-3) var(--space-4);
-    white-space: nowrap;
-    flex-shrink: 0;
-  }
-
-  .sidebarItem span {
-    display: block;
-  }
-}
-
-@media (max-width: 480px) {
-  .sidebarItem span {
-    display: none;
-  }
-
-  .sidebarItem {
-    padding: var(--space-4);
-    justify-content: center;
-  }
-
-  .sectionCard {
-    padding: var(--space-6);
-  }
 }

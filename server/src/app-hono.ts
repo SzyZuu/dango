@@ -560,7 +560,7 @@ export function createHonoApp(
   app.get('/api/tracker/anilist/callback', (c) => {
     return c.html(`<!doctype html>
 <html><head><meta charset="utf-8"><title>AniList - completing login</title></head>
-<body style="font-family:system-ui;padding:24px;background:#0b1426;color:#e5eefc"><p>Completing AniList login…</p>
+<body style="font-family:system-ui;padding:24px;background:#0b1426;color:#e5eefc"><p>Completing AniList loginâ€¦</p>
 <script>
 (function(){
   var qs = new URLSearchParams(location.search);

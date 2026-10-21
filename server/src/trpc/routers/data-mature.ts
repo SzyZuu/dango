@@ -5,10 +5,10 @@ import { cached } from '../cache.js'
 import { TempShowIdsRepository } from '../../repositories/temp-show-ids.repository.js'
 import { malCacheStore } from '../../repositories/mal-cache.repository.js'
 import { malSearchMedia, malSearchTitle } from '../../lib/mal/index.js'
-import type { AnilistMedia } from '../../lib/anilist.js'
+import type { AnilistMedia } from '../../lib/anilist/index.js'
 import type { BrowseCaps } from '../../providers/remote-types.js'
 import logger from '../../logger.js'
-import { fromAnilistMedia, searchAnilist, searchAnilistByTitle } from '../../lib/anilist.js'
+import { fromAnilistMedia, searchAnilist, searchAnilistByTitle } from '../../lib/anilist/index.js'
 import {
   dataMatureResolveInput,
   dataMatureSearchInput,

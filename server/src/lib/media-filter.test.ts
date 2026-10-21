@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { filterMedia, startDateRank } from './media-filter.js'
-import type { AnilistMedia } from './anilist.js'
+import type { AnilistMedia } from './anilist/index.js'
 
 const media = (over: Partial<AnilistMedia>): AnilistMedia => ({
   id: 1,

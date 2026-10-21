@@ -1,4 +1,4 @@
-import type { AnilistMedia } from './anilist.js'
+import type { AnilistMedia } from './anilist/index.js'
 import { SEASON_MONTHS } from './media-vocab.js'
 
 export interface MediaFilterOptions {

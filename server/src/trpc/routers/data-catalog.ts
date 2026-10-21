@@ -13,7 +13,7 @@ import {
   anilistUnavailable,
   wasAnilistDownAtBoot,
   checkAnilistStatus,
-} from '../../lib/anilist.js'
+} from '../../lib/anilist/index.js'
 import {
   dataScheduleInput,
   dataLatestReleasesInput,

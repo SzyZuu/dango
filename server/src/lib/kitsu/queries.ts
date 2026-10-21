@@ -1,4 +1,4 @@
-import type { AnilistMedia } from '../anilist.js'
+import type { AnilistMedia } from '../anilist/index.js'
 import { filterMedia, startDateRank } from '../media-filter.js'
 import { asArray, kitsuFetch, type KitsuEntry } from './client.js'
 import {

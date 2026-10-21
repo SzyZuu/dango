@@ -1,8 +1,8 @@
 import { DatabaseWrapper } from '../db.js'
 import logger from '../logger.js'
 import { InsightsRepository } from '../repositories/insights.repository.js'
-import { anilistRequest } from '../lib/anilist.js'
-import type { AnilistMedia } from '../lib/anilist.js'
+import { anilistRequest } from '../lib/anilist/index.js'
+import type { AnilistMedia } from '../lib/anilist/index.js'
 
 export interface TasteProfile {
   genreComp: Record<string, number>

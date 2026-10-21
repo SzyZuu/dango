@@ -1,4 +1,4 @@
-import type { AnilistMedia } from '../anilist.js'
+import type { AnilistMedia } from '../anilist/index.js'
 import { includedMap, type KitsuEntry } from './client.js'
 
 export const KITSU_STATUS_MAP: Record<string, string> = {

@@ -1,5 +1,5 @@
 import { XMLParser } from 'fast-xml-parser'
-import { searchAnilistByTitle, isAnilistRateLimited, getShowMetaById } from './anilist.js'
+import { searchAnilistByTitle, isAnilistRateLimited, getShowMetaById } from './anilist/index.js'
 import { kitsuSearchAnime } from './kitsu/index.js'
 import { offlineDb } from './offline-db/index.js'
 import { SettingsRepository } from '../repositories/settings.repository.js'

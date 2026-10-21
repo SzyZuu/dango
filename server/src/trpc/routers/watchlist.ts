@@ -17,7 +17,7 @@ import {
   searchAnilistByTitle,
   getAnilistEpisodes,
   getShowMetaById,
-} from '../../lib/anilist.js'
+} from '../../lib/anilist/index.js'
 import { kitsuSearchAnime } from '../../lib/kitsu/index.js'
 import { offlineDb } from '../../lib/offline-db/index.js'
 import {

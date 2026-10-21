@@ -16,7 +16,7 @@ import {
   getShowMetaByMalId,
   isAnilistRateLimited,
   searchAnilistByTitle,
-} from '../anilist.js'
+} from '../anilist/index.js'
 import { kitsuSearchAnime } from '../kitsu/index.js'
 import { readTrackerSyncState, resolveStatus } from './sync-state.js'
 import type { TrackerSyncState, TrackerSyncStateEntry } from './sync-state.js'

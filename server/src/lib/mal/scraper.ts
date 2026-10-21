@@ -1,4 +1,4 @@
-import type { AnilistMedia } from '../anilist.js'
+import type { AnilistMedia } from '../anilist/index.js'
 import { decodeHtml } from '../html.js'
 import type { ScrapedDetail, ScrapedSearchEntry } from './types.js'
 

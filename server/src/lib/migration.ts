@@ -1,6 +1,6 @@
 import { DatabaseWrapper } from '../db.js'
 import { performWriteTransactionAsync } from '../db/transaction.js'
-import { searchAnilistByTitle, getShowMetaById } from './anilist.js'
+import { searchAnilistByTitle, getShowMetaById } from './anilist/index.js'
 import { isTempShowId } from './temp-ids.js'
 import { WatchlistRepository } from '../repositories/watchlist.repository.js'
 import { ShowsMetaRepository } from '../repositories/shows-meta.repository.js'

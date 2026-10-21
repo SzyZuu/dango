@@ -1,4 +1,4 @@
-import type { AnilistMedia } from '../anilist.js'
+import type { AnilistMedia } from '../anilist/index.js'
 import { parseJsonBody } from '../../utils/http.utils.js'
 import { decodeHtml } from '../html.js'
 import { startDateRank } from '../media-filter.js'

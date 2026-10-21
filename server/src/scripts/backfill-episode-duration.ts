@@ -1,7 +1,7 @@
 import path from 'node:path'
 import { CONFIG } from '../config.js'
 import { DatabaseWrapper } from '../db.js'
-import { anilistRequest } from '../lib/anilist.js'
+import { anilistRequest } from '../lib/anilist/index.js'
 import { dbAll, dbRun } from '../utils/db-utils.js'
 
 const BATCH_SIZE = 50

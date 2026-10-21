@@ -18,7 +18,7 @@ import {
   getAnilistEpisodes,
   parseMalId,
   getShowMetaByMalId,
-} from '../../lib/anilist.js'
+} from '../../lib/anilist/index.js'
 import {
   dataSkipTimesInput,
   dataEpisodesInput,

@@ -31,7 +31,7 @@ import { discordGatewayService } from './discord-gateway.js'
 import { SettingsRepository } from './repositories/settings.repository.js'
 import { createHonoApp } from './app-hono.js'
 import { startWatchlistDiscovery, stopWatchlistDiscovery } from './lib/watchlist-discovery.js'
-import { checkAnilistStatus } from './lib/anilist.js'
+import { checkAnilistStatus } from './lib/anilist/index.js'
 import { offlineDb } from './lib/offline-db/index.js'
 
 const app = createHonoApp(

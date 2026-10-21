@@ -1,4 +1,4 @@
-import type { AnilistMedia, AnilistSearchOptions } from '../anilist.js'
+import type { AnilistMedia, AnilistSearchOptions } from '../anilist/index.js'
 import { kitsuTitlesByMalIds } from '../kitsu/index.js'
 import type { KitsuTitles } from '../kitsu/index.js'
 import { decodeHtml } from '../html.js'

@@ -166,7 +166,10 @@ async function fetchVideoSources(
     if (error.message === 'AUTH_REQUIRED') {
       dispatch({
         type: 'SET_STATE',
-        payload: { showCookieModal: true, cookieProvider: error.provider as 'animepahe' | 'mkissa' | undefined },
+        payload: {
+          showCookieModal: true,
+          cookieProvider: error.provider as 'animepahe' | 'mkissa' | undefined,
+        },
       })
       return {
         videoSources: [],

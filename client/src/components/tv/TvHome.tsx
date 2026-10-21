@@ -258,8 +258,7 @@ const TvHome: React.FC = () => {
           const e = item.episode ?? 1
           const isMovieItem = item.mediaType === 'movie'
           const episodeLabel = isMovieItem ? 'Movie' : `S${s} E${e}`
-          const isWatched =
-            item.completed === 1 || (dur > 0 && ct >= dur * 0.8)
+          const isWatched = item.completed === 1 || (dur > 0 && ct >= dur * 0.8)
           const percent = isWatched ? 100 : dur > 0 && ct > 0 ? (ct / dur) * 100 : 0
           const label = isWatched
             ? 'Watched'

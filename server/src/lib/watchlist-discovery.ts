@@ -4,11 +4,7 @@ import { WatchlistRepository } from '../repositories/watchlist.repository.js'
 import { WatchedEpisodesRepository } from '../repositories/watched-episodes.repository.js'
 import { ShowsMetaRepository } from '../repositories/shows-meta.repository.js'
 import { NotificationsRepository } from '../repositories/notifications.repository.js'
-import {
-  getAiredEpisodesForShows,
-  isAnilistRateLimited,
-  batchGetShowStatuses,
-} from './anilist.js'
+import { getAiredEpisodesForShows, isAnilistRateLimited, batchGetShowStatuses } from './anilist.js'
 
 const BACKGROUND_DISCOVERY_INTERVAL_MS = 5 * 60 * 1000
 const NUDGE_THROTTLE_MS = 120 * 1000

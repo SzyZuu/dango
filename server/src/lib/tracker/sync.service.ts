@@ -18,10 +18,7 @@ import {
   searchAnilistByTitle,
 } from '../anilist.js'
 import { kitsuSearchAnime } from '../kitsu.js'
-import {
-  readTrackerSyncState,
-  resolveStatus,
-} from './sync-state.js'
+import { readTrackerSyncState, resolveStatus } from './sync-state.js'
 import type { TrackerSyncState, TrackerSyncStateEntry } from './sync-state.js'
 
 const TOKEN_KEY = 'tracker_anilist_token'

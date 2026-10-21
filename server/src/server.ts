@@ -13,13 +13,7 @@ import logger from './logger.js'
 import { notifyServerExit } from './lib/ipc.js'
 
 import { CONFIG } from './config.js'
-import {
-  runFullSyncSequence,
-  syncUp,
-  waitForSync,
-  KIND_SYNC,
-  type MediaKind,
-} from './sync.js'
+import { runFullSyncSequence, syncUp, waitForSync, KIND_SYNC, type MediaKind } from './sync.js'
 import {
   initializeDatabase,
   initializeMangaDatabase,

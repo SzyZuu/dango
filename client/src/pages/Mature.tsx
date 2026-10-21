@@ -616,7 +616,9 @@ export default function Mature() {
         )}
       </div>
 
-      {isError && <ErrorMessage message={(error as unknown as Error)?.message || 'Search failed'} />}
+      {isError && (
+        <ErrorMessage message={(error as unknown as Error)?.message || 'Search failed'} />
+      )}
 
       {isLoading ? (
         <SkeletonGrid count={limit} />

@@ -340,7 +340,8 @@ const Insights: React.FC = () => {
                     if (
                       weekIdx >
                       (labels.length > 0
-                        ? ((labels[labels.length - 1].props as { style?: { gridColumn?: number } }).style?.gridColumn as number) + 2
+                        ? ((labels[labels.length - 1].props as { style?: { gridColumn?: number } })
+                            .style?.gridColumn as number) + 2
                         : -1)
                     ) {
                       labels.push(

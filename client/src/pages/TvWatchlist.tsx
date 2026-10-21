@@ -72,8 +72,7 @@ export default function TvWatchlist() {
         const e = item.episode ?? 1
         const isMovieItem = item.mediaType === 'movie'
         const episodeLabel = isMovieItem ? 'Movie' : `S${s} E${e}`
-        const isWatched =
-          item.completed === 1 || (dur > 0 && ct >= dur * 0.8)
+        const isWatched = item.completed === 1 || (dur > 0 && ct >= dur * 0.8)
         return {
           key: item.id,
           libId: item.id,

@@ -9,11 +9,9 @@ export async function rewriteShowId(
   opts: { anilistId: number; thumbnail?: string }
 ): Promise<void> {
   const sourceWatchlist = (await WatchlistRepository.getById(tx, from)) as
-    | { thumbnail?: string }
-    | undefined
+    { thumbnail?: string } | undefined
   const sourceMeta = (await ShowsMetaRepository.getById(tx, from)) as
-    | { thumbnail?: string }
-    | undefined
+    { thumbnail?: string } | undefined
 
   tx.run('UPDATE OR IGNORE watchlist SET id = ?, thumbnail = ? WHERE id = ?', [
     to,

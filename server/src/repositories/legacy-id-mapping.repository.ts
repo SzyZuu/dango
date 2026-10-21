@@ -28,6 +28,9 @@ export const LegacyIdMappingRepository = {
   },
 
   setNumericId(db: DatabaseWrapper, legacyId: string, numericId: string): void {
-    dbRun(db, 'UPDATE legacy_id_mapping SET numericId = ? WHERE legacyId = ?', [numericId, legacyId])
+    dbRun(db, 'UPDATE legacy_id_mapping SET numericId = ? WHERE legacyId = ?', [
+      numericId,
+      legacyId,
+    ])
   },
 }

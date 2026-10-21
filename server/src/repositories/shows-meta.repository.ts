@@ -109,9 +109,7 @@ export const ShowsMetaRepository = {
       .select({ id: showsMeta.id, genres: showsMeta.genres })
       .from(showsMeta)
       .where(inArray(showsMeta.id, ids))
-    return new Map(
-      rows.map((r) => [r.id, r.genres ? (JSON.parse(r.genres) as string[]) : []])
-    )
+    return new Map(rows.map((r) => [r.id, r.genres ? (JSON.parse(r.genres) as string[]) : []]))
   },
 
   backfillNamesFromWatchlist: (db: DatabaseWrapper) =>

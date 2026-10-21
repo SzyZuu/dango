@@ -5,15 +5,15 @@ import {
   MangaProgressRepository,
 } from '../../repositories/manga.repository.js'
 import { SettingsRepository } from '../../repositories/settings.repository.js'
-import { performMangaWriteTransactionAsync, performWriteTransactionAsync } from '../../db/transaction.js'
+import {
+  performMangaWriteTransactionAsync,
+  performWriteTransactionAsync,
+} from '../../db/transaction.js'
 import { DatabaseWrapper } from '../../db.js'
 import logger from '../../logger.js'
 import { searchAnilistMangaByTitle, getMangaMetaById, getMangaMetaByMalId } from '../anilist.js'
 import { fetchMalMangaList, mapMalMangaStatusCode } from '../mal.js'
-import {
-  readTrackerSyncState,
-  resolveStatus,
-} from './sync-state.js'
+import { readTrackerSyncState, resolveStatus } from './sync-state.js'
 import type { TrackerSyncState, TrackerSyncStateEntry } from './sync-state.js'
 
 const TOKEN_KEY = 'tracker_anilist_token'

@@ -90,7 +90,7 @@ jobs:
         # verify-deps-before-run, which re-prunes devDependencies in this
         # runner env (vite/tsc vanish). exec runs the binaries as-is.
         run: |
-          pnpm --filter dango-client exec tsc
+          pnpm --filter dango-client exec tsc -b
           pnpm --filter dango-client exec vite build
           pnpm --filter dango-server exec tsc --noEmit
           node server/build.mjs

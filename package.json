@@ -24,8 +24,10 @@
     "server": "pnpm --filter dango-server run start",
     "preview": "node orchestrator.js prod",
     "test": "pnpm --filter dango-client run test",
-    "lint": "pnpm -r --if-present run lint",
+    "lint": "pnpm run format:check && pnpm -r --if-present run lint && pnpm run typecheck",
     "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm --filter dango-server exec tsc --noEmit && pnpm --filter dango-client exec tsc -b",
     "prepublishOnly": "node sync-deps.js && pnpm run build",
     "update-version": "node update-version.js"
   },

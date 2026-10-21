@@ -6,9 +6,10 @@ import type { OfflineEntry } from './types.js'
 
 const log = logger.child({ module: 'OfflineDb' })
 
+// the repo moved to the manami-project org and the dataset lives in the releases only
 const OFFLINE_DB_URLS = [
-  'https://github.com/erengy/anime-offline-database/releases/latest/download/anime-offline-database-minified.json',
-  'https://raw.githubusercontent.com/erengy/anime-offline-database/master/anime-offline-database-minified.json',
+  'https://github.com/manami-project/anime-offline-database/releases/latest/download/anime-offline-database-minified.json',
+  'https://github.com/manami-project/anime-offline-database/releases/download/2026-27/anime-offline-database-minified.json',
 ]
 
 const FETCH_IDLE_TIMEOUT_MS = 60000

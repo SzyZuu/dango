@@ -9,6 +9,7 @@ import { useContentType } from '../../contexts/ContentTypeContext'
 import { hideVirtualKeyboard } from '../../hooks/useVirtualKeyboard'
 import { trpcClient } from '../../lib/trpc'
 import styles from './Header.module.css'
+import { qk } from '../../lib/queryKeys'
 
 interface UserProfile {
   name: string
@@ -79,7 +80,7 @@ const Header: React.FC = () => {
   const overHeader = useRef(false)
 
   const { data: user } = useQuery<UserProfile | null>({
-    queryKey: ['sync-profile'],
+    queryKey: [qk.syncProfile],
     queryFn: fetchSyncProfile,
     staleTime: 30000,
   })

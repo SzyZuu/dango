@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { trpcClient } from '../lib/trpc'
+import { qk } from '../lib/queryKeys'
 
 export function useAnilistAuthCallback(): boolean {
   const queryClient = useQueryClient()
@@ -18,7 +19,7 @@ export function useAnilistAuthCallback(): boolean {
         toast.success(
           user ? `Connected to AniList as ${decodeURIComponent(user)}` : 'Connected to AniList'
         )
-        queryClient.invalidateQueries({ queryKey: ['trackerStatus'] })
+        queryClient.invalidateQueries({ queryKey: [qk.trackerStatus] })
       } else {
         toast.error(reason ? decodeURIComponent(reason) : 'AniList authentication failed')
       }
@@ -47,7 +48,7 @@ export function useAnilistAuthCallback(): boolean {
       .then(async (data) => {
         const user = (data as { user?: { name?: string } }).user
         toast.success(`Connected to AniList as ${user?.name ?? 'AniList user'}`)
-        queryClient.invalidateQueries({ queryKey: ['trackerStatus'] })
+        queryClient.invalidateQueries({ queryKey: [qk.trackerStatus] })
       })
       .catch((err) => {
         toast.error(err instanceof Error ? err.message : 'Failed to authenticate with AniList')

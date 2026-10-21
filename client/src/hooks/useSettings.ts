@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { useTRPC } from '../lib/trpc'
+import { qk } from '../lib/queryKeys'
 
 export const useSetting = (key: string) => {
   const trpc = useTRPC()
@@ -18,7 +19,7 @@ export const useUpdateSetting = () => {
       onSuccess: () => {
         toast.success('Setting updated!')
         void queryClient.invalidateQueries(trpc.settings.pathFilter())
-        queryClient.invalidateQueries({ queryKey: ['settings'] })
+        queryClient.invalidateQueries({ queryKey: [qk.settings] })
       },
       onError: (error) => {
         toast.error(`Failed to update setting: ${error.message}`)

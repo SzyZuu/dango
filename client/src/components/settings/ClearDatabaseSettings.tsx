@@ -4,6 +4,7 @@ import { Button } from '../common/Button'
 import { Modal } from '../common/Modal'
 import { fetchWithLocalHeaders } from '../../lib/fetchApi'
 import styles from './ClearDatabaseSettings.module.css'
+import { qk } from '../../lib/queryKeys'
 
 const ClearDatabaseSettings: React.FC = () => {
   const queryClient = useQueryClient()
@@ -51,14 +52,14 @@ const ClearDatabaseSettings: React.FC = () => {
       setStatusMessage(
         `Library cleared - ${deleted.watchlist ?? 0} watchlist entries, ${mangaCount} manga rows, ${tvCount} TV rows, ${asmrCount} ASMR rows and ${total} total rows removed.`
       )
-      queryClient.invalidateQueries({ queryKey: ['watchlist'] })
-      queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
-      queryClient.invalidateQueries({ queryKey: ['manga-library'] })
-      queryClient.invalidateQueries({ queryKey: ['manga-continue-reading'] })
-      queryClient.invalidateQueries({ queryKey: ['tv-library'] })
-      queryClient.invalidateQueries({ queryKey: ['tv-continue-watching'] })
-      queryClient.invalidateQueries({ queryKey: ['asmr-library'] })
-      queryClient.invalidateQueries({ queryKey: ['asmr-continue-listening'] })
+      queryClient.invalidateQueries({ queryKey: [qk.watchlist] })
+      queryClient.invalidateQueries({ queryKey: [qk.continueWatching] })
+      queryClient.invalidateQueries({ queryKey: [qk.mangaLibrary] })
+      queryClient.invalidateQueries({ queryKey: [qk.mangaContinueReading] })
+      queryClient.invalidateQueries({ queryKey: [qk.tvLibrary] })
+      queryClient.invalidateQueries({ queryKey: [qk.tvContinueWatching] })
+      queryClient.invalidateQueries({ queryKey: [qk.asmrLibrary] })
+      queryClient.invalidateQueries({ queryKey: [qk.asmrContinueListening] })
       setShowModal(false)
     } catch (err) {
       setStatusMessage((err as Error).message)

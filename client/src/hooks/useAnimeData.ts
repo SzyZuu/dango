@@ -4,6 +4,7 @@ import { trpcClient } from '../lib/trpc'
 import type { RouterOutputs } from '../lib/trpc'
 import { useTRPC } from '../lib/trpc'
 import type { AnimeShow } from '../types/player'
+import { qk } from '../lib/queryKeys'
 
 export type Anime = AnimeShow
 
@@ -32,7 +33,7 @@ export const useSpotlightBanners = () => {
 
 export const useInfiniteTrendingList = (sort: string = 'TRENDING_DESC', size: number = 10) => {
   return useInfiniteQuery<Anime[]>({
-    queryKey: ['trendingList', sort, size],
+    queryKey: [qk.trendingList, sort, size],
     queryFn: ({ pageParam = 1 }) =>
       trpcClient.data.popularList.query({
         sort,
@@ -48,7 +49,7 @@ export const useInfiniteTrendingList = (sort: string = 'TRENDING_DESC', size: nu
 
 export const useInfiniteLatestReleases = (format: string = 'TV', size: number = 12) => {
   return useInfiniteQuery<Anime[]>({
-    queryKey: ['latestReleases', format, size],
+    queryKey: [qk.latestReleases, format, size],
     queryFn: ({ pageParam = 1 }) =>
       trpcClient.data.latestReleases.query({
         format,
@@ -142,7 +143,7 @@ export const useAddToQueue = () => {
           toast.success('Removed from queue')
         }
         void queryClient.invalidateQueries(trpc.queue.pathFilter())
-        queryClient.invalidateQueries({ queryKey: ['queue-remaining'] })
+        queryClient.invalidateQueries({ queryKey: [qk.queueRemaining] })
       },
       onError: (error) => {
         toast.error(`Failed to update queue: ${error.message}`)
@@ -159,8 +160,8 @@ export const useRemoveFromQueue = () => {
       onSuccess: () => {
         toast.success('Removed from queue')
         void queryClient.invalidateQueries(trpc.queue.pathFilter())
-        queryClient.invalidateQueries({ queryKey: ['queue-remaining'] })
-        queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
+        queryClient.invalidateQueries({ queryKey: [qk.queueRemaining] })
+        queryClient.invalidateQueries({ queryKey: [qk.continueWatching] })
       },
       onError: (error) => {
         toast.error(`Failed to remove: ${error.message}`)
@@ -171,7 +172,7 @@ export const useRemoveFromQueue = () => {
 
 export const useQueueRemainingEpisodes = (showId?: string, enabled: boolean = true) => {
   return useQuery<{ showId: string; episodes: string[] }>({
-    queryKey: ['queue-remaining', showId],
+    queryKey: [qk.queueRemaining, showId],
     queryFn: () => trpcClient.watchlist.queueRemaining.query({ showId: showId as string }),
     enabled: !!showId && enabled,
     staleTime: 1000 * 60,
@@ -187,7 +188,7 @@ export const useAddToQueueBatch = () => {
         const count = data.added ?? variables.episodeNumbers.length
         toast.success(`${count} ${count === 1 ? 'episode' : 'episodes'} added to queue`)
         void queryClient.invalidateQueries(trpc.queue.pathFilter())
-        queryClient.invalidateQueries({ queryKey: ['queue-remaining'] })
+        queryClient.invalidateQueries({ queryKey: [qk.queueRemaining] })
       },
       onError: (error) => {
         toast.error(`Failed to update queue: ${error.message}`)
@@ -204,8 +205,8 @@ export const useRemoveFromQueueBatch = () => {
       onSuccess: () => {
         toast.success('Removed from queue')
         void queryClient.invalidateQueries(trpc.queue.pathFilter())
-        queryClient.invalidateQueries({ queryKey: ['queue-remaining'] })
-        queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
+        queryClient.invalidateQueries({ queryKey: [qk.queueRemaining] })
+        queryClient.invalidateQueries({ queryKey: [qk.continueWatching] })
       },
       onError: (error) => {
         toast.error(`Failed to remove: ${error.message}`)
@@ -222,8 +223,8 @@ export const useClearQueue = () => {
       onSuccess: () => {
         toast.success('Queue cleared')
         void queryClient.invalidateQueries(trpc.queue.pathFilter())
-        queryClient.invalidateQueries({ queryKey: ['queue-remaining'] })
-        queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
+        queryClient.invalidateQueries({ queryKey: [qk.queueRemaining] })
+        queryClient.invalidateQueries({ queryKey: [qk.continueWatching] })
       },
       onError: (error) => {
         toast.error(`Failed to clear queue: ${error.message}`)
@@ -316,7 +317,7 @@ export const usePaginatedWatchlist = (
   limit: number = 14
 ) => {
   return useQuery<PaginatedAnimeResponse>({
-    queryKey: ['watchlist', status, filters, page, limit],
+    queryKey: [qk.watchlist, status, filters, page, limit],
     queryFn: async () => {
       const params = new URLSearchParams(filters)
       params.set('status', status)
@@ -331,7 +332,7 @@ export const usePaginatedWatchlist = (
 export const useAllContinueWatching = (filters: string = '') => {
   return useInfiniteQuery<PaginatedAnimeResponse, Error, { pages: Anime[]; pageParams: unknown[] }>(
     {
-      queryKey: ['allContinueWatching', filters],
+      queryKey: [qk.continueWatching, filters],
       queryFn: async ({ pageParam = 1 }) => {
         const response = await trpcClient.watchlist.continueWatchingAll.query(
           parseListFilters(filters, pageParam as number, 14)
@@ -359,7 +360,7 @@ export const usePaginatedAllContinueWatching = (
   limit: number = 14
 ) => {
   return useQuery<PaginatedAnimeResponse>({
-    queryKey: ['allContinueWatching', filters, page, limit],
+    queryKey: [qk.continueWatching, filters, page, limit],
     queryFn: async () => {
       const response = await trpcClient.watchlist.continueWatchingAll.query(
         parseListFilters(filters, page, limit)
@@ -377,7 +378,7 @@ export const useRemoveFromWatchlist = () => {
       onSuccess: () => {
         toast.success('Removed from watchlist')
         void queryClient.invalidateQueries(trpc.watchlist.pathFilter())
-        queryClient.invalidateQueries({ queryKey: ['watchlist'] })
+        queryClient.invalidateQueries({ queryKey: [qk.watchlist] })
       },
       onError: (error) => {
         toast.error(`Failed to remove: ${error.message}`)
@@ -394,8 +395,8 @@ export const useBatchUpdateWatchlistStatus = () => {
       onSuccess: (data) => {
         toast.success(`Status updated for ${data.updated ?? 0} items`)
         void queryClient.invalidateQueries(trpc.watchlist.pathFilter())
-        queryClient.invalidateQueries({ queryKey: ['watchlist'] })
-        queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
+        queryClient.invalidateQueries({ queryKey: [qk.watchlist] })
+        queryClient.invalidateQueries({ queryKey: [qk.continueWatching] })
       },
       onError: (error) => {
         toast.error(`Failed to update statuses: ${error.message}`)
@@ -413,8 +414,8 @@ export const useBatchRemoveFromWatchlist = () => {
         const count = data.removed ?? 0
         toast.success(`Removed ${count} ${count === 1 ? 'item' : 'items'} from watchlist`)
         void queryClient.invalidateQueries(trpc.watchlist.pathFilter())
-        queryClient.invalidateQueries({ queryKey: ['watchlist'] })
-        queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
+        queryClient.invalidateQueries({ queryKey: [qk.watchlist] })
+        queryClient.invalidateQueries({ queryKey: [qk.continueWatching] })
       },
       onError: (error) => {
         toast.error(`Failed to remove: ${error.message}`)
@@ -432,7 +433,7 @@ export const useBatchRemoveFromContinueWatching = () => {
         const count = data.removed ?? 0
         toast.success(`Removed ${count} ${count === 1 ? 'item' : 'items'} from continue watching`)
         void queryClient.invalidateQueries(trpc.continueWatching.pathFilter())
-        queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
+        queryClient.invalidateQueries({ queryKey: [qk.continueWatching] })
       },
       onError: (error) => {
         toast.error(`Failed to remove: ${error.message}`)
@@ -504,7 +505,7 @@ export const useTriggerDiscovery = () => {
           lastRunAt: data.lastRunAt,
         })
         void queryClient.invalidateQueries(trpc.notifications.pathFilter())
-        queryClient.invalidateQueries({ queryKey: ['notifications'] })
+        queryClient.invalidateQueries({ queryKey: [qk.notifications] })
       },
       onError: () => {
         queryClient.invalidateQueries({ queryKey: statusKey })
@@ -572,7 +573,7 @@ export interface TopShow {
 
 export const useGenreCards = () => {
   return useQuery<GenreCard[]>({
-    queryKey: ['genreCards'],
+    queryKey: [qk.genreCards],
     queryFn: () => trpcClient.insights.genreCards.query() as unknown as Promise<GenreCard[]>,
   })
 }

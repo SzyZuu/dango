@@ -10,6 +10,7 @@ import {
   isFullscreenActive,
   subscribeFullscreen,
 } from '../lib/fullscreen'
+import { qk } from '../lib/queryKeys'
 
 interface VideoPlayerProps {
   skipIntervals: SkipInterval[]
@@ -159,9 +160,9 @@ const useVideoPlayer = ({
       const saveProgress = async () => {
         try {
           await trpcClient.progress.updateProgress.mutate(payload)
-          queryClient.invalidateQueries({ queryKey: ['video-sources', showId, episodeNumber] })
-          queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
-          queryClient.invalidateQueries({ queryKey: ['thisWeekSchedule'] })
+          queryClient.invalidateQueries({ queryKey: [qk.videoSources, showId, episodeNumber] })
+          queryClient.invalidateQueries({ queryKey: [qk.continueWatching] })
+          queryClient.invalidateQueries({ queryKey: [qk.thisWeekSchedule] })
           void queryClient.invalidateQueries(trpc.continueWatching.pathFilter())
         } catch (err) {
           console.error('Failed to update progress:', err)
@@ -630,8 +631,8 @@ const useVideoPlayer = ({
     trpcClient.progress.updateProgress
       .mutate(payload)
       .then(() => {
-        queryClient.invalidateQueries({ queryKey: ['video-sources', showId, episodeNumber] })
-        queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
+        queryClient.invalidateQueries({ queryKey: [qk.videoSources, showId, episodeNumber] })
+        queryClient.invalidateQueries({ queryKey: [qk.continueWatching] })
       })
       .catch((err) => console.error('Failed to send final progress:', err))
   }, [buildProgressPayload, queryClient, showId, episodeNumber])

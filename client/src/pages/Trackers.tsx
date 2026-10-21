@@ -10,6 +10,7 @@ import { Button } from '../components/common/Button'
 import Icon from '../components/common/Icon'
 
 import styles from './Trackers.module.css'
+import { qk } from '../lib/queryKeys'
 
 interface ProgressEvent {
   current: number
@@ -64,7 +65,7 @@ const Trackers: React.FC = () => {
   const isExchangingToken = useAnilistAuthCallback()
 
   const { data: trackerStatus, isLoading: statusLoading } = useQuery({
-    queryKey: ['trackerStatus'],
+    queryKey: [qk.trackerStatus],
     queryFn: async (): Promise<TrackerStatus> => {
       const data = await trpcClient.tracker.status.query()
       return data as unknown as TrackerStatus
@@ -72,7 +73,7 @@ const Trackers: React.FC = () => {
   })
 
   const { data: savedClientId } = useQuery({
-    queryKey: ['anilistClientId'],
+    queryKey: [qk.anilistClientId],
     queryFn: async (): Promise<string> => {
       const data = await trpcClient.settings.getByKey.query({ key: CLIENT_ID_SETTING })
       return data.value || ''
@@ -113,7 +114,7 @@ const Trackers: React.FC = () => {
       } else if (hasShipped && savedTrim) {
         await saveSetting(CLIENT_ID_SETTING, '')
       }
-      queryClient.invalidateQueries({ queryKey: ['anilistClientId'] })
+      queryClient.invalidateQueries({ queryKey: [qk.anilistClientId] })
     } catch (err) {
       toast.error((err as Error).message)
       return
@@ -128,7 +129,7 @@ const Trackers: React.FC = () => {
       return trpcClient.tracker.anilistDisconnect.mutate()
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trackerStatus'] })
+      queryClient.invalidateQueries({ queryKey: [qk.trackerStatus] })
       toast.success('Disconnected from AniList')
     },
     onError: (err: Error) => toast.error(err.message),
@@ -140,8 +141,8 @@ const Trackers: React.FC = () => {
       return data.summary as unknown as SyncSummary
     },
     onSuccess: (summary) => {
-      queryClient.invalidateQueries({ queryKey: ['watchlist'] })
-      queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
+      queryClient.invalidateQueries({ queryKey: [qk.watchlist] })
+      queryClient.invalidateQueries({ queryKey: [qk.continueWatching] })
       setSyncSummary(summary)
       toast.success(
         `Sync complete - pushed ${summary.pushed}, pulled ${summary.pulled}, merged ${summary.merged}, unchanged ${summary.unchanged}`,
@@ -162,8 +163,8 @@ const Trackers: React.FC = () => {
       return data.summary as unknown as SyncSummary
     },
     onSuccess: (summary) => {
-      queryClient.invalidateQueries({ queryKey: ['manga-library'] })
-      queryClient.invalidateQueries({ queryKey: ['manga-continue-reading'] })
+      queryClient.invalidateQueries({ queryKey: [qk.mangaLibrary] })
+      queryClient.invalidateQueries({ queryKey: [qk.mangaContinueReading] })
       setMangaSyncSummary(summary)
       const warningSuffix =
         (summary.warnings?.length ?? 0) > 0 ? `, ${summary.warnings!.length} warning(s)` : ''
@@ -185,8 +186,8 @@ const Trackers: React.FC = () => {
       return data.count
     },
     onSuccess: (count) => {
-      queryClient.invalidateQueries({ queryKey: ['manga-library'] })
-      queryClient.invalidateQueries({ queryKey: ['manga-continue-reading'] })
+      queryClient.invalidateQueries({ queryKey: [qk.mangaLibrary] })
+      queryClient.invalidateQueries({ queryKey: [qk.mangaContinueReading] })
       toast.success(`Imported ${count} manga entries from AniList`)
       setMangaUsername('')
     },
@@ -213,8 +214,8 @@ const Trackers: React.FC = () => {
       return { imported: data.imported ?? 0, skipped: data.skipped ?? 0 }
     },
     onSuccess: ({ imported, skipped }) => {
-      queryClient.invalidateQueries({ queryKey: ['manga-library'] })
-      queryClient.invalidateQueries({ queryKey: ['manga-continue-reading'] })
+      queryClient.invalidateQueries({ queryKey: [qk.mangaLibrary] })
+      queryClient.invalidateQueries({ queryKey: [qk.mangaContinueReading] })
       toast.success(
         `Imported ${imported} manga entries from MAL${skipped > 0 ? `, skipped ${skipped}` : ''}`
       )
@@ -243,8 +244,8 @@ const Trackers: React.FC = () => {
       const data = await res.json().catch(() => ({}))
       if (!res.ok) throw new Error(data.error || 'Import failed')
       setMalMangaXmlResult({ imported: data.imported ?? 0, skipped: data.skipped ?? 0 })
-      queryClient.invalidateQueries({ queryKey: ['manga-library'] })
-      queryClient.invalidateQueries({ queryKey: ['manga-continue-reading'] })
+      queryClient.invalidateQueries({ queryKey: [qk.mangaLibrary] })
+      queryClient.invalidateQueries({ queryKey: [qk.mangaContinueReading] })
     } catch (err: unknown) {
       setMalMangaXmlError((err as Error).message)
     } finally {
@@ -262,8 +263,8 @@ const Trackers: React.FC = () => {
       return data.count
     },
     onSuccess: (count) => {
-      queryClient.invalidateQueries({ queryKey: ['watchlist'] })
-      queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
+      queryClient.invalidateQueries({ queryKey: [qk.watchlist] })
+      queryClient.invalidateQueries({ queryKey: [qk.continueWatching] })
       toast.success(`Imported ${count} anime entries from AniList`)
       setPublicUsername('')
     },
@@ -288,8 +289,8 @@ const Trackers: React.FC = () => {
       return data.count
     },
     onSuccess: (count) => {
-      queryClient.invalidateQueries({ queryKey: ['watchlist'] })
-      queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
+      queryClient.invalidateQueries({ queryKey: [qk.watchlist] })
+      queryClient.invalidateQueries({ queryKey: [qk.continueWatching] })
       toast.success(`Imported ${count} anime entries from MAL`)
       setMalUsername('')
     },
@@ -389,7 +390,7 @@ const Trackers: React.FC = () => {
           }
         }
       }
-      queryClient.invalidateQueries({ queryKey: ['watchlist'] })
+      queryClient.invalidateQueries({ queryKey: [qk.watchlist] })
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         setError('Import cancelled.')

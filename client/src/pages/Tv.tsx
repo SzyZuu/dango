@@ -3,7 +3,6 @@ import { useParams, useNavigate, useSearchParams } from 'react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { trpcClient } from '../lib/trpc'
 import { fetchApi } from '../lib/fetchApi'
-import { clearDiscordPresence } from '../lib/trpcBeacon'
 import toast from 'react-hot-toast'
 import Icon from '../components/common/Icon'
 import TvPlayerControls from '../components/tv/TvPlayerControls'
@@ -13,6 +12,7 @@ import { Button } from '../components/common/Button'
 import MatureConsentModal from '../components/common/MatureConsentModal'
 import ResumeModal from '../components/common/ResumeModal'
 import { useMatureConsent } from '../hooks/useMatureConsent'
+import { useTvPresence } from '../hooks/useTvPresence'
 import { useProviders } from '../hooks/useProviders'
 import {
   useSaveTvProgress,
@@ -328,12 +328,17 @@ const Tv: React.FC = () => {
     })
   }, [videoRef])
   const { hasConsent: hasMatureConsent, grant: grantMatureConsent } = useMatureConsent()
-  const discordSessionRef = useRef<string>('')
-  if (!discordSessionRef.current) {
-    discordSessionRef.current = `tv-${Date.now()}-${Math.random().toString(36).slice(2)}`
-  }
 
   const isMovie = typeParam === 'movie'
+
+  useTvPresence({
+    details,
+    isMovie,
+    season,
+    episode,
+    videoRef,
+    active: !isEmbedProvider && !streamLoading && !streamError && streams.length > 0,
+  })
 
   const libraryId = id ? buildTvId(typeParam || 'tv', id) : ''
   const mediaId = libraryId
@@ -1942,65 +1947,6 @@ const Tv: React.FC = () => {
       track.mode = selected && !subtitleOverlayActive ? 'showing' : 'hidden'
     })
   }
-
-  const sendTvPresence = useCallback(() => {
-    if (!details) return
-    const video = videoRef.current
-    const episodeLabel = isMovie
-      ? ''
-      : `S${String(season).padStart(2, '0')}E${String(episode).padStart(2, '0')}`
-    trpcClient.discord.tvPresence
-      .mutate({
-        title: details.title,
-        episodeLabel,
-        isPlaying: video ? !video.paused && !video.ended : true,
-        thumbnail: details.poster,
-        currentTime: video ? video.currentTime : 0,
-        duration: video ? video.duration || 0 : 0,
-        isAdult: details.adult === true,
-        sessionId: discordSessionRef.current,
-      })
-      .catch(() => {})
-    trpcClient.discord.heartbeat.mutate({ sessionId: discordSessionRef.current }).catch(() => {})
-  }, [details, isMovie, season, episode, videoRef])
-
-  useEffect(() => {
-    if (!details) return
-    sendTvPresence()
-    const id = window.setInterval(() => {
-      const video = videoRef.current
-      if (!video || !video.paused) sendTvPresence()
-    }, 15000)
-    return () => window.clearInterval(id)
-  }, [sendTvPresence, details, videoRef])
-
-  useEffect(() => {
-    if (!details || isEmbedProvider || streamLoading || streamError || streams.length === 0) return
-    const video = videoRef.current
-    if (!video) return
-    const send = () => sendTvPresence()
-    video.addEventListener('play', send)
-    video.addEventListener('pause', send)
-    video.addEventListener('seeked', send)
-    return () => {
-      video.removeEventListener('play', send)
-      video.removeEventListener('pause', send)
-      video.removeEventListener('seeked', send)
-    }
-  }, [details, isEmbedProvider, streamLoading, streamError, streams, sendTvPresence, videoRef])
-
-  useEffect(() => {
-    const sid = discordSessionRef.current
-    const clearTvPresence = () => clearDiscordPresence(sid)
-    const handlePageHide = () => clearTvPresence()
-    window.addEventListener('pagehide', handlePageHide)
-    window.addEventListener('beforeunload', handlePageHide)
-    return () => {
-      window.removeEventListener('pagehide', handlePageHide)
-      window.removeEventListener('beforeunload', handlePageHide)
-      clearTvPresence()
-    }
-  }, [])
 
   useEffect(() => {
     if (!details) {

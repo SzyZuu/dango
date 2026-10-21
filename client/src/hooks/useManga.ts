@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { trpcClient, useTRPC } from '../lib/trpc'
 import type { RouterOutputs } from '../lib/trpc'
+import { qk } from '../lib/queryKeys'
 
 export type MangaProviderName = string
 
@@ -75,7 +76,7 @@ export interface MangaBrowseParams {
 export const useMangaBrowse = (params: MangaBrowseParams, enabled: boolean = true) => {
   const { provider, query, page, sort, status, type, rating, mature } = params
   return useQuery<MangaBrowseResult>({
-    queryKey: ['mangaBrowse', provider, query, page, sort, status, type, rating, mature],
+    queryKey: [qk.mangaBrowse, provider, query, page, sort, status, type, rating, mature],
     queryFn: () => {
       return trpcClient.manga.search.query({
         provider,
@@ -99,7 +100,7 @@ export const useInfiniteMangaBrowse = (
 ) => {
   const { provider, query, sort, status, type, rating, mature } = params
   return useInfiniteQuery<MangaBrowseResult>({
-    queryKey: ['mangaBrowseInfinite', provider, query, sort, status, type, rating, mature, size],
+    queryKey: [qk.mangaBrowseInfinite, provider, query, sort, status, type, rating, mature, size],
     queryFn: ({ pageParam = 1 }) => {
       return trpcClient.manga.search.query({
         provider,
@@ -127,7 +128,7 @@ export const useMangaDetail = (
   mature = false
 ) => {
   return useQuery({
-    queryKey: ['mangaDetail', provider, id, rating, mature],
+    queryKey: [qk.mangaDetail, provider, id, rating, mature],
     queryFn: () => {
       return trpcClient.manga.info.query({
         provider: provider || '',
@@ -147,7 +148,7 @@ export const useMangaPages = (
   enabled: boolean
 ) => {
   return useQuery({
-    queryKey: ['mangaPages', provider, chapterId],
+    queryKey: [qk.mangaPages, provider, chapterId],
     queryFn: () =>
       trpcClient.manga.pages.query({
         provider: provider || '',

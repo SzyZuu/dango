@@ -19,6 +19,7 @@ import { useTranslate } from '../hooks/useTranslate'
 import type { AsmrTrack, AsmrWork } from '../hooks/useAsmr'
 import styles from '../components/asmr/Asmr.module.css'
 import pageStyles from '../components/common/page.module.css'
+import { qk } from '../lib/queryKeys'
 
 const SORT_GROUPS = [
   {
@@ -448,8 +449,8 @@ const Asmr: React.FC = () => {
           isOpen={showJasmrModal}
           onClose={() => setShowJasmrModal(false)}
           onSuccess={() => {
-            queryClient.invalidateQueries({ queryKey: ['asmrBrowse'] })
-            queryClient.invalidateQueries({ queryKey: ['asmrWork'] })
+            queryClient.invalidateQueries({ queryKey: [qk.asmrBrowse] })
+            queryClient.invalidateQueries({ queryKey: [qk.asmrWork] })
           }}
         />
       )}

@@ -19,6 +19,7 @@ import {
 } from '../../hooks/useAnimeData'
 import { trpcClient } from '../../lib/trpc'
 import styles from './QueueOptionsButton.module.css'
+import { qk } from '../../lib/queryKeys'
 
 const MENU_VERTICAL_GAP = 8
 
@@ -76,7 +77,7 @@ const QueueOptionsButton: React.FC<QueueOptionsButtonProps> = ({
   const queuedItems = useMemo(() => queue.filter((item) => item.showId === showId), [queue, showId])
 
   const { data: suggestedEpisode } = useQuery({
-    queryKey: ['suggestedEpisode', showId],
+    queryKey: [qk.suggestedEpisode, showId],
     queryFn: () => trpcClient.watchlist.queueSuggested.query({ showId: showId as string }),
     enabled: !!showId,
   })

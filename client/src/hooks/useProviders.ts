@@ -2,12 +2,13 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { fetchApi } from '../lib/fetchApi'
 import type { ProviderOption } from '../types/providers'
+import { qk } from '../lib/queryKeys'
 
 const STALE_5_MIN = 5 * 60 * 1000
 
 export const useProviders = () => {
   const query = useQuery({
-    queryKey: ['providers'],
+    queryKey: [qk.providers],
     queryFn: () => fetchApi('/api/providers') as Promise<ProviderOption[]>,
     staleTime: STALE_5_MIN,
     retry: 1,

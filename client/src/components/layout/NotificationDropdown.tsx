@@ -11,6 +11,7 @@ import {
 } from '../../hooks/useAnimeData'
 import { useQueryClient } from '@tanstack/react-query'
 import styles from './Notification.module.css'
+import { qk } from '../../lib/queryKeys'
 
 const NotificationDropdown: React.FC = () => {
   const { data: notifications = [], isLoading } = useNotifications()
@@ -21,7 +22,7 @@ const NotificationDropdown: React.FC = () => {
   const [fullMessageId, setFullMessageId] = useState<string | null>(null)
 
   useEffect(() => {
-    queryClient.invalidateQueries({ queryKey: ['notifications'] })
+    queryClient.invalidateQueries({ queryKey: [qk.notifications] })
   }, [queryClient])
 
   const handleClearAll = () => {

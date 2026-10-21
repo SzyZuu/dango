@@ -8,6 +8,7 @@ import AnimeCardSkeleton from '../common/AnimeCardSkeleton'
 import ErrorMessage from '../common/ErrorMessage'
 import { useCarousel } from '../../hooks/useCarousel'
 import { useLocalStorage } from '../../hooks/useLocalStorage'
+import { qk } from '../../lib/queryKeys'
 
 interface Anime {
   _id: string
@@ -50,7 +51,7 @@ const Schedule: React.FC<{ eyebrow?: string }> = ({ eyebrow }) => {
     isLoading: loading,
     error,
   } = useQuery({
-    queryKey: ['schedule', selectedDate, format],
+    queryKey: [qk.schedule, selectedDate, format],
     queryFn: () => fetchEpisodeSchedule(selectedDate, format),
     staleTime: 1000 * 60 * 5,
   })

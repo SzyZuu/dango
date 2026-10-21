@@ -54,6 +54,7 @@ import MkissaVerificationModal from '../components/anime/MkissaVerificationModal
 import QueueOptionsButton from '../components/anime/QueueOptionsButton'
 
 import { useProviders } from '../hooks/useProviders'
+import { qk } from '../lib/queryKeys'
 
 const Player: React.FC = () => {
   const { id: showId, episodeNumber } = useParams<{ id: string; episodeNumber?: string }>()
@@ -197,7 +198,7 @@ const Player: React.FC = () => {
     }
   }, [episodeNumber, stopCalibration])
   const invalidateContinueWatching = useCallback(() => {
-    void queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
+    void queryClient.invalidateQueries({ queryKey: [qk.continueWatching] })
   }, [queryClient])
   const { data: queue = [], isLoading: isQueueLoading } = useQueue()
   const removeQueue = useRemoveFromQueue()
@@ -705,7 +706,7 @@ const Player: React.FC = () => {
         onSuccess={() => {
           queryClient.invalidateQueries({
             queryKey: [
-              'video-sources',
+              qk.videoSources,
               showId,
               state.currentEpisode,
               state.selectedProvider,
@@ -721,7 +722,7 @@ const Player: React.FC = () => {
         onSuccess={() => {
           queryClient.invalidateQueries({
             queryKey: [
-              'video-sources',
+              qk.videoSources,
               showId,
               state.currentEpisode,
               state.selectedProvider,

@@ -1,6 +1,7 @@
 import { useQueries, useQuery } from '@tanstack/react-query'
 import { trpcClient, useTRPC } from '../lib/trpc'
 import type { RouterOutputs } from '../lib/trpc'
+import { qk } from '../lib/queryKeys'
 
 export interface AsmrEpisodeAvailability {
   sub?: number
@@ -62,7 +63,7 @@ export const useAsmrBrowse = (query: string, page: number, sort: string, rating:
     queries: Array.from({ length: pageCount }, (_, i) => {
       const n = i + 1
       return {
-        queryKey: ['asmrBrowse', query, n, sort, rating],
+        queryKey: [qk.asmrBrowse, query, n, sort, rating],
         queryFn: () => {
           const trimmed = query.trim()
           return trpcClient.asmr.browse.query({
@@ -138,7 +139,7 @@ export const useAsmrSpotlight = (enabled = true) => {
     queries: Array.from({ length: SPOTLIGHT_MONTH_PAGES }, (_, i) => {
       const n = i + 1
       return {
-        queryKey: ['asmrBrowse', '', n, 'popular_month', ''],
+        queryKey: [qk.asmrBrowse, '', n, 'popular_month', ''],
         queryFn: () => trpcClient.asmr.browse.query({ page: n, sort: 'popular_month' }),
         staleTime: STALE_5_MIN,
         enabled,
@@ -153,7 +154,7 @@ export const useAsmrSpotlight = (enabled = true) => {
   const settled = month.every((q) => q.isFetched)
   const needFallback = enabled && settled && merged.length < SPOTLIGHT_NEED
   const fallback = useQuery({
-    queryKey: ['asmrBrowse', '', 1, 'popular', 'sfw'],
+    queryKey: [qk.asmrBrowse, '', 1, 'popular', 'sfw'],
     queryFn: () => trpcClient.asmr.browse.query({ page: 1, sort: 'popular', rating: 'sfw' }),
     staleTime: STALE_5_MIN,
     enabled: needFallback,

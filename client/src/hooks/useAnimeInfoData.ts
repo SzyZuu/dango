@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import type { DetailedShowMeta } from '../types/player'
 import { trpcClient, useTRPC } from '../lib/trpc'
 import { useShowMeta } from './useShowMeta'
+import { qk } from '../lib/queryKeys'
 
 interface UseAnimeInfoDataReturn {
   showMeta: DetailedShowMeta | undefined
@@ -61,7 +62,7 @@ export function useAnimeInfoData(showId: string | undefined): UseAnimeInfoDataRe
     },
     onSuccess: (newInWatchlist) => {
       toast.success(newInWatchlist ? 'Added to watchlist' : 'Removed from watchlist')
-      queryClient.invalidateQueries({ queryKey: ['watchlist'] })
+      queryClient.invalidateQueries({ queryKey: [qk.watchlist] })
     },
   })
 

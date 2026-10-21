@@ -30,6 +30,7 @@ import {
 } from '../lib/watchlistSelection'
 import Pagination from '../components/common/Pagination'
 import styles from './Watchlist.module.css'
+import { qk } from '../lib/queryKeys'
 
 const FILTERS = [
   'All',
@@ -186,7 +187,7 @@ const Watchlist: React.FC = () => {
       await trpcClient.watchlist.setStatus.mutate({ id, status })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['watchlist'] })
+      queryClient.invalidateQueries({ queryKey: [qk.watchlist] })
       toast.success('Status updated')
     },
   })
@@ -195,7 +196,7 @@ const Watchlist: React.FC = () => {
     trpc.continueWatching.remove.mutationOptions({
       onSuccess: () => {
         void queryClient.invalidateQueries(trpc.continueWatching.pathFilter())
-        queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
+        queryClient.invalidateQueries({ queryKey: [qk.continueWatching] })
       },
     })
   )

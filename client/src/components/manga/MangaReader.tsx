@@ -5,6 +5,7 @@ import type { MangaChapter } from '../../hooks/useManga'
 import { mangaPageSrc, useMangaPages } from '../../hooks/useManga'
 import type { MangaProviderName } from '../../hooks/useManga'
 import styles from './Manga.module.css'
+import { qk } from '../../lib/queryKeys'
 
 interface MangaReaderProps {
   provider: MangaProviderName
@@ -263,7 +264,7 @@ const MangaReader: React.FC<MangaReaderProps> = ({
   const handleRetryPages = () => {
     setDeadPages(new Set())
     setRetryNonce((n) => n + 1)
-    queryClient.invalidateQueries({ queryKey: ['mangaPages', provider, chapter.id] })
+    queryClient.invalidateQueries({ queryKey: [qk.mangaPages, provider, chapter.id] })
   }
 
   const allFailed = pages.length > 0 && deadPages.size >= pages.length

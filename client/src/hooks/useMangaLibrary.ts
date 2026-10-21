@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { useTRPC } from '../lib/trpc'
 import type { MangaCard } from './useManga'
+import { qk } from '../lib/queryKeys'
 
 export type MangaLibraryStatus = 'Reading' | 'Completed' | 'On-Hold' | 'Dropped' | 'Planned'
 
@@ -90,8 +91,8 @@ export const useLinkMangaAnilist = () => {
             : 'Linked to AniList entry'
         )
         void queryClient.invalidateQueries(trpc.mangaLibrary.pathFilter())
-        queryClient.invalidateQueries({ queryKey: ['manga-library'] })
-        queryClient.invalidateQueries({ queryKey: ['manga-continue-reading'] })
+        queryClient.invalidateQueries({ queryKey: [qk.mangaLibrary] })
+        queryClient.invalidateQueries({ queryKey: [qk.mangaContinueReading] })
       },
       onError: (error) => {
         toast.error(`Failed to link: ${error.message}`)
@@ -121,7 +122,7 @@ export const useAddMangaBookmark = () => {
       onSuccess: (_data, variables) => {
         if (!variables.silent) toast.success('Bookmarked')
         void queryClient.invalidateQueries(trpc.mangaLibrary.pathFilter())
-        queryClient.invalidateQueries({ queryKey: ['manga-library'] })
+        queryClient.invalidateQueries({ queryKey: [qk.mangaLibrary] })
       },
       onError: (error) => {
         toast.error(`Failed to bookmark: ${error.message}`)
@@ -138,8 +139,8 @@ export const useRemoveMangaBookmark = () => {
       onSuccess: () => {
         toast.success('Bookmark removed')
         void queryClient.invalidateQueries(trpc.mangaLibrary.pathFilter())
-        queryClient.invalidateQueries({ queryKey: ['manga-library'] })
-        queryClient.invalidateQueries({ queryKey: ['manga-continue-reading'] })
+        queryClient.invalidateQueries({ queryKey: [qk.mangaLibrary] })
+        queryClient.invalidateQueries({ queryKey: [qk.mangaContinueReading] })
       },
       onError: (error) => {
         toast.error(`Failed to remove: ${error.message}`)
@@ -156,8 +157,8 @@ export const useUpdateMangaStatus = () => {
       onSuccess: () => {
         toast.success('Status updated')
         void queryClient.invalidateQueries(trpc.mangaLibrary.pathFilter())
-        queryClient.invalidateQueries({ queryKey: ['manga-library'] })
-        queryClient.invalidateQueries({ queryKey: ['manga-continue-reading'] })
+        queryClient.invalidateQueries({ queryKey: [qk.mangaLibrary] })
+        queryClient.invalidateQueries({ queryKey: [qk.mangaContinueReading] })
       },
       onError: (error) => {
         toast.error(`Failed to update status: ${error.message}`)
@@ -172,9 +173,9 @@ export const useSaveMangaProgress = () => {
   return useMutation(
     trpc.mangaProgress.save.mutationOptions({
       onSuccess: (_data, variables) => {
-        queryClient.invalidateQueries({ queryKey: ['manga-progress', variables.mangaId] })
-        queryClient.invalidateQueries({ queryKey: ['manga-continue-reading'] })
-        queryClient.invalidateQueries({ queryKey: ['manga-library'] })
+        queryClient.invalidateQueries({ queryKey: [qk.mangaProgress, variables.mangaId] })
+        queryClient.invalidateQueries({ queryKey: [qk.mangaContinueReading] })
+        queryClient.invalidateQueries({ queryKey: [qk.mangaLibrary] })
         void queryClient.invalidateQueries(trpc.mangaProgress.pathFilter())
       },
     })
@@ -188,9 +189,9 @@ export const useRemoveMangaProgress = () => {
     trpc.mangaProgress.remove.mutationOptions({
       onSuccess: () => {
         toast.success('Progress reset')
-        queryClient.invalidateQueries({ queryKey: ['manga-progress'] })
-        queryClient.invalidateQueries({ queryKey: ['manga-continue-reading'] })
-        queryClient.invalidateQueries({ queryKey: ['manga-library'] })
+        queryClient.invalidateQueries({ queryKey: [qk.mangaProgress] })
+        queryClient.invalidateQueries({ queryKey: [qk.mangaContinueReading] })
+        queryClient.invalidateQueries({ queryKey: [qk.mangaLibrary] })
         void queryClient.invalidateQueries(trpc.mangaProgress.pathFilter())
       },
       onError: (error) => {
@@ -208,8 +209,8 @@ export const useBatchUpdateMangaStatus = () => {
       onSuccess: (data) => {
         toast.success(`Status updated for ${data.updated ?? 0} items`)
         void queryClient.invalidateQueries(trpc.mangaLibrary.pathFilter())
-        queryClient.invalidateQueries({ queryKey: ['manga-library'] })
-        queryClient.invalidateQueries({ queryKey: ['manga-continue-reading'] })
+        queryClient.invalidateQueries({ queryKey: [qk.mangaLibrary] })
+        queryClient.invalidateQueries({ queryKey: [qk.mangaContinueReading] })
       },
       onError: (error) => {
         toast.error(`Failed to update statuses: ${error.message}`)
@@ -227,8 +228,8 @@ export const useBatchRemoveManga = () => {
         const count = data.removed ?? 0
         toast.success(`Removed ${count} ${count === 1 ? 'item' : 'items'} from reading list`)
         void queryClient.invalidateQueries(trpc.mangaLibrary.pathFilter())
-        queryClient.invalidateQueries({ queryKey: ['manga-library'] })
-        queryClient.invalidateQueries({ queryKey: ['manga-continue-reading'] })
+        queryClient.invalidateQueries({ queryKey: [qk.mangaLibrary] })
+        queryClient.invalidateQueries({ queryKey: [qk.mangaContinueReading] })
       },
       onError: (error) => {
         toast.error(`Failed to remove: ${error.message}`)
@@ -245,9 +246,9 @@ export const useBatchRemoveMangaProgress = () => {
       onSuccess: (data) => {
         const count = data.removed ?? 0
         toast.success(`Reset progress for ${count} ${count === 1 ? 'item' : 'items'}`)
-        queryClient.invalidateQueries({ queryKey: ['manga-progress'] })
-        queryClient.invalidateQueries({ queryKey: ['manga-continue-reading'] })
-        queryClient.invalidateQueries({ queryKey: ['manga-library'] })
+        queryClient.invalidateQueries({ queryKey: [qk.mangaProgress] })
+        queryClient.invalidateQueries({ queryKey: [qk.mangaContinueReading] })
+        queryClient.invalidateQueries({ queryKey: [qk.mangaLibrary] })
         void queryClient.invalidateQueries(trpc.mangaProgress.pathFilter())
       },
       onError: (error) => {

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { buildTvId } from '../lib/tv'
 import { trpcClient, useTRPC } from '../lib/trpc'
+import { qk } from '../lib/queryKeys'
 
 export type TvLibraryStatus = 'Watching' | 'Completed' | 'On-Hold' | 'Dropped' | 'Planned'
 
@@ -107,7 +108,7 @@ export const useAddTvBookmark = () => {
     },
     onSuccess: (_data, variables) => {
       if (!variables.silent) toast.success('Added to TV watchlist')
-      queryClient.invalidateQueries({ queryKey: ['tv-library'] })
+      queryClient.invalidateQueries({ queryKey: [qk.tvLibrary] })
       void queryClient.invalidateQueries(trpc.tvLibrary.pathFilter())
     },
     onError: (error: Error) => {
@@ -123,8 +124,8 @@ export const useRemoveTvBookmark = () => {
     trpc.tvLibrary.remove.mutationOptions({
       onSuccess: () => {
         toast.success('Removed from TV watchlist')
-        queryClient.invalidateQueries({ queryKey: ['tv-library'] })
-        queryClient.invalidateQueries({ queryKey: ['tv-continue-watching'] })
+        queryClient.invalidateQueries({ queryKey: [qk.tvLibrary] })
+        queryClient.invalidateQueries({ queryKey: [qk.tvContinueWatching] })
         void queryClient.invalidateQueries(trpc.tvLibrary.pathFilter())
         void queryClient.invalidateQueries(trpc.tvProgress.pathFilter())
       },
@@ -142,8 +143,8 @@ export const useUpdateTvStatus = () => {
     trpc.tvLibrary.setStatus.mutationOptions({
       onSuccess: () => {
         toast.success('Status updated')
-        queryClient.invalidateQueries({ queryKey: ['tv-library'] })
-        queryClient.invalidateQueries({ queryKey: ['tv-continue-watching'] })
+        queryClient.invalidateQueries({ queryKey: [qk.tvLibrary] })
+        queryClient.invalidateQueries({ queryKey: [qk.tvContinueWatching] })
         void queryClient.invalidateQueries(trpc.tvLibrary.pathFilter())
         void queryClient.invalidateQueries(trpc.tvProgress.pathFilter())
       },
@@ -160,9 +161,9 @@ export const useSaveTvProgress = () => {
   return useMutation(
     trpc.tvProgress.save.mutationOptions({
       onSuccess: (_data, variables) => {
-        queryClient.invalidateQueries({ queryKey: ['tv-progress', variables.mediaId] })
-        queryClient.invalidateQueries({ queryKey: ['tv-continue-watching'] })
-        queryClient.invalidateQueries({ queryKey: ['tv-library'] })
+        queryClient.invalidateQueries({ queryKey: [qk.tvProgress, variables.mediaId] })
+        queryClient.invalidateQueries({ queryKey: [qk.tvContinueWatching] })
+        queryClient.invalidateQueries({ queryKey: [qk.tvLibrary] })
         void queryClient.invalidateQueries(trpc.tvLibrary.pathFilter())
         void queryClient.invalidateQueries(trpc.tvProgress.pathFilter())
       },
@@ -177,9 +178,9 @@ export const useRemoveTvProgress = () => {
     trpc.tvProgress.remove.mutationOptions({
       onSuccess: () => {
         toast.success('Progress reset')
-        queryClient.invalidateQueries({ queryKey: ['tv-progress'] })
-        queryClient.invalidateQueries({ queryKey: ['tv-continue-watching'] })
-        queryClient.invalidateQueries({ queryKey: ['tv-library'] })
+        queryClient.invalidateQueries({ queryKey: [qk.tvProgress] })
+        queryClient.invalidateQueries({ queryKey: [qk.tvContinueWatching] })
+        queryClient.invalidateQueries({ queryKey: [qk.tvLibrary] })
         void queryClient.invalidateQueries(trpc.tvLibrary.pathFilter())
         void queryClient.invalidateQueries(trpc.tvProgress.pathFilter())
       },
@@ -197,8 +198,8 @@ export const useBatchUpdateTvStatus = () => {
     trpc.tvLibrary.batchStatus.mutationOptions({
       onSuccess: (data) => {
         toast.success(`Status updated for ${data.updated ?? 0} items`)
-        queryClient.invalidateQueries({ queryKey: ['tv-library'] })
-        queryClient.invalidateQueries({ queryKey: ['tv-continue-watching'] })
+        queryClient.invalidateQueries({ queryKey: [qk.tvLibrary] })
+        queryClient.invalidateQueries({ queryKey: [qk.tvContinueWatching] })
         void queryClient.invalidateQueries(trpc.tvLibrary.pathFilter())
         void queryClient.invalidateQueries(trpc.tvProgress.pathFilter())
       },
@@ -217,8 +218,8 @@ export const useBatchRemoveTv = () => {
       onSuccess: (data) => {
         const count = data.removed ?? 0
         toast.success(`Removed ${count} ${count === 1 ? 'item' : 'items'} from TV watchlist`)
-        queryClient.invalidateQueries({ queryKey: ['tv-library'] })
-        queryClient.invalidateQueries({ queryKey: ['tv-continue-watching'] })
+        queryClient.invalidateQueries({ queryKey: [qk.tvLibrary] })
+        queryClient.invalidateQueries({ queryKey: [qk.tvContinueWatching] })
         void queryClient.invalidateQueries(trpc.tvLibrary.pathFilter())
         void queryClient.invalidateQueries(trpc.tvProgress.pathFilter())
       },
@@ -237,9 +238,9 @@ export const useBatchRemoveTvProgress = () => {
       onSuccess: (data) => {
         const count = data.removed ?? 0
         toast.success(`Reset progress for ${count} ${count === 1 ? 'item' : 'items'}`)
-        queryClient.invalidateQueries({ queryKey: ['tv-progress'] })
-        queryClient.invalidateQueries({ queryKey: ['tv-continue-watching'] })
-        queryClient.invalidateQueries({ queryKey: ['tv-library'] })
+        queryClient.invalidateQueries({ queryKey: [qk.tvProgress] })
+        queryClient.invalidateQueries({ queryKey: [qk.tvContinueWatching] })
+        queryClient.invalidateQueries({ queryKey: [qk.tvLibrary] })
         void queryClient.invalidateQueries(trpc.tvLibrary.pathFilter())
         void queryClient.invalidateQueries(trpc.tvProgress.pathFilter())
       },

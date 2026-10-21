@@ -39,6 +39,7 @@ import { useMangaTrending } from '../hooks/useManga'
 import { useAsmrSpotlight } from '../hooks/useAsmr'
 import { useTRPC } from '../lib/trpc'
 import styles from './Home.module.css'
+import { qk } from '../lib/queryKeys'
 
 type ActiveTab = 'latest' | 'season' | 'popular' | 'week'
 
@@ -144,7 +145,7 @@ const Home: React.FC = () => {
     trpc.continueWatching.remove.mutationOptions({
       onSuccess: async () => {
         void queryClient.invalidateQueries(trpc.continueWatching.pathFilter())
-        await queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
+        await queryClient.invalidateQueries({ queryKey: [qk.continueWatching] })
         if (hasMoreContinueWatching && cwList.length - 1 < 14) {
           fetchMoreContinueWatching()
         }

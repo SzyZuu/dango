@@ -8,6 +8,7 @@ import { fixThumbnailUrl } from '../lib/utils'
 import { trpcClient } from '../lib/trpc'
 import { useTitlePreference } from '../contexts/TitlePreferenceContext'
 import styles from './Insights.module.css'
+import { qk } from '../lib/queryKeys'
 
 interface GenreStat {
   name: string
@@ -75,7 +76,7 @@ const Insights: React.FC = () => {
   }, [])
 
   const { data, isLoading, isError } = useQuery<InsightData>({
-    queryKey: ['insights'],
+    queryKey: [qk.insights],
     queryFn: async () => {
       const data = await trpcClient.insights.summary.query()
       return data as unknown as InsightData
@@ -87,7 +88,7 @@ const Insights: React.FC = () => {
   const queryClient = useQueryClient()
 
   const { data: recsData } = useQuery<{ candidates: RecCandidate[] }>({
-    queryKey: ['insights-recommendations'],
+    queryKey: [qk.insightsRecommendations],
     queryFn: async () => {
       const data = await trpcClient.insights.recommendations.query()
       return data as unknown as { candidates: RecCandidate[] }
@@ -107,8 +108,8 @@ const Insights: React.FC = () => {
       })
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['watchlist'] })
-      queryClient.invalidateQueries({ queryKey: ['insights-recommendations'] })
+      queryClient.invalidateQueries({ queryKey: [qk.watchlist] })
+      queryClient.invalidateQueries({ queryKey: [qk.insightsRecommendations] })
       toast.success('Added to Plan to Watch')
     },
     onError: () => toast.error('Could not add to watchlist'),

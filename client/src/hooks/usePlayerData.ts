@@ -18,6 +18,7 @@ import { trpcClient, useTRPC } from '../lib/trpc'
 import { normalizeScore } from '../lib/utils'
 import { useShowMeta } from './useShowMeta'
 import { useProviders } from './useProviders'
+import { qk } from '../lib/queryKeys'
 
 interface UsePlayerDataReturn {
   state: PlayerState
@@ -245,7 +246,7 @@ export const usePlayerData = (
   const { data: showMeta, isLoading: loadingShowData, error: showDataError } = useShowMeta(showId)
 
   const { data: playerData } = useQuery({
-    queryKey: ['player-data', showId, uiState.currentMode, uiState.selectedProvider],
+    queryKey: [qk.playerData, showId, uiState.currentMode, uiState.selectedProvider],
     queryFn: async () => {
       if (!showId) throw new Error('No showId')
 
@@ -334,7 +335,7 @@ export const usePlayerData = (
     error: videoError,
   } = useQuery({
     queryKey: [
-      'video-sources',
+      qk.videoSources,
       showId,
       currentEpisode,
       uiState.selectedProvider,
@@ -369,9 +370,9 @@ export const usePlayerData = (
     },
     onSuccess: (newInWatchlist) => {
       toast.success(newInWatchlist ? 'Added to watchlist' : 'Removed from watchlist')
-      queryClient.invalidateQueries({ queryKey: ['player-data', showId] })
-      queryClient.invalidateQueries({ queryKey: ['show-data', showId] })
-      queryClient.invalidateQueries({ queryKey: ['watchlist'] })
+      queryClient.invalidateQueries({ queryKey: [qk.playerData, showId] })
+      queryClient.invalidateQueries({ queryKey: [qk.showData, showId] })
+      queryClient.invalidateQueries({ queryKey: [qk.watchlist] })
     },
     onError: (err) =>
       toast.error(err instanceof Error ? err.message : 'Failed to update watchlist'),
@@ -403,9 +404,9 @@ export const usePlayerData = (
       onSuccess: (status) => {
         dispatch({ type: 'SET_STATE', payload: { inWatchlist: true, watchlistStatus: status } })
         toast.success(`Moved to ${status}`)
-        queryClient.invalidateQueries({ queryKey: ['show-data', showId] })
-        queryClient.invalidateQueries({ queryKey: ['watchlist'] })
-        queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
+        queryClient.invalidateQueries({ queryKey: [qk.showData, showId] })
+        queryClient.invalidateQueries({ queryKey: [qk.watchlist] })
+        queryClient.invalidateQueries({ queryKey: [qk.continueWatching] })
       },
       onError: () => toast.error('Failed to update watchlist status'),
     })
@@ -445,13 +446,13 @@ export const usePlayerData = (
     },
     onSuccess: (_data, variables) => {
       toast.success(`Episode ${variables.episodeNumber} marked as watched`)
-      queryClient.invalidateQueries({ queryKey: ['player-data', showId] })
-      queryClient.invalidateQueries({ queryKey: ['show-meta', showId] })
+      queryClient.invalidateQueries({ queryKey: [qk.playerData, showId] })
+      queryClient.invalidateQueries({ queryKey: [qk.showMeta, showId] })
       queryClient.invalidateQueries({
-        queryKey: ['video-sources', showId, variables.episodeNumber],
+        queryKey: [qk.videoSources, showId, variables.episodeNumber],
       })
-      queryClient.invalidateQueries({ queryKey: ['allContinueWatching'] })
-      queryClient.invalidateQueries({ queryKey: ['thisWeekSchedule'] })
+      queryClient.invalidateQueries({ queryKey: [qk.continueWatching] })
+      queryClient.invalidateQueries({ queryKey: [qk.thisWeekSchedule] })
       void queryClient.invalidateQueries(trpc.continueWatching.pathFilter())
     },
     onError: () => toast.error('Failed to mark episode as watched'),

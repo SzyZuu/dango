@@ -38,7 +38,7 @@ import { pickBestMatch } from '../../providers/title-matching.js'
 import { authRequiredError } from '../errors.js'
 import { ShowsMetaRepository } from '../../repositories/shows-meta.repository.js'
 import { WatchlistRepository } from '../../repositories/watchlist.repository.js'
-import { dbRun } from '../../utils/db-utils.js'
+import { LegacyIdMappingRepository } from '../../repositories/legacy-id-mapping.repository.js'
 import type { Provider } from '../../providers/provider.interface.js'
 import type { AnilistMedia } from '../../lib/anilist.js'
 import type { Show } from '../../providers/provider.interface.js'
@@ -798,11 +798,7 @@ export const dataRouter = router({
           }
           if (/^(mal-\d+|-\d+)$/i.test(id) && meta?.anilistId && meta.anilistId > 0) {
             try {
-              dbRun(
-                db,
-                'INSERT OR REPLACE INTO legacy_id_mapping (legacyId, numericId) VALUES (?, ?)',
-                [id, String(meta.anilistId)]
-              )
+              LegacyIdMappingRepository.set(db, id, String(meta.anilistId))
             } catch {
               // ignore
             }

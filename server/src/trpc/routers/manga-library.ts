@@ -1,7 +1,7 @@
 import { TRPCError } from '@trpc/server'
 import { protectedProcedure, router } from '../index.js'
 import type { DatabaseWrapper } from '../../db.js'
-import { performMangaWriteTransactionAsync } from '../../sync.js'
+import { performMangaWriteTransactionAsync } from '../../db/transaction.js'
 import {
   buildMangaId,
   MANGA_STATUSES,

@@ -1,7 +1,7 @@
 import { protectedProcedure, router } from '../index.js'
 import { QueueRepository } from '../../repositories/queue.repository.js'
 import { ShowsMetaRepository } from '../../repositories/shows-meta.repository.js'
-import { performWriteTransactionAsync } from '../../sync.js'
+import { performWriteTransactionAsync } from '../../db/transaction.js'
 import { getMigratedId } from '../../lib/migration.js'
 import {
   queueAddInput,

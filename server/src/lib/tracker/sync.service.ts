@@ -5,7 +5,7 @@ import { WatchedEpisodesRepository } from '../../repositories/watched-episodes.r
 import { ShowsMetaRepository } from '../../repositories/shows-meta.repository.js'
 import { SettingsRepository } from '../../repositories/settings.repository.js'
 import { NotificationsRepository } from '../../repositories/notifications.repository.js'
-import { performWriteTransactionAsync } from '../../sync.js'
+import { performWriteTransactionAsync } from '../../db/transaction.js'
 import { DatabaseWrapper } from '../../db.js'
 import { dbGet } from '../../utils/db-utils.js'
 import logger from '../../logger.js'

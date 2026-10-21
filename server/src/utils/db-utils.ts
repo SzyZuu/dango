@@ -22,9 +22,9 @@ export const dbRun = (db: DatabaseWrapper, sql: string, params: unknown[] = []):
 
 export async function adultNonListIds(
   db: DatabaseWrapper,
-  progressTable: 'tv_progress' | 'manga_progress' | 'asmr_progress',
-  libraryTable: 'tv_library' | 'manga_library' | 'asmr_library',
-  keyCol: 'mediaId' | 'mangaId' | 'workId',
+  progressTable: 'tv_progress' | 'manga_progress' | 'asmr_progress' | 'watched_episodes',
+  libraryTable: 'tv_library' | 'manga_library' | 'asmr_library' | 'watchlist',
+  keyCol: 'mediaId' | 'mangaId' | 'workId' | 'showId',
   adultPred: string
 ): Promise<string[]> {
   const rows = await dbAll<{ id: string }>(

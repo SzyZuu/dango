@@ -14,17 +14,19 @@ import { notifyServerExit } from './lib/ipc.js'
 
 import { CONFIG } from './config.js'
 import {
-  initializeDatabase,
-  initializeMangaDatabase,
-  initializeTvDatabase,
-  initializeAsmrDatabase,
   runFullSyncSequence,
   syncUp,
   waitForSync,
   KIND_SYNC,
   type MediaKind,
 } from './sync.js'
-import { isJasmrApi } from './hono/asmr.js'
+import {
+  initializeDatabase,
+  initializeMangaDatabase,
+  initializeTvDatabase,
+  initializeAsmrDatabase,
+} from './db/ddl.js'
+import { isJasmrApi } from './providers/asmr/asmr.types.js'
 import type { MangaProvider } from './providers/manga/manga.types.js'
 import type { TvProvider } from './providers/tv.types.js'
 import { loadRemoteProviders } from './providers/remote-loader.js'
@@ -34,7 +36,7 @@ import { discordRPCService } from './discord-rpc.js'
 import { discordGatewayService } from './discord-gateway.js'
 import { SettingsRepository } from './repositories/settings.repository.js'
 import { createHonoApp } from './app-hono.js'
-import { startWatchlistDiscovery, stopWatchlistDiscovery } from './hono/watchlist.js'
+import { startWatchlistDiscovery, stopWatchlistDiscovery } from './lib/watchlist-discovery.js'
 import { checkAnilistStatus } from './lib/anilist.js'
 import { offlineDb } from './lib/offline-db.js'
 

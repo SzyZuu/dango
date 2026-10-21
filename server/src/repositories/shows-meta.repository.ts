@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { DatabaseWrapper } from '../db.js'
 import { getDrizzle } from '../db/drizzle.js'
 import { showsMeta } from '../db/schema-anime.js'
@@ -14,6 +14,13 @@ export const ShowsMetaRepository = {
       sql`SELECT status FROM shows_meta WHERE id = ${id}`
     )
     return rows[0]?.status
+  },
+
+  getAnilistId: async (db: DatabaseWrapper, id: string) => {
+    const rows = await getDrizzle(db).all<{ anilistId: number }>(
+      sql`SELECT anilistId FROM shows_meta WHERE id = ${id} AND anilistId IS NOT NULL`
+    )
+    return rows[0]?.anilistId ?? null
   },
 
   upsert: (
@@ -86,4 +93,30 @@ export const ShowsMetaRepository = {
       SELECT DISTINCT we.showId as id FROM watched_episodes we
       LEFT JOIN shows_meta sm ON sm.id = we.showId
       WHERE sm.thumbnail IS NULL OR TRIM(sm.thumbnail) = ''`),
+
+  getAdultIds: async (db: DatabaseWrapper, ids: string[]) => {
+    if (ids.length === 0) return []
+    const rows = await getDrizzle(db)
+      .select({ id: showsMeta.id })
+      .from(showsMeta)
+      .where(and(inArray(showsMeta.id, ids), eq(showsMeta.isAdult, 1)))
+    return rows.map((r) => r.id)
+  },
+
+  getGenresById: async (db: DatabaseWrapper, ids: string[]) => {
+    if (ids.length === 0) return new Map<string, string[]>()
+    const rows = await getDrizzle(db)
+      .select({ id: showsMeta.id, genres: showsMeta.genres })
+      .from(showsMeta)
+      .where(inArray(showsMeta.id, ids))
+    return new Map(
+      rows.map((r) => [r.id, r.genres ? (JSON.parse(r.genres) as string[]) : []])
+    )
+  },
+
+  backfillNamesFromWatchlist: (db: DatabaseWrapper) =>
+    getDrizzle(db).run(sql`
+      UPDATE shows_meta SET name = (SELECT w.name FROM watchlist w WHERE w.id = shows_meta.id)
+      WHERE (name IS NULL OR TRIM(name) = '')
+      AND EXISTS (SELECT 1 FROM watchlist w WHERE w.id = shows_meta.id AND w.name IS NOT NULL AND TRIM(w.name) != '')`),
 }

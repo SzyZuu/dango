@@ -1,6 +1,6 @@
 import { TRPCError } from '@trpc/server'
 import { protectedProcedure, router } from '../index.js'
-import { performTvWriteTransactionAsync } from '../../sync.js'
+import { performTvWriteTransactionAsync } from '../../db/transaction.js'
 import {
   buildTvId,
   TV_STATUSES,

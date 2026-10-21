@@ -1,6 +1,6 @@
 import { protectedProcedure, router } from '../index.js'
 import { defineSchema, optStr, reqObj, reqStr, reqStrArray } from '../validation.js'
-import { performMangaWriteTransactionAsync } from '../../sync.js'
+import { performMangaWriteTransactionAsync } from '../../db/transaction.js'
 import { adultNonListIds } from '../../utils/db-utils.js'
 import { SettingsRepository } from '../../repositories/settings.repository.js'
 import {

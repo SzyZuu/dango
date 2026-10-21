@@ -1,7 +1,7 @@
 import { TRPCError } from '@trpc/server'
 import { protectedProcedure, router } from '../index.js'
 import { SettingsRepository } from '../../repositories/settings.repository.js'
-import { performWriteTransactionAsync } from '../../sync.js'
+import { performWriteTransactionAsync } from '../../db/transaction.js'
 import { AniListTracker } from '../../lib/tracker/anilist-tracker.js'
 import {
   syncAniList,

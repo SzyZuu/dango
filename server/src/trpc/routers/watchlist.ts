@@ -9,7 +9,7 @@ import { ShowsMetaRepository } from '../../repositories/shows-meta.repository.js
 import { NotificationsRepository } from '../../repositories/notifications.repository.js'
 import { QueueRepository } from '../../repositories/queue.repository.js'
 import { SettingsRepository } from '../../repositories/settings.repository.js'
-import { performWriteTransactionAsync } from '../../sync.js'
+import { performWriteTransactionAsync } from '../../db/transaction.js'
 import { getMigratedId } from '../../lib/migration.js'
 import {
   isAnilistRateLimited,
@@ -20,7 +20,6 @@ import {
 } from '../../lib/anilist.js'
 import { kitsuSearchAnime } from '../../lib/kitsu.js'
 import { offlineDb } from '../../lib/offline-db.js'
-import { dbAll } from '../../utils/db-utils.js'
 import {
   defineSchema,
   idInput,
@@ -176,13 +175,7 @@ export const watchlistRouter = router({
     if (showMature === 'false') {
       const ids = filteredRows.map((r) => r.id)
       if (ids.length > 0) {
-        const placeholders = ids.map(() => '?').join(',')
-        const adultIds = await dbAll<{ id: string }>(
-          db,
-          `SELECT id FROM shows_meta WHERE id IN (${placeholders}) AND isAdult = 1`,
-          ids
-        )
-        const adultSet = new Set(adultIds.map((r) => r.id))
+        const adultSet = new Set(await ShowsMetaRepository.getAdultIds(db, ids))
         filteredRows = filteredRows.filter((row) => !adultSet.has(row.id))
       }
     }
@@ -207,13 +200,7 @@ export const watchlistRouter = router({
     const rowIds = rows.map((r) => r.id)
     let adultIds = new Set<string>()
     if (rowIds.length > 0) {
-      const placeholders = rowIds.map(() => '?').join(',')
-      const adultRows = await dbAll<{ id: string }>(
-        db,
-        `SELECT id FROM shows_meta WHERE id IN (${placeholders}) AND isAdult = 1`,
-        rowIds
-      )
-      adultIds = new Set(adultRows.map((r) => r.id))
+      adultIds = new Set(await ShowsMetaRepository.getAdultIds(db, rowIds))
     }
 
     return {
@@ -556,29 +543,21 @@ async function filterWatchlistRows<
   let filtered = rows.filter((row) => matchesLocalFilters(row, filters))
 
   if (filters.type === 'ADULT' && db && filtered.length > 0) {
-    const ids = filtered.map((r) => r.id)
-    const placeholders = ids.map(() => '?').join(',')
-    const adultRows = await dbAll<{ id: string }>(
-      db,
-      `SELECT id FROM shows_meta WHERE id IN (${placeholders}) AND isAdult = 1`,
-      ids
+    const adultSet = new Set(
+      await ShowsMetaRepository.getAdultIds(
+        db,
+        filtered.map((r) => r.id)
+      )
     )
-    const adultSet = new Set(adultRows.map((r) => r.id))
     filtered = filtered.filter((row) => adultSet.has(row.id))
   } else if (filters.type && filters.type !== 'ALL' && filters.type !== 'ADULT') {
     filtered = filtered.filter((row) => row.type === filters.type)
   }
 
   if ((filters.genres || filters.excludeGenres) && db) {
-    const ids = filtered.map((r) => r.id)
-    const placeholders = ids.map(() => '?').join(',')
-    const genreRows = await dbAll<{ id: string; genres: string | null }>(
+    const idToGenres = await ShowsMetaRepository.getGenresById(
       db,
-      `SELECT id, genres FROM shows_meta WHERE id IN (${placeholders})`,
-      ids
-    )
-    const idToGenres = new Map(
-      genreRows.map((r) => [r.id, r.genres ? (JSON.parse(r.genres) as string[]) : []])
+      filtered.map((r) => r.id)
     )
     const includeList =
       filters.genres
@@ -653,11 +632,7 @@ async function backfillMissingPosters(
 
 async function sweepOfflinePosters(db: DatabaseWrapper): Promise<void> {
   try {
-    db.run(
-      `UPDATE shows_meta SET name = (SELECT w.name FROM watchlist w WHERE w.id = shows_meta.id)
-       WHERE (name IS NULL OR TRIM(name) = '')
-       AND EXISTS (SELECT 1 FROM watchlist w WHERE w.id = shows_meta.id AND w.name IS NOT NULL AND TRIM(w.name) != '')`
-    )
+    await ShowsMetaRepository.backfillNamesFromWatchlist(db)
   } catch {
     // ignore
   }

@@ -1,7 +1,7 @@
 import { TRPCError } from '@trpc/server'
 import { protectedProcedure, router } from '../index.js'
 import type { DatabaseWrapper } from '../../db.js'
-import { performTvWriteTransactionAsync } from '../../sync.js'
+import { performTvWriteTransactionAsync } from '../../db/transaction.js'
 import { adultNonListIds } from '../../utils/db-utils.js'
 import { SettingsRepository } from '../../repositories/settings.repository.js'
 import {

@@ -35,10 +35,8 @@ import {
   performMangaWriteTransactionAsync,
   performTvWriteTransactionAsync,
   performWriteTransactionAsync,
-  KIND_SYNC,
-  setKindManifestVersion,
-  type MediaKind,
-} from './sync.js'
+} from './db/transaction.js'
+import { KIND_SYNC, setKindManifestVersion, type MediaKind } from './sync.js'
 import {
   ANIME_SYNC_TABLES,
   ASMR_SYNC_TABLES,
@@ -52,7 +50,7 @@ import {
 } from './sync-payload.js'
 import { getMalImportStatus, prepareMalImport, executeMalImport } from './lib/mal-import.js'
 import { registerAuth, type RunSyncSequence } from './hono/auth.js'
-import { type JasmrApi } from './hono/asmr.js'
+import { type JasmrApi } from './providers/asmr/asmr.types.js'
 import { registerTv } from './hono/tv.js'
 import { registerProxy } from './hono/proxy.js'
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'

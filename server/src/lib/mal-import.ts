@@ -4,7 +4,7 @@ import { kitsuSearchAnime } from './kitsu.js'
 import { offlineDb } from './offline-db.js'
 import { SettingsRepository } from '../repositories/settings.repository.js'
 import { ShowsMetaRepository } from '../repositories/shows-meta.repository.js'
-import { performWriteTransactionAsync } from '../sync.js'
+import { performWriteTransactionAsync } from '../db/transaction.js'
 import type { DatabaseWrapper } from '../db.js'
 import logger from '../logger.js'
 

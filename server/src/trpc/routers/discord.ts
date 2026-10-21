@@ -2,7 +2,7 @@ import { protectedProcedure, router } from '../index.js'
 import { badRequest, defineSchema, failed, optStr, reqObj } from '../validation.js'
 import { discordRPCService } from '../../discord-rpc.js'
 import { discordGatewayService } from '../../discord-gateway.js'
-import { getDlsitePoster, getMangadexCover } from '../../hono/watchlist.js'
+import { getDlsitePoster, getMangadexCover } from '../../lib/posters.js'
 import { updateEnvFile } from '../../utils/env.utils.js'
 import logger from '../../logger.js'
 

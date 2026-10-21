@@ -1,6 +1,6 @@
 import { protectedProcedure, router } from '../index.js'
 import logger from '../../logger.js'
-import { performWriteTransactionAsync } from '../../sync.js'
+import { performWriteTransactionAsync } from '../../db/transaction.js'
 import { WatchlistRepository } from '../../repositories/watchlist.repository.js'
 import { WatchedEpisodesRepository } from '../../repositories/watched-episodes.repository.js'
 import { NotificationsRepository } from '../../repositories/notifications.repository.js'

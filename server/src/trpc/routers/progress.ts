@@ -4,10 +4,9 @@ import { WatchedEpisodesRepository } from '../../repositories/watched-episodes.r
 import { ShowsMetaRepository } from '../../repositories/shows-meta.repository.js'
 import { NotificationsRepository } from '../../repositories/notifications.repository.js'
 import { SettingsRepository } from '../../repositories/settings.repository.js'
-import { performWriteTransactionAsync } from '../../sync.js'
+import { performWriteTransactionAsync } from '../../db/transaction.js'
 import { getMigratedId } from '../../lib/migration.js'
 import { discordRPCService } from '../../discord-rpc.js'
-import { dbGet } from '../../utils/db-utils.js'
 import { episodeProgressInput, progressUpdateInput, showIdInput } from '../validation.js'
 
 async function showsMetaChanged(
@@ -114,11 +113,7 @@ export const progressRouter = router({
 
       const genresStr = Array.isArray(input.genres) ? JSON.stringify(input.genres) : input.genres
       const anilistId = /^\d+$/.test(showId)
-        ? (dbGet<{ anilistId: number }>(
-            ctx.db,
-            'SELECT anilistId FROM shows_meta WHERE id = ? AND anilistId IS NOT NULL',
-            [showId]
-          )?.anilistId ?? parseInt(showId))
+        ? ((await ShowsMetaRepository.getAnilistId(ctx.db, showId)) ?? parseInt(showId))
         : undefined
 
       const metaCandidate = {

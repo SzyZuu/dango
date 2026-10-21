@@ -1,6 +1,6 @@
 import { TRPCError } from '@trpc/server'
 import { protectedProcedure, router } from '../index.js'
-import { performAsmrWriteTransactionAsync } from '../../sync.js'
+import { performAsmrWriteTransactionAsync } from '../../db/transaction.js'
 import {
   buildAsmrId,
   ASMR_STATUSES,

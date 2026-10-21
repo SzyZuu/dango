@@ -1,6 +1,6 @@
 import { protectedProcedure, router } from '../index.js'
 import type { DatabaseWrapper } from '../../db.js'
-import { performAsmrWriteTransactionAsync } from '../../sync.js'
+import { performAsmrWriteTransactionAsync } from '../../db/transaction.js'
 import { adultNonListIds } from '../../utils/db-utils.js'
 import { SettingsRepository } from '../../repositories/settings.repository.js'
 import {

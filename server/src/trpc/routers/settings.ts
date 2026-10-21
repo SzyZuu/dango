@@ -1,7 +1,7 @@
 import { TRPCError } from '@trpc/server'
 import { protectedProcedure, router } from '../index.js'
 import { SettingsRepository } from '../../repositories/settings.repository.js'
-import { performWriteTransactionAsync } from '../../sync.js'
+import { performWriteTransactionAsync } from '../../db/transaction.js'
 import { discordRPCService } from '../../discord-rpc.js'
 import logger from '../../logger.js'
 import { offlineDb } from '../../lib/offline-db.js'

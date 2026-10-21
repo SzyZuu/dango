@@ -82,15 +82,52 @@ export const NotificationsRepository = {
 
   hasActiveNotifications: async (db: DatabaseWrapper) => {
     const rows = await getDrizzle(db).all<{ count: number }>(sql`
-      SELECT COUNT(*) as count FROM discovered_notifications dn
-      WHERE NOT EXISTS (
-        SELECT 1 FROM dismissed_notifications dn2
-        WHERE dn2.showId = dn.showId AND dn2.episodeNumber = dn.episodeNumber
-      )
-      AND NOT EXISTS (
-        SELECT 1 FROM watched_episodes we
-        WHERE we.showId = dn.showId AND we.episodeNumber = dn.episodeNumber
-      )`)
+    SELECT COUNT(*) as count FROM discovered_notifications dn
+    WHERE NOT EXISTS (
+      SELECT 1 FROM dismissed_notifications dn2
+      WHERE dn2.showId = dn.showId AND dn2.episodeNumber = dn.episodeNumber
+    )
+    AND NOT EXISTS (
+      SELECT 1 FROM watched_episodes we
+      WHERE we.showId = dn.showId AND we.episodeNumber = dn.episodeNumber
+    )`)
     return (rows[0]?.count || 0) > 0
   },
+
+  getThisWeekDiscovered: (db: DatabaseWrapper) =>
+    getDrizzle(db).all<{
+      id: string
+      name: string
+      thumbnail: string
+      nativeName?: string
+      englishName?: string
+      type?: string
+      episodeNumber: string
+      discoveredAt: string
+    }>(sql`
+      SELECT
+        w.id, w.name, w.thumbnail, w.nativeName, w.englishName, w.type,
+        dn.episodeNumber, dn.discoveredAt
+      FROM discovered_notifications dn
+      JOIN watchlist w ON dn.showId = w.id
+      WHERE w.status = 'Watching'
+        AND EXISTS (
+          SELECT 1 FROM discovered_notifications dn_recent
+          WHERE dn_recent.showId = dn.showId
+            AND dn_recent.discoveredAt >= datetime('now', '-7 days')
+        )
+        AND CAST(dn.episodeNumber AS INTEGER) = (
+          SELECT MIN(CAST(dn2.episodeNumber AS INTEGER))
+          FROM discovered_notifications dn2
+          WHERE dn2.showId = dn.showId
+            AND NOT EXISTS (
+              SELECT 1 FROM watched_episodes we2
+              WHERE we2.showId = dn2.showId AND we2.episodeNumber = dn2.episodeNumber
+            )
+        )
+        AND NOT EXISTS (
+          SELECT 1 FROM watched_episodes we
+          WHERE we.showId = dn.showId AND we.episodeNumber = dn.episodeNumber
+        )
+      ORDER BY CAST(dn.episodeNumber AS INTEGER) ASC`),
 }

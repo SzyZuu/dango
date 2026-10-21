@@ -13,6 +13,7 @@ const t = initTRPC.context<TrpcContext>().create({
 })
 
 export const router = t.router
+export const mergeRouters = t.mergeRouters
 
 const lanGuard = t.middleware(({ ctx, next }) => {
   if (!ctx.lanAuthed) throw lanAuthRequiredError()

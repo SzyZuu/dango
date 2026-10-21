@@ -83,9 +83,10 @@ export default function Manga() {
     [serverProviders]
   )
   const urlProvider = (searchParams.get('provider') as MangaProviderName) || ''
-  const provider = mangaProviders.some((p) => p.value === urlProvider)
-    ? urlProvider
-    : (mangaProviders[0]?.value ?? urlProvider)
+  // no provider in the url = auto: the server answers with whichever manga
+  // provider is up, so one provider being down does not empty the page
+  const provider =
+    urlProvider && mangaProviders.some((p) => p.value === urlProvider) ? urlProvider : ''
   const query = searchParams.get('q') || ''
   const page = parseInt(searchParams.get('page') || '1')
   const sort = searchParams.get('sort') || 'popular'
@@ -134,6 +135,8 @@ export default function Manga() {
   })
   const items = (browse.data?.items ?? []) as MangaCardType[]
   const hasNext = browse.data?.hasNext ?? false
+  // in auto mode the filters follow the provider that actually answered
+  const effectiveProvider = provider || items[0]?.provider || ''
 
   const { toggle, bookmarkedIds } = useToggleMangaBookmark()
   const { popup, openPopup, scheduleClose, cancelClose, closePopup } = useMangaPopup()
@@ -148,7 +151,7 @@ export default function Manga() {
     const legacyChapter = searchParams.get('chapter') || ''
     if (legacyChapter) params.set('chapter', legacyChapter)
     const querySuffix = params.toString() ? `?${params.toString()}` : ''
-    const target = `/manga/${provider}/${encodeURIComponent(legacyId)}${legacyChapter ? `/read${querySuffix}` : querySuffix}`
+    const target = `/manga/${effectiveProvider || 'mangadex'}/${encodeURIComponent(legacyId)}${legacyChapter ? `/read${querySuffix}` : querySuffix}`
     return <Navigate to={target} replace />
   }
 
@@ -182,9 +185,10 @@ export default function Manga() {
     return `/manga/${item.provider}/${encodeURIComponent(item.id)}${suffix}`
   }
 
-  const statusOptions = provider === 'mangapill' ? PILL_STATUS : DEX_STATUS
-  const showTypeSelect = provider === 'mangapill'
-  const showRatingSelect = provider === 'mangadex'
+  // in auto mode the filters follow the provider that actually answered
+  const statusOptions = effectiveProvider === 'mangapill' ? PILL_STATUS : DEX_STATUS
+  const showTypeSelect = effectiveProvider === 'mangapill'
+  const showRatingSelect = effectiveProvider === 'mangadex'
 
   return (
     <div className={pageStyles.page}>
@@ -225,11 +229,14 @@ export default function Manga() {
               {providersLoading ? 'Loading providers…' : 'No providers available'}
             </option>
           ) : (
-            mangaProviders.map((p) => (
-              <option key={p.value} value={p.value}>
-                {p.label}
-              </option>
-            ))
+            <>
+              <option value="">Auto</option>
+              {mangaProviders.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </>
           )}
         </select>
         {mangaProviders.length === 0 && !providersLoading && (
@@ -245,7 +252,7 @@ export default function Manga() {
       </div>
 
       <div className={styles.filterRow}>
-        {provider === 'mangadex' && (
+        {effectiveProvider === 'mangadex' && (
           <select
             className={styles.select}
             value={sort}

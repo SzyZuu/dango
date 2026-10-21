@@ -89,7 +89,7 @@ export const useMangaBrowse = (params: MangaBrowseParams, enabled: boolean = tru
       }) as Promise<MangaBrowseResult>
     },
     staleTime: STALE_5_MIN,
-    enabled: enabled && !!provider,
+    enabled,
   })
 }
 
@@ -116,7 +116,7 @@ export const useInfiniteMangaBrowse = (
     initialPageParam: 1,
     getNextPageParam: (lastPage, allPages) => (lastPage.hasNext ? allPages.length + 1 : undefined),
     staleTime: STALE_5_MIN,
-    enabled: !!provider,
+    enabled: true,
   })
 }
 
@@ -160,6 +160,7 @@ export const useMangaPages = (
 
 export interface MangaTrendingItem {
   id: string
+  provider: string
   title: string
   description: string
   tags: string[]

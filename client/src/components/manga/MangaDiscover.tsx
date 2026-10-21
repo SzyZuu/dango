@@ -18,28 +18,19 @@ const TRENDING_SORTS = [
   { value: 'rating', label: 'Top Rated' },
 ]
 
-function useDefaultMangaProvider(): string {
-  const { options } = useProviders()
-  return useMemo(
-    () => options.filter((o) => o.kind === 'manga').map((o) => o.id)[0] ?? '',
-    [options]
-  )
-}
-
 const MangaDiscoverRail: React.FC<{
   title: string
   eyebrow: string
-  provider: string
   sort: string
   mature: boolean
   headerActions?: React.ReactNode
-}> = ({ title, eyebrow, provider, sort, mature, headerActions }) => {
+}> = ({ title, eyebrow, sort, mature, headerActions }) => {
   const { toggle, bookmarkedIds } = useToggleMangaBookmark()
   const { popup, openPopup, scheduleClose, cancelClose, closePopup } = useMangaPopup()
 
   const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteMangaBrowse({
-      provider,
+      provider: '',
       query: '',
       sort,
       status: '',
@@ -54,8 +45,6 @@ const MangaDiscoverRail: React.FC<{
       fetchNextPage()
     }
   }, [hasNextPage, isFetchingNextPage, isLoading, fetchNextPage])
-
-  if (!provider) return null
 
   return (
     <>
@@ -137,7 +126,8 @@ const MangaDiscoverRail: React.FC<{
 }
 
 const MangaDiscover: React.FC = () => {
-  const provider = useDefaultMangaProvider()
+  const { options } = useProviders()
+  const hasProviders = useMemo(() => options.some((o) => o.kind === 'manga'), [options])
   const { hasConsent } = useMatureConsent()
   const [discoverTab, setDiscoverTab] = useLocalStorage<'latest' | 'trending'>(
     'manga_discover_tab',
@@ -145,7 +135,7 @@ const MangaDiscover: React.FC = () => {
   )
   const [trendingSort, setTrendingSort] = useLocalStorage<string>('manga_trending_sort', 'popular')
 
-  if (!provider) return null
+  if (!hasProviders) return null
 
   return (
     <>
@@ -162,7 +152,6 @@ const MangaDiscover: React.FC = () => {
         <MangaDiscoverRail
           title="Latest Releases"
           eyebrow="Fresh chapters"
-          provider={provider}
           sort="latest"
           mature={hasConsent}
         />
@@ -170,7 +159,6 @@ const MangaDiscover: React.FC = () => {
         <MangaDiscoverRail
           title="Trending"
           eyebrow="Discover"
-          provider={provider}
           sort={trendingSort}
           mature={hasConsent}
           headerActions={

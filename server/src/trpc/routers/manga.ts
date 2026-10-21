@@ -1,6 +1,5 @@
 import { TRPCError } from '@trpc/server'
 import { protectedProcedure, router } from '../index.js'
-import { parseJsonBody } from '../../utils/http.utils.js'
 import { defineSchema, optStr, reqObj } from '../validation.js'
 import type {
   MangaContentRating,
@@ -12,29 +11,13 @@ import logger from '../../logger.js'
 
 type MangaTrendingItem = {
   id: string
+  provider: string
   title: string
   description: string
   tags: string[]
   year: number | null
   status: string | null
   cover: string
-}
-
-type MangaDexUpstream = {
-  data?: Array<{
-    id: string
-    attributes?: {
-      title?: Record<string, string>
-      description?: Record<string, string>
-      tags?: Array<{ attributes?: { name?: Record<string, string> } }>
-      year?: number
-      status?: string
-    }
-    relationships?: Array<{
-      type: string
-      attributes?: { fileName?: string }
-    }>
-  }>
 }
 
 const SAFE: MangaContentRating[] = ['safe']
@@ -54,6 +37,65 @@ function parseRatings(query: Record<string, string | undefined>): MangaContentRa
 
 function pick(ctx: TrpcContext, name: string): MangaProvider | undefined {
   return ctx.getMangaProvider(name.toLowerCase())
+}
+
+type MangaSearchOptions = {
+  query: string
+  page: number
+  limit: number
+  sort: string
+  status: string
+  type: string
+  ratings: MangaContentRating[]
+}
+
+type MangaSearchResult = {
+  items: {
+    id: string
+    title: string
+    cover: string
+    description?: string
+    genres?: string[]
+    year?: number | null
+    status?: string
+  }[]
+  hasNext: boolean
+  provider: string
+}
+
+// an empty provider means "any manga provider": the first one that answers
+// with results wins, so a single provider being down does not empty the page
+async function runMangaSearch(
+  ctx: TrpcContext,
+  provider: string,
+  options: MangaSearchOptions
+): Promise<MangaSearchResult> {
+  const names = provider
+    ? [provider]
+    : ctx
+        .getCatalog()
+        .filter((c) => c.kind === 'manga' && c.loaded)
+        .map((c) => c.id)
+
+  for (const name of names) {
+    const mangaProvider = pick(ctx, name)
+    if (!mangaProvider) continue
+    const result = await mangaProvider.search({
+      query: options.query,
+      page: options.page,
+      limit: options.limit,
+      sort: options.sort,
+      status: options.status,
+      type: options.type,
+      ratings: options.ratings,
+    })
+    const items = (result?.items ?? []) as unknown as MangaSearchResult['items']
+    if (items.length > 0 || provider) {
+      return { items, hasNext: result?.hasNext ?? false, provider: name }
+    }
+  }
+
+  return { items: [], hasNext: false, provider: provider || names[0] || '' }
 }
 
 async function cached(
@@ -139,40 +181,27 @@ export const mangaRouter = router({
     const cacheKey = 'route-manga-trending'
     const cached = ctx.apiCache.get<MangaTrendingItem[]>(cacheKey)
     if (cached) return cached
-    try {
-      const url =
-        'https://api.mangadex.org/manga?limit=6&order%5BfollowedCount%5D=desc&includes%5B%5D=cover_art&contentRating%5B%5D=safe&contentRating%5B%5D=suggestive'
-      const upstream = await fetch(url, {
-        headers: { 'User-Agent': 'dango/3.1.9' },
-      })
-      if (!upstream.ok) return []
-      const data = await parseJsonBody<MangaDexUpstream>(upstream)
-      const results: MangaTrendingItem[] = (data.data || []).map((m) => {
-        const title = m.attributes?.title?.en || Object.values(m.attributes?.title || {})[0] || ''
-        const desc = m.attributes?.description?.en || ''
-        const tags = (m.attributes?.tags || [])
-          .map((t) => t.attributes?.name?.en)
-          .filter(Boolean) as string[]
-        const coverArt = m.relationships?.find((r) => r.type === 'cover_art')
-        const fileName = coverArt?.attributes?.fileName
-        const cover = fileName
-          ? `https://uploads.mangadex.org/covers/${m.id}/${fileName}.512.jpg`
-          : ''
-        return {
-          id: m.id,
-          title,
-          description: desc,
-          tags,
-          year: m.attributes?.year || null,
-          status: m.attributes?.status || null,
-          cover,
-        }
-      })
-      ctx.apiCache.set(cacheKey, results, 600)
-      return results
-    } catch {
-      return []
-    }
+    const result = await runMangaSearch(ctx, '', {
+      query: '',
+      page: 1,
+      limit: 6,
+      sort: 'followed',
+      status: '',
+      type: '',
+      ratings: ['safe', 'suggestive'],
+    })
+    const results: MangaTrendingItem[] = result.items.map((m) => ({
+      id: m.id,
+      provider: result.provider,
+      title: m.title,
+      description: typeof m.description === 'string' ? m.description : '',
+      tags: Array.isArray(m.genres) ? (m.genres as string[]) : [],
+      year: typeof m.year === 'number' ? m.year : null,
+      status: typeof m.status === 'string' ? m.status : null,
+      cover: m.cover ?? '',
+    }))
+    ctx.apiCache.set(cacheKey, results, 600)
+    return results
   }),
 
   search: protectedProcedure.input(mangaSearchInput()).query(async ({ ctx, input }) => {
@@ -188,7 +217,7 @@ export const mangaRouter = router({
           const ratings = parseRatings({ rating: input.rating, mature: input.mature })
           const rawType = input.type || ''
           const type = rawType === 'doujinshi' && input.mature !== '1' ? '' : rawType
-          const result = await pick(ctx, provider as string as MangaProviderName)?.search({
+          const result = await runMangaSearch(ctx, provider, {
             query: q,
             page,
             limit: input.limit || 24,
@@ -197,10 +226,10 @@ export const mangaRouter = router({
             type,
             ratings,
           })
-          return { body: result ?? { items: [], hasNext: false } }
+          return { body: { ...result, items: result.items ?? [] } }
         } catch (err) {
           logger.error({ err }, '[Manga] search failed')
-          return { body: { items: [], hasNext: false } }
+          return { body: { items: [], hasNext: false, provider } }
         }
       }
     )

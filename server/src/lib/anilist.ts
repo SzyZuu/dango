@@ -1,7 +1,7 @@
 import type { Show } from '../providers/provider.interface.js'
 import { buildQueryVariants, pickBestMatch } from '../providers/title-matching.js'
 import logger from '../logger.js'
-import { parseJsonBody } from '../utils/http.utils.js'
+import { fetchWithRetry, parseJsonBody } from '../utils/http.utils.js'
 import { findTmdbDefaultBackdrop } from './tmdb.js'
 import {
   getScheduleFromAniSchedule,
@@ -32,6 +32,8 @@ import {
 } from './mal.js'
 import { malCacheStore } from '../repositories/mal-cache.repository.js'
 import { offlineDb, type OfflineEntry } from './offline-db.js'
+import { stripHtml } from './html.js'
+import { CANONICAL_GENRES } from './media-vocab.js'
 
 const ANILIST_API = 'https://graphql.anilist.co'
 
@@ -330,11 +332,15 @@ async function performAnilistRequest<T>(
   await waitForAnilistSlot()
 
   try {
-    const response = await fetch(ANILIST_API, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify({ query, variables }),
-    })
+    const response = await fetchWithRetry(
+      ANILIST_API,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ query, variables }),
+      },
+      { timeoutMs: 20000 }
+    )
 
     applyRateLimitHeaders(response.headers)
 
@@ -403,25 +409,7 @@ export interface GenreTagLists {
   tags: string[]
 }
 
-const STATIC_GENRES = [
-  'Action',
-  'Adventure',
-  'Comedy',
-  'Drama',
-  'Fantasy',
-  'Horror',
-  'Mahou Shoujo',
-  'Mecha',
-  'Music',
-  'Mystery',
-  'Psychological',
-  'Romance',
-  'Sci-Fi',
-  'Slice of Life',
-  'Sports',
-  'Supernatural',
-  'Thriller',
-]
+const STATIC_GENRES = CANONICAL_GENRES
 
 let genreTagCache: { genres: string[]; tags: string[]; at: number } | null = null
 const GENRE_TAG_TTL_MS = 24 * 3600 * 1000
@@ -447,19 +435,6 @@ export async function getGenreTagLists(): Promise<GenreTagLists> {
     // ignore
   }
   return { genres: STATIC_GENRES, tags: [] }
-}
-
-function stripHtml(input?: string | null): string {
-  if (!input) return ''
-  return input
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;|&apos;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .trim()
 }
 
 export function fromAnilistMedia(m: AnilistMedia): Show {

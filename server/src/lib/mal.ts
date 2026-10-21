@@ -2,6 +2,8 @@ import type { AnilistMedia, AnilistSearchOptions } from './anilist.js'
 import { kitsuTitlesByMalIds } from './kitsu.js'
 import type { KitsuTitles } from './kitsu.js'
 import { parseJsonBody } from '../utils/http.utils.js'
+import { decodeHtml } from './html.js'
+import { filterMedia, startDateRank } from './media-filter.js'
 
 export interface MalCacheStore {
   get(key: string): { payload: string; fresh: boolean } | null
@@ -60,18 +62,6 @@ async function fetchHtml(url: string): Promise<{ status: number; html: string; u
   })
   const html = await res.text()
   return { status: res.status, html, url: res.url }
-}
-
-function decodeHtml(s: string): string {
-  return s
-    .replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)))
-    .replace(/&#x([0-9a-fA-F]+);/g, (_, n) => String.fromCharCode(parseInt(n, 16)))
-    .replace(/&amp;/g, '&')
-    .replace(/&quot;/g, '"')
-    .replace(/&#0?39;|&apos;/g, "'")
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .trim()
 }
 
 function firstImage(chunk: string): string | null {
@@ -342,13 +332,6 @@ const ORDER_BY_MAP: Record<string, string> = {
   EPISODES_DESC: 'episodes',
   FAVOURITES_DESC: 'members',
   UPDATED_AT_DESC: 'start_date',
-}
-
-const SEASON_MONTHS: Record<string, number[]> = {
-  WINTER: [1, 2, 3],
-  SPRING: [4, 5, 6],
-  SUMMER: [7, 8, 9],
-  FALL: [10, 11, 12],
 }
 
 const SEASON_START_MONTH: Record<string, string> = {
@@ -706,7 +689,7 @@ export async function malSearchMedia(
     const hit = store.get(key)
     if (hit && hit.fresh) {
       return finish(
-        filterMalSearch(parseSearchResults(hit.payload).map(toAnilistSearchMedia), {
+        filterMedia(parseSearchResults(hit.payload).map(toAnilistSearchMedia), {
           genre_not_in,
           episodes_greater,
           format: clientFormat,
@@ -721,7 +704,7 @@ export async function malSearchMedia(
     if (res.status !== 200) {
       if (hit) {
         return finish(
-          filterMalSearch(parseSearchResults(hit.payload).map(toAnilistSearchMedia), {
+          filterMedia(parseSearchResults(hit.payload).map(toAnilistSearchMedia), {
             genre_not_in,
             episodes_greater,
             format: clientFormat,
@@ -756,7 +739,7 @@ export async function malSearchMedia(
         // ignore
       }
       return finish(
-        filterMalSearch(parseSearchResults(hit.payload).map(toAnilistSearchMedia), {
+        filterMedia(parseSearchResults(hit.payload).map(toAnilistSearchMedia), {
           genre_not_in,
           episodes_greater,
           format: clientFormat,
@@ -770,7 +753,7 @@ export async function malSearchMedia(
     return []
   }
   return finish(
-    filterMalSearch(parseSearchResults(html).map(toAnilistSearchMedia), {
+    filterMedia(parseSearchResults(html).map(toAnilistSearchMedia), {
       genre_not_in,
       episodes_greater,
       format: clientFormat,
@@ -780,53 +763,6 @@ export async function malSearchMedia(
       hasQuery,
     })
   )
-}
-
-function filterMalSearch(
-  results: AnilistMedia[],
-  opts: {
-    genre_not_in?: string[]
-    episodes_greater?: number
-    format?: string
-    seasonYear?: number
-    season?: string
-    sort?: string
-    hasQuery: boolean
-  }
-): AnilistMedia[] {
-  let out = results
-  if (opts.format && opts.format !== 'ALL' && opts.format !== 'ADULT') {
-    const f = opts.format.toUpperCase()
-    out = out.filter((m) => (m.format ?? '').toUpperCase() === f)
-  }
-  if (opts.episodes_greater != null) {
-    out = out.filter((m) => (m.episodes ?? 0) > (opts.episodes_greater as number))
-  }
-  if (opts.seasonYear && !opts.hasQuery) {
-    out = out.filter((m) => m.startDate?.year === opts.seasonYear)
-  }
-  if (opts.season && opts.season !== 'ALL' && !opts.hasQuery) {
-    const months = SEASON_MONTHS[opts.season.toUpperCase()] ?? []
-    out = out.filter((m) => m.startDate?.month != null && months.includes(m.startDate.month))
-  }
-  if (
-    opts.sort &&
-    !opts.sort.startsWith('POPULARITY_') &&
-    !opts.sort.startsWith('TRENDING_') &&
-    !opts.sort.startsWith('FAVOURITES_') &&
-    !opts.sort.startsWith('START_DATE_') &&
-    !opts.sort.startsWith('END_DATE_')
-  ) {
-    const desc = !opts.sort.includes('ASC')
-    const dir = desc ? -1 : 1
-    if (opts.sort.startsWith('SCORE_')) {
-      const scoreOf = (m: AnilistMedia): number => m.averageScore ?? m.meanScore ?? -1
-      out = [...out].sort((a, b) => (scoreOf(a) - scoreOf(b)) * dir)
-    } else if (opts.sort.startsWith('EPISODES_')) {
-      out = [...out].sort((a, b) => ((a.episodes ?? -1) - (b.episodes ?? -1)) * dir)
-    }
-  }
-  return out
 }
 
 export async function malSearchTitle(store: MalCacheStore, title: string): Promise<string | null> {
@@ -1097,9 +1033,9 @@ export async function malLatestReleases(
     const f = format.toUpperCase()
     all = all.filter((m) => (m.format ?? '').toUpperCase() === f)
   }
-  const rank = (m: AnilistMedia): number =>
-    (m.startDate?.year ?? 0) * 10000 + (m.startDate?.month ?? 0) * 100 + (m.startDate?.day ?? 0)
-  all.sort((a, b) => rank(b) - rank(a) || (b.popularity ?? 0) - (a.popularity ?? 0))
+  all.sort(
+    (a, b) => startDateRank(b) - startDateRank(a) || (b.popularity ?? 0) - (a.popularity ?? 0)
+  )
   const offset = (page - 1) * size
   return enrichCardTitles(store, all.slice(offset, offset + size))
 }

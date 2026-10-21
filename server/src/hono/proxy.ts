@@ -8,6 +8,7 @@ import logger from '../logger.js'
 import { buildCfClearanceCookie, sanitizeCfClearance } from '../utils/cookie.utils.js'
 import { isSafeExternalUrl } from '../utils/security.utils.js'
 import { fetchWithRetry, linkAbort, setProxyHeaders } from '../utils/http.utils.js'
+import { pinVariant } from './playlist.js'
 import type { RemoteProxyRule } from '../providers/remote-types.js'
 
 const proxyCache = new AppCache({ ttlSeconds: 30, maxKeys: 500 })
@@ -176,29 +177,6 @@ async function fetchWithMirrors<T>(
     last = r
   }
   return last
-}
-
-function pinVariant(body: string, idx: number): string | null {
-  const lines = body.split('\n')
-  let streamIdx = -1
-  let skipUri = false
-  const out: string[] = []
-  for (const line of lines) {
-    const trimmed = line.trim()
-    if (trimmed.startsWith('#EXT-X-STREAM-INF')) {
-      streamIdx++
-      skipUri = streamIdx !== idx
-      if (!skipUri) out.push(line)
-      continue
-    }
-    if (skipUri && trimmed && !trimmed.startsWith('#')) {
-      skipUri = false
-      continue
-    }
-    out.push(line)
-  }
-  if (streamIdx < 0 || idx > streamIdx) return null
-  return out.join('\n')
 }
 
 export function applyEmbedPatches(

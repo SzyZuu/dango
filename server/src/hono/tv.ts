@@ -3,6 +3,7 @@ import logger from '../logger.js'
 import { fetchWithRetry, linkAbort, setProxyHeaders } from '../utils/http.utils.js'
 import { URL } from 'url'
 import { isSafeExternalUrl } from '../utils/security.utils.js'
+import { pinVariant } from './playlist.js'
 import type { TvMediaRequest, TvProvider } from '../providers/tv.types.js'
 
 function proxiedMediaUrl(targetUrl: string, refererStr: string, providerStr: string): string {
@@ -31,28 +32,6 @@ function rewriteTvPlaylist(
       return proxiedMediaUrl(absolute, refererStr, providerStr)
     })
     .join('\n')
-}
-
-function pinTvVariant(body: string, idx: number): string {
-  const lines = body.split('\n')
-  let streamIdx = -1
-  let skipUri = false
-  const out: string[] = []
-  for (const line of lines) {
-    const trimmed = line.trim()
-    if (trimmed.startsWith('#EXT-X-STREAM-INF')) {
-      streamIdx++
-      skipUri = streamIdx !== idx
-      if (!skipUri) out.push(line)
-      continue
-    }
-    if (skipUri && trimmed && !trimmed.startsWith('#')) {
-      skipUri = false
-      continue
-    }
-    out.push(line)
-  }
-  return streamIdx >= 0 && idx <= streamIdx ? out.join('\n') : body
 }
 
 function isPlaylistBody(body: Buffer): boolean {
@@ -110,7 +89,7 @@ export function registerTv(app: Hono, getTvProvider: (name: string) => TvProvide
     const rewrite = (body: string, baseUrl: URL) => {
       const providerBody = providerMod?.rewritePlaylist?.(body, baseUrl.href) ?? body
       const pinned = Number.isInteger(variantIdx)
-        ? pinTvVariant(providerBody, variantIdx)
+        ? (pinVariant(providerBody, variantIdx) ?? providerBody)
         : providerBody
       return rewriteTvPlaylist(pinned, baseUrl, refererStr, providerStr)
     }

@@ -1,22 +1,8 @@
 import { protectedProcedure, router } from '../index.js'
 import { defineSchema, optStr, reqObj, reqStr } from '../validation.js'
-import type { TrpcContext } from '../context.js'
 import { authRequiredError } from '../errors.js'
+import { cached } from '../cache.js'
 import logger from '../../logger.js'
-
-async function cached<T>(
-  ctx: TrpcContext,
-  key: string,
-  ttl: number | undefined,
-  produce: () => Promise<T>
-): Promise<T> {
-  const hit = ctx.apiCache.get<T>(key)
-  if (hit) return hit
-  const body = await produce()
-  if (ttl !== undefined) ctx.apiCache.set(key, body, ttl)
-  else ctx.apiCache.set(key, body)
-  return body
-}
 
 export type AsmrBrowseInput = { q?: string; page?: number; sort?: string; rating?: string }
 

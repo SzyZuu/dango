@@ -2,6 +2,17 @@ import logger from '../logger.js'
 import { InsightsRepository } from '../repositories/insights.repository.js'
 import type { DatabaseWrapper } from '../db.js'
 
+function parseGenres(raw: string | undefined, showId: string, context: string): string[] {
+  if (!raw) return []
+  try {
+    if (raw.startsWith('[')) return JSON.parse(raw) as string[]
+    return raw.split(',').map((g: string) => g.trim())
+  } catch (e) {
+    logger.warn({ err: e, showId }, `Failed to parse genres for ${context}`)
+    return []
+  }
+}
+
 interface CoreStats {
   totalSeconds?: number
   totalEpisodes?: number
@@ -127,18 +138,7 @@ export async function getWatchInsights(db: DatabaseWrapper) {
   let popCount = 0
 
   for (const show of watchedShows) {
-    let genres: string[] = []
-    if (show.genres) {
-      try {
-        if (show.genres.startsWith('[')) {
-          genres = JSON.parse(show.genres)
-        } else {
-          genres = show.genres.split(',').map((g: string) => g.trim())
-        }
-      } catch (e) {
-        logger.warn({ err: e, showId: show.id }, 'Failed to parse genres for insights')
-      }
-    }
+    const genres = parseGenres(show.genres, show.id, 'insights')
 
     for (const g of genres) {
       genreCounts[g] = (genreCounts[g] || 0) + 1
@@ -223,18 +223,7 @@ export async function getGenreCards(db: DatabaseWrapper): Promise<GenreCard[]> {
   > = {}
 
   for (const row of rows) {
-    let genres: string[] = []
-    if (row.genres) {
-      try {
-        if (row.genres.startsWith('[')) {
-          genres = JSON.parse(row.genres)
-        } else {
-          genres = row.genres.split(',').map((g: string) => g.trim())
-        }
-      } catch (e) {
-        logger.warn({ err: e, showId: row.showId }, 'Failed to parse genres for genre cards')
-      }
-    }
+    const genres = parseGenres(row.genres, row.showId, 'genre cards')
 
     const timeWatched = (row.effectiveSeconds ?? row.currentTime) || 0
     let score = row.popularityScore || 0

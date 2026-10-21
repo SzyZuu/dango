@@ -2,7 +2,7 @@ import { TRPCError } from '@trpc/server'
 import { protectedProcedure, router } from '../index.js'
 import { defineSchema, failed, optStr, readCount, reqId, reqObj, reqStr } from '../validation.js'
 import { getTmdbKey, TMDB_BASE, TMDB_IMAGE } from '../../lib/tmdb.js'
-import { parseJsonBody } from '../../utils/http.utils.js'
+import { fetchWithRetry, parseJsonBody } from '../../utils/http.utils.js'
 import type { TvMediaRequest } from '../../providers/tv.types.js'
 
 async function resolveTvMeta(
@@ -15,9 +15,10 @@ async function resolveTvMeta(
   try {
     const tmdbKey = await getTmdbKey()
     if (tmdbKey) {
-      const tmdbRes = await fetch(
+      const tmdbRes = await fetchWithRetry(
         `${TMDB_BASE}/${mediaType}/${numericTmdbId}?api_key=${tmdbKey}&append_to_response=external_ids`,
-        { headers: { 'User-Agent': 'Mozilla/5.0' }, signal: AbortSignal.timeout(4000) }
+        { headers: { 'User-Agent': 'Mozilla/5.0' } },
+        { timeoutMs: 4000 }
       )
       if (tmdbRes.ok) {
         const d = await parseJsonBody<TmdbMetaBody>(tmdbRes)
@@ -297,7 +298,11 @@ export const tvRouter = router({
         })
         url = `${TMDB_BASE}/search/multi?${params.toString()}`
       }
-      const r = await fetch(url, { headers: { 'User-Agent': 'Mozilla/5.0' } })
+      const r = await fetchWithRetry(
+        url,
+        { headers: { 'User-Agent': 'Mozilla/5.0' } },
+        { timeoutMs: 10000 }
+      )
       if (!r.ok) throw failed('TMDB search failed')
       const d = await parseJsonBody<{
         results?: TmdbSearchItem[]
@@ -353,9 +358,10 @@ export const tvRouter = router({
     const key = await getTmdbKey()
     if (!key) throw failed('No TMDB API key available')
     try {
-      const r = await fetch(
+      const r = await fetchWithRetry(
         `${TMDB_BASE}/trending/${mediaType}/${timeWindow}?api_key=${key}&page=${page}`,
-        { headers: { 'User-Agent': 'Mozilla/5.0' } }
+        { headers: { 'User-Agent': 'Mozilla/5.0' } },
+        { timeoutMs: 10000 }
       )
       if (!r.ok) throw failed('TMDB trending failed')
       const d = await parseJsonBody<{
@@ -399,9 +405,10 @@ export const tvRouter = router({
     const key = await getTmdbKey()
     if (!key) throw failed('No TMDB API key available')
     try {
-      const r = await fetch(
+      const r = await fetchWithRetry(
         `${TMDB_BASE}/${type}/${id}?api_key=${key}&append_to_response=external_ids`,
-        { headers: { 'User-Agent': 'Mozilla/5.0' } }
+        { headers: { 'User-Agent': 'Mozilla/5.0' } },
+        { timeoutMs: 10000 }
       )
       if (!r.ok) throw failed('TMDB details failed')
       const d = await parseJsonBody<TmdbDetailsBody>(r)
@@ -450,9 +457,11 @@ export const tvRouter = router({
     const key = await getTmdbKey()
     if (!key) throw failed('No TMDB API key available')
     try {
-      const r = await fetch(`${TMDB_BASE}/tv/${id}/season/${season}?api_key=${key}`, {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-      })
+      const r = await fetchWithRetry(
+        `${TMDB_BASE}/tv/${id}/season/${season}?api_key=${key}`,
+        { headers: { 'User-Agent': 'Mozilla/5.0' } },
+        { timeoutMs: 10000 }
+      )
       if (!r.ok) throw failed('TMDB episodes failed')
       const d = await parseJsonBody<{ episodes?: TmdbEpisode[] }>(r)
       const episodes = (d.episodes || []).map((ep: TmdbEpisode) => ({
@@ -488,10 +497,11 @@ export const tvRouter = router({
         mediaType === 'tv'
           ? `https://subtitles.vidy.st/search?id=${numericTmdbId}&season=${encodeURIComponent(season)}&episode=${encodeURIComponent(episode)}`
           : `https://subtitles.vidy.st/search?id=${numericTmdbId}`
-      const r = await fetch(searchUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0' },
-        signal: AbortSignal.timeout(10000),
-      })
+      const r = await fetchWithRetry(
+        searchUrl,
+        { headers: { 'User-Agent': 'Mozilla/5.0' } },
+        { timeoutMs: 10000 }
+      )
       if (!r.ok) return { subtitles: [] }
       const items = (await parseJsonBody(r)) as {
         url?: string

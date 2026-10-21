@@ -1,4 +1,4 @@
-import { parseJsonBody } from '../utils/http.utils.js'
+import { fetchWithRetry, parseJsonBody } from '../utils/http.utils.js'
 
 const TMDB_BASE = 'https://api.themoviedb.org/3'
 const TMDB_IMAGE = 'https://image.tmdb.org/t/p'
@@ -55,7 +55,7 @@ interface TmdbTvDetails {
 export async function tmdbSearch(query: string): Promise<TmdbSearchResult[] | null> {
   const key = await getTmdbKey()
   const url = `${TMDB_BASE}/search/multi?api_key=${key}&query=${encodeURIComponent(query)}&include_adult=false`
-  const res = await fetch(url)
+  const res = await fetchWithRetry(url, {}, { timeoutMs: 10000 })
   if (!res.ok) return null
   const json = await parseJsonBody<{ results?: TmdbSearchResult[] }>(res)
   return json.results ?? null
@@ -64,7 +64,7 @@ export async function tmdbSearch(query: string): Promise<TmdbSearchResult[] | nu
 export async function tmdbTvDetails(tmdbId: number): Promise<TmdbTvDetails | null> {
   const key = await getTmdbKey()
   const url = `${TMDB_BASE}/tv/${tmdbId}?api_key=${key}`
-  const res = await fetch(url)
+  const res = await fetchWithRetry(url, {}, { timeoutMs: 10000 })
   if (!res.ok) return null
   const json = await parseJsonBody<TmdbTvDetails | null>(res)
   return json

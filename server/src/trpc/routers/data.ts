@@ -10,7 +10,7 @@ import {
   reqObj,
   reqStr,
 } from '../validation.js'
-import { parseJsonBody } from '../../utils/http.utils.js'
+import { fetchWithRetry, parseJsonBody } from '../../utils/http.utils.js'
 import {
   getTrending,
   getLatestReleases,
@@ -36,6 +36,7 @@ import { isTempShowId } from '../../lib/temp-ids.js'
 import { TempShowIdsRepository } from '../../repositories/temp-show-ids.repository.js'
 import { pickBestMatch } from '../../providers/title-matching.js'
 import { authRequiredError } from '../errors.js'
+import { cached } from '../cache.js'
 import { ShowsMetaRepository } from '../../repositories/shows-meta.repository.js'
 import { WatchlistRepository } from '../../repositories/watchlist.repository.js'
 import { LegacyIdMappingRepository } from '../../repositories/legacy-id-mapping.repository.js'
@@ -45,23 +46,6 @@ import type { Show } from '../../providers/provider.interface.js'
 import type { BrowseCaps } from '../../providers/remote-types.js'
 import type { TrpcContext } from '../context.js'
 import logger from '../../logger.js'
-
-async function cached<T>(
-  ctx: TrpcContext,
-  key: string,
-  ttl: number | undefined,
-  validate: (data: unknown) => boolean,
-  produce: () => Promise<T>
-): Promise<T> {
-  const hit = ctx.apiCache.get<T>(key)
-  if (hit) return hit
-  const body = await produce()
-  if (validate(body)) {
-    if (ttl !== undefined) ctx.apiCache.set(key, body, ttl)
-    else ctx.apiCache.set(key, body)
-  }
-  return body
-}
 
 const defaultValidate = (d: unknown) => Array.isArray(d) && d.length > 0
 
@@ -393,16 +377,22 @@ export const dataRouter = router({
   schedule: protectedProcedure.input(dataScheduleInput()).query(async ({ ctx, input }) => {
     const date = input.date
     const format = input.format || 'TV'
-    return cached(ctx, `schedule-${date}-${format}`, 1800, defaultValidate, async () => {
-      try {
-        const dateObj = new Date(date + 'T00:00:00.000Z')
-        const adult = format === 'ADULT'
-        return await getSchedule(dateObj, adult ? undefined : format, adult)
-      } catch (e) {
-        logger.error({ err: e, date }, 'Schedule fetch failed')
-        return []
-      }
-    })
+    return cached(
+      ctx,
+      `schedule-${date}-${format}`,
+      1800,
+      async () => {
+        try {
+          const dateObj = new Date(date + 'T00:00:00.000Z')
+          const adult = format === 'ADULT'
+          return await getSchedule(dateObj, adult ? undefined : format, adult)
+        } catch (e) {
+          logger.error({ err: e, date }, 'Schedule fetch failed')
+          return []
+        }
+      },
+      defaultValidate
+    )
   }),
 
   latestReleases: protectedProcedure
@@ -415,7 +405,6 @@ export const dataRouter = router({
         ctx,
         `latest-releases-${formatStr}-${pageNum}-${sizeNum}`,
         300,
-        defaultValidate,
         async () => {
           try {
             return await getLatestReleases(formatStr, pageNum, sizeNum)
@@ -423,7 +412,8 @@ export const dataRouter = router({
             logger.error({ err: e }, 'Latest releases fetch failed')
             return []
           }
-        }
+        },
+        defaultValidate
       )
     }),
 
@@ -448,7 +438,6 @@ export const dataRouter = router({
       ctx,
       `search-${JSON.stringify(queryEntries)}`,
       1800,
-      defaultValidate,
       async () => {
         try {
           return await searchAnilist({
@@ -472,34 +461,41 @@ export const dataRouter = router({
           logger.error({ err: e }, 'search failed')
           return []
         }
-      }
+      },
+      defaultValidate
     )
   }),
 
   matureResolve: protectedProcedure
     .input(dataMatureResolveInput())
     .query(async ({ ctx, input }) => {
-      return cached(ctx, `mature-resolve-${input.title || ''}`, 3600, defaultValidate, async () => {
-        try {
-          const title = (input.title || '').trim()
-          if (!title) throw badRequest('title is required')
+      return cached(
+        ctx,
+        `mature-resolve-${input.title || ''}`,
+        3600,
+        async () => {
+          try {
+            const title = (input.title || '').trim()
+            if (!title) throw badRequest('title is required')
 
-          const anilistResult = await searchAnilistByTitle(title)
-          if (anilistResult) {
-            const id = anilistResult.id
-            return { id: typeof id === 'number' && id < 0 ? `mal-${Math.abs(id)}` : id }
+            const anilistResult = await searchAnilistByTitle(title)
+            if (anilistResult) {
+              const id = anilistResult.id
+              return { id: typeof id === 'number' && id < 0 ? `mal-${Math.abs(id)}` : id }
+            }
+
+            const malResult = await malSearchTitle(malCacheStore(), title)
+            if (malResult) return { id: malResult, provider: 'mal' }
+
+            throw new TRPCError({ code: 'NOT_FOUND', message: 'No match found' })
+          } catch (e) {
+            if (e instanceof TRPCError) throw e
+            logger.error({ err: e }, 'mature resolve failed')
+            throw failed('Resolve failed')
           }
-
-          const malResult = await malSearchTitle(malCacheStore(), title)
-          if (malResult) return { id: malResult, provider: 'mal' }
-
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'No match found' })
-        } catch (e) {
-          if (e instanceof TRPCError) throw e
-          logger.error({ err: e }, 'mature resolve failed')
-          throw failed('Resolve failed')
-        }
-      })
+        },
+        defaultValidate
+      )
     }),
 
   skipTimes: protectedProcedure.input(dataSkipTimesInput()).query(async ({ input }) => {
@@ -507,8 +503,10 @@ export const dataRouter = router({
       const showId = input.showId || ''
       const episodeNumber = input.episodeNumber || ''
       if (/^\d+$/.test(showId)) {
-        const skipRes = await fetch(
-          `https://api.aniskip.com/v1/skip-times/${showId}/${episodeNumber}?types=op&types=ed`
+        const skipRes = await fetchWithRetry(
+          `https://api.aniskip.com/v1/skip-times/${showId}/${episodeNumber}?types=op&types=ed`,
+          {},
+          { timeoutMs: 10000 }
         )
         if (skipRes.ok) {
           return await parseJsonBody(skipRes)
@@ -528,7 +526,6 @@ export const dataRouter = router({
       ctx,
       `seasonal-${formatStr || 'ALL'}-${pageNum}-${sizeNum}`,
       300,
-      defaultValidate,
       async () => {
         try {
           return await getSeasonal(pageNum, sizeNum, formatStr)
@@ -536,7 +533,8 @@ export const dataRouter = router({
           logger.error({ err: e }, 'Seasonal fetch failed')
           return []
         }
-      }
+      },
+      defaultValidate
     )
   }),
 
@@ -548,7 +546,6 @@ export const dataRouter = router({
       ctx,
       `popular-list-${input.sort || 'TRENDING_DESC'}-${pageNum}-${sizeNum}`,
       300,
-      defaultValidate,
       async () => {
         try {
           return await getTrending(pageNum, sizeNum, sort)
@@ -556,19 +553,26 @@ export const dataRouter = router({
           logger.error({ err: e }, 'Popular list fetch failed')
           return []
         }
-      }
+      },
+      defaultValidate
     )
   }),
 
   spotlight: protectedProcedure.query(async ({ ctx }) => {
-    return cached(ctx, 'spotlight', 300, defaultValidate, async () => {
-      try {
-        return await getSpotlightBanners(1, 20)
-      } catch (e) {
-        logger.error({ err: e }, 'Spotlight fetch failed')
-        return []
-      }
-    })
+    return cached(
+      ctx,
+      'spotlight',
+      300,
+      async () => {
+        try {
+          return await getSpotlightBanners(1, 20)
+        } catch (e) {
+          logger.error({ err: e }, 'Spotlight fetch failed')
+          return []
+        }
+      },
+      defaultValidate
+    )
   }),
 
   genresAndTags: protectedProcedure.query(async () => {
@@ -614,100 +618,106 @@ export const dataRouter = router({
 
   episodes: protectedProcedure.input(dataEpisodesInput()).query(async ({ ctx, input }) => {
     const showIdParam = input.showId
-    return cached(ctx, `episodes-${showIdParam || ''}`, 3600, defaultValidate, async () => {
-      const showIdRaw = showIdParam
-      if (!showIdRaw) return { episodes: [] }
-      const db = ctx.db
-      const providers = ctx.getProviders()
-      let showId = await getMigratedId(db, showIdRaw)
-      const epsMalId = parseMalId(showId)
-      if (epsMalId) {
-        try {
-          const malMeta = await getShowMetaByMalId(epsMalId)
-          if (malMeta?.anilistId && malMeta.anilistId > 0) showId = String(malMeta.anilistId)
-        } catch {
-          // ignore
-        }
-      }
-      if (isTempShowId(showId)) {
-        try {
-          const row = await TempShowIdsRepository.getById(db, showId)
-          if (!row || !isMatureStreamingProvider(ctx, row.provider)) return { episodes: [] }
-          const wanted = String(input.provider || '').toLowerCase()
-          const own = providers[row.provider]
-          if (own && (!wanted || wanted === row.provider)) {
-            const data = await own.getEpisodes(row.nativeId, input.mode)
-            if (data?.episodes?.length) return data
-            return { episodes: [] }
-          }
-          const hit = await resolveMatureStreamingId(ctx, row.title, wanted)
-          if (hit) {
-            const data = await hit.provider.getEpisodes(hit.nativeId, input.mode)
-            if (data?.episodes?.length) return data
-          }
-        } catch (e) {
-          if ((e as Error).message === 'AUTH_REQUIRED') throw e
-        }
-        return { episodes: [] }
-      }
-      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(showId)) {
-        try {
-          if (providers['animepahe']) {
-            const data = await providers['animepahe'].getEpisodes(showId, input.mode)
-            return data || { episodes: [] }
-          }
-        } catch (e) {
-          if ((e as Error).message === 'AUTH_REQUIRED') throw e
-          return { episodes: [] }
-        }
-      }
-      const isNumeric = /^(mal-\d+|-?\d+)$/i.test(showId)
-      if (isNumeric) {
-        let episodes: string[] = []
-        try {
-          episodes = await getAnilistEpisodes(showId)
-        } catch (e) {
-          logger.error({ err: e, showId }, 'Episodes fetch failed')
-        }
-        if (episodes.length === 0) {
-          const absId = Math.abs(parseInt(showId, 10))
-          if (!Number.isFinite(absId)) return { episodes }
+    return cached(
+      ctx,
+      `episodes-${showIdParam || ''}`,
+      3600,
+      async () => {
+        const showIdRaw = showIdParam
+        if (!showIdRaw) return { episodes: [] }
+        const db = ctx.db
+        const providers = ctx.getProviders()
+        let showId = await getMigratedId(db, showIdRaw)
+        const epsMalId = parseMalId(showId)
+        if (epsMalId) {
           try {
-            const d = await malAnimeDetail(malCacheStore(), absId)
-            const total = d.detail?.episodes
-            if (total && total > 0 && total <= 500) {
-              episodes = Array.from({ length: total }, (_, i) => (i + 1).toString())
-            }
+            const malMeta = await getShowMetaByMalId(epsMalId)
+            if (malMeta?.anilistId && malMeta.anilistId > 0) showId = String(malMeta.anilistId)
           } catch {
             // ignore
           }
         }
-        if (episodes.length === 0) {
-          const providerName = input.provider?.toLowerCase()
-          const provider = providerName ? providers[providerName] : undefined
-          if (provider?.isDirectId?.(showId)) {
-            try {
-              const data = await provider.getEpisodes(showId, input.mode)
+        if (isTempShowId(showId)) {
+          try {
+            const row = await TempShowIdsRepository.getById(db, showId)
+            if (!row || !isMatureStreamingProvider(ctx, row.provider)) return { episodes: [] }
+            const wanted = String(input.provider || '').toLowerCase()
+            const own = providers[row.provider]
+            if (own && (!wanted || wanted === row.provider)) {
+              const data = await own.getEpisodes(row.nativeId, input.mode)
               if (data?.episodes?.length) return data
-            } catch (e) {
-              if ((e as Error).message === 'AUTH_REQUIRED') throw e
+              return { episodes: [] }
             }
+            const hit = await resolveMatureStreamingId(ctx, row.title, wanted)
+            if (hit) {
+              const data = await hit.provider.getEpisodes(hit.nativeId, input.mode)
+              if (data?.episodes?.length) return data
+            }
+          } catch (e) {
+            if ((e as Error).message === 'AUTH_REQUIRED') throw e
+          }
+          return { episodes: [] }
+        }
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(showId)) {
+          try {
+            if (providers['animepahe']) {
+              const data = await providers['animepahe'].getEpisodes(showId, input.mode)
+              return data || { episodes: [] }
+            }
+          } catch (e) {
+            if ((e as Error).message === 'AUTH_REQUIRED') throw e
+            return { episodes: [] }
           }
         }
-        return { episodes }
-      }
-      const providerName = input.provider?.toLowerCase()
-      const provider = providerName ? providers[providerName] : undefined
-      if (provider) {
-        try {
-          const data = await provider.getEpisodes(showId, input.mode)
-          if (data?.episodes?.length) return data
-        } catch (e) {
-          if ((e as Error).message === 'AUTH_REQUIRED') throw e
+        const isNumeric = /^(mal-\d+|-?\d+)$/i.test(showId)
+        if (isNumeric) {
+          let episodes: string[] = []
+          try {
+            episodes = await getAnilistEpisodes(showId)
+          } catch (e) {
+            logger.error({ err: e, showId }, 'Episodes fetch failed')
+          }
+          if (episodes.length === 0) {
+            const absId = Math.abs(parseInt(showId, 10))
+            if (!Number.isFinite(absId)) return { episodes }
+            try {
+              const d = await malAnimeDetail(malCacheStore(), absId)
+              const total = d.detail?.episodes
+              if (total && total > 0 && total <= 500) {
+                episodes = Array.from({ length: total }, (_, i) => (i + 1).toString())
+              }
+            } catch {
+              // ignore
+            }
+          }
+          if (episodes.length === 0) {
+            const providerName = input.provider?.toLowerCase()
+            const provider = providerName ? providers[providerName] : undefined
+            if (provider?.isDirectId?.(showId)) {
+              try {
+                const data = await provider.getEpisodes(showId, input.mode)
+                if (data?.episodes?.length) return data
+              } catch (e) {
+                if ((e as Error).message === 'AUTH_REQUIRED') throw e
+              }
+            }
+          }
+          return { episodes }
         }
-      }
-      return { episodes: [] }
-    })
+        const providerName = input.provider?.toLowerCase()
+        const provider = providerName ? providers[providerName] : undefined
+        if (provider) {
+          try {
+            const data = await provider.getEpisodes(showId, input.mode)
+            if (data?.episodes?.length) return data
+          } catch (e) {
+            if ((e as Error).message === 'AUTH_REQUIRED') throw e
+          }
+        }
+        return { episodes: [] }
+      },
+      defaultValidate
+    )
   }),
 
   showMeta: protectedProcedure.input(dataShowMetaInput()).query(async ({ ctx, input }) => {
@@ -716,7 +726,6 @@ export const dataRouter = router({
       ctx,
       `meta-${showIdRaw}`,
       3600,
-      (d) => !!d,
       async () => {
         const db = ctx.db
         const id = await getMigratedId(db, showIdRaw)
@@ -806,7 +815,8 @@ export const dataRouter = router({
           return meta || {}
         }
         return {}
-      }
+      },
+      (d) => !!d
     )
   }),
 
@@ -823,7 +833,6 @@ export const dataRouter = router({
       ctx,
       `mature-search-${JSON.stringify(queryEntries)}`,
       600,
-      (d) => !!d && typeof d === 'object' && Array.isArray((d as { data?: unknown }).data),
       async () => {
         try {
           const query = input.query || ''
@@ -903,7 +912,8 @@ export const dataRouter = router({
           logger.error({ err: e }, 'mature search failed')
           return { data: [], hasMore: false }
         }
-      }
+      },
+      (d) => !!d && typeof d === 'object' && Array.isArray((d as { data?: unknown }).data)
     )
   }),
 

@@ -118,6 +118,33 @@ export async function executeMalImport(
   const { animeList, erase, offlineEnabled, shouldSkipFallback } = prepared
   const total = animeList.length
 
+  const emitProgress = (
+    phase: ImportPhase,
+    imported: number,
+    progress: {
+      current: number
+      title: string
+      matchedTitle: string | null
+      status: string
+      source: ActiveImportStatus['source']
+      found: boolean
+    }
+  ): void => {
+    activeImportStatus = {
+      running: true,
+      current: progress.current,
+      total,
+      phase,
+      source: progress.source,
+      title: progress.title,
+      matchedTitle: progress.matchedTitle,
+      status: progress.status,
+      found: progress.found,
+      imported,
+    }
+    sendEvent('progress', { total, ...progress })
+  }
+
   let skippedCount = 0
   const offlineShows: ShowToInsert[] = []
   const offlineMeta: { id: string; thumbnail?: string; type?: string; genres?: string }[] = []
@@ -144,21 +171,8 @@ export async function executeMalImport(
               genres: entry.genres,
             })
           }
-          activeImportStatus = {
-            running: true,
+          emitProgress('offline', offlineShows.length, {
             current: offlineShows.length,
-            total,
-            phase: 'offline',
-            source: 'offline',
-            title: malTitle,
-            matchedTitle: title,
-            status,
-            found: true,
-            imported: offlineShows.length,
-          }
-          sendEvent('progress', {
-            current: offlineShows.length,
-            total,
             title: malTitle,
             matchedTitle: title,
             status,
@@ -219,21 +233,8 @@ export async function executeMalImport(
           const show = r.value
           const title = show.title?.english || show.title?.romaji || malTitle
           batchShows.push({ id: String(show.id), name: title, status })
-          activeImportStatus = {
-            running: true,
+          emitProgress('fallback', offlineShows.length + fallbackImported + 1, {
             current,
-            total,
-            phase: 'fallback',
-            source: show.source,
-            title: malTitle,
-            matchedTitle: title,
-            status,
-            found: true,
-            imported: offlineShows.length + fallbackImported + 1,
-          }
-          sendEvent('progress', {
-            current,
-            total,
             title: malTitle,
             matchedTitle: title,
             status,
@@ -255,21 +256,8 @@ export async function executeMalImport(
           )
         } else {
           skippedCount++
-          activeImportStatus = {
-            running: true,
+          emitProgress('fallback', offlineShows.length + fallbackImported, {
             current,
-            total,
-            phase: 'fallback',
-            source: null,
-            title: malTitle,
-            matchedTitle: null,
-            status,
-            found: false,
-            imported: offlineShows.length + fallbackImported,
-          }
-          sendEvent('progress', {
-            current,
-            total,
             title: malTitle,
             matchedTitle: null,
             status,

@@ -3,6 +3,7 @@ import { DatabaseWrapper } from '../db.js'
 import logger from '../logger.js'
 import { SettingsRepository } from '../repositories/settings.repository.js'
 import { decodeMaybeGzip } from '../utils/http.utils.js'
+import { CANONICAL_GENRES } from './media-vocab.js'
 
 const log = logger.child({ module: 'OfflineDb' })
 
@@ -18,26 +19,6 @@ const FETCH_OVERALL_TIMEOUT_MS = 30 * 60 * 1000
 const MAX_BODY_BYTES = 100 * 1024 * 1024
 const CHUNK_SIZE = 1000
 const INTERRUPTED_RETRY_COOLDOWN_MS = 60 * 60 * 1000
-
-const CANONICAL_GENRES = [
-  'Action',
-  'Adventure',
-  'Comedy',
-  'Drama',
-  'Fantasy',
-  'Horror',
-  'Mahou Shoujo',
-  'Mecha',
-  'Music',
-  'Mystery',
-  'Psychological',
-  'Romance',
-  'Sci-Fi',
-  'Slice of Life',
-  'Sports',
-  'Supernatural',
-  'Thriller',
-]
 
 const canonicalGenreMap = new Map(CANONICAL_GENRES.map((g) => [g.toLowerCase(), g]))
 

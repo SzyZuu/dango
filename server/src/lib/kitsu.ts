@@ -1,6 +1,7 @@
 import type { AnilistMedia } from './anilist.js'
 import logger from '../logger.js'
 import { parseJsonBody } from '../utils/http.utils.js'
+import { filterMedia, startDateRank } from './media-filter.js'
 
 const KITSU_BASE = 'https://kitsu.app/api/edge'
 const KITSU_HEADERS = { Accept: 'application/vnd.api+json', 'User-Agent': 'dango' }
@@ -77,7 +78,7 @@ function includedMap(
   return included.filter((i) => i.type === type && ids.has(i.id))
 }
 
-const STATUS_MAP: Record<string, string> = {
+const KITSU_STATUS_MAP: Record<string, string> = {
   current: 'RELEASING',
   finished: 'FINISHED',
   upcoming: 'NOT_YET_RELEASED',
@@ -118,7 +119,7 @@ function parseKitsuDate(s: unknown): { year?: number; month?: number; day?: numb
 
 function statusToAnilist(status: string | undefined): string | undefined {
   if (!status) return undefined
-  return STATUS_MAP[status.toLowerCase()] ?? status.toUpperCase()
+  return KITSU_STATUS_MAP[status.toLowerCase()] ?? status.toUpperCase()
 }
 
 function formatToAnilist(subtype: string | undefined): string | undefined {
@@ -248,22 +249,10 @@ export async function kitsuSearchAnime(options: KitsuSearchOptions = {}): Promis
   for (const entry of entries) {
     const media = normalizeKitsuEntry(entry, included)
     if (!media) continue
-
-    if (genre_not_in?.length) {
-      const hasExcluded = (media.genres ?? []).some((g) =>
-        genre_not_in.some((ng) => ng.toLowerCase() === g.toLowerCase())
-      )
-      if (hasExcluded) continue
-    }
-    if (averageScore_greater != null && (media.averageScore ?? 0) < averageScore_greater) continue
-    if (episodes_greater != null && (media.episodes ?? 0) < episodes_greater) continue
-    if (isAdult === true && !media.isAdult) continue
-    if (isAdult === false && media.isAdult) continue
-
     results.push(media)
   }
 
-  return results
+  return filterMedia(results, { genre_not_in, averageScore_greater, episodes_greater, isAdult })
 }
 
 export function dedupeKitsuMedia(list: AnilistMedia[]): AnilistMedia[] {
@@ -361,14 +350,6 @@ async function kitsuIdByAnilistId(anilistId: number): Promise<string | null> {
   const entries = asArray(json?.data)
   if (entries.length === 0) return null
   return mappingItem(entries[0], json?.included ?? [])?.id ?? null
-}
-
-const KITSU_STATUS_MAP: Record<string, string> = {
-  current: 'RELEASING',
-  finished: 'FINISHED',
-  upcoming: 'NOT_YET_RELEASED',
-  unreleased: 'NOT_YET_RELEASED',
-  tba: 'NOT_YET_RELEASED',
 }
 
 export async function kitsuBatchGetStatuses(anilistIds: number[]): Promise<Map<number, string>> {
@@ -589,20 +570,14 @@ export async function kitsuLatestReleases(
     const aNext = a.nextAiringEpisode?.airingAt ?? Number.MAX_SAFE_INTEGER
     const bNext = b.nextAiringEpisode?.airingAt ?? Number.MAX_SAFE_INTEGER
     if (aNext !== bNext) return aNext - bNext
-    const aStart = fallbackStartRank(a)
-    const bStart = fallbackStartRank(b)
+    const aStart = startDateRank(a)
+    const bStart = startDateRank(b)
     if (aStart !== bStart) return bStart - aStart
     return (b.popularity ?? 0) - (a.popularity ?? 0)
   })
 
   const start = (page - 1) * size
   return dedupeKitsuMedia(all.slice(start, start + size))
-}
-
-function fallbackStartRank(m: AnilistMedia): number {
-  return (
-    (m.startDate?.year ?? 0) * 10000 + (m.startDate?.month ?? 0) * 100 + (m.startDate?.day ?? 0)
-  )
 }
 
 export async function kitsuSeasonal(

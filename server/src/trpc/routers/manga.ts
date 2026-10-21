@@ -7,6 +7,7 @@ import type {
   MangaProvider,
 } from '../../providers/manga/manga.types.js'
 import type { TrpcContext } from '../context.js'
+import { cached as apiCached } from '../cache.js'
 import logger from '../../logger.js'
 
 type MangaTrendingItem = {
@@ -98,19 +99,18 @@ async function runMangaSearch(
   return { items: [], hasNext: false, provider: provider || names[0] || '' }
 }
 
+type ProviderResult = { status?: number; body: unknown }
+
 async function cached(
   ctx: TrpcContext,
   key: string,
   ttl: number | undefined,
-  produce: () => Promise<{ status?: number; body: unknown }>
+  produce: () => Promise<ProviderResult>
 ): Promise<unknown> {
-  const hit = ctx.apiCache.get<unknown>(key)
-  if (hit) return hit
-  const result = await produce()
-  if ((result.status ?? 200) >= 200 && (result.status ?? 200) < 400) {
-    if (ttl !== undefined) ctx.apiCache.set(key, result.body, ttl)
-    else ctx.apiCache.set(key, result.body)
-  }
+  const result = await apiCached(ctx, key, ttl, produce, (r) => {
+    const status = r.status ?? 200
+    return status >= 200 && status < 400
+  })
   if (result.status !== undefined && result.status !== 200) {
     throw new TRPCError({
       code:

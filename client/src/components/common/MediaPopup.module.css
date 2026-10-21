@@ -84,6 +84,16 @@
   overflow: hidden;
 }
 
+.cover {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: var(--radius-md);
+  margin-bottom: var(--space-3);
+  background: var(--bg-tertiary);
+}
+
 .body {
   padding: 0 var(--space-4) var(--space-4) var(--space-4);
   display: flex;

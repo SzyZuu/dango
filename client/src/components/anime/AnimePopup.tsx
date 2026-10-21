@@ -1,12 +1,11 @@
-import React, { useMemo, useRef, useState } from 'react'
-import Icon from '../common/Icon'
-import { Link } from 'react-router'
+import React, { useMemo } from 'react'
 import { useAnimeInfoData } from '../../hooks/useAnimeInfoData'
 import { sanitizeText } from '../../lib/utils'
 import { useTitlePreference } from '../../contexts/TitlePreferenceContext'
 import QueueOptionsButton from './QueueOptionsButton'
-import MediaPopupShell from '../common/MediaPopupShell'
-import styles from '../common/MediaPopup.module.css'
+import MediaPopup from '../common/MediaPopup'
+import popupStyles from '../common/MediaPopup.module.css'
+import type { MediaPopupMeta } from '../common/MediaPopup'
 
 interface AnimePopupProps {
   showId: string
@@ -34,133 +33,55 @@ const AnimePopup: React.FC<AnimePopupProps> = ({
     return showMeta.name
   }, [showMeta, titlePreference])
 
-  const [queueMenuOpen, setQueueMenuOpen] = useState(false)
-  const mouseInsideRef = useRef(false)
+  const meta: MediaPopupMeta[] = []
+  if (showMeta?.score) meta.push({ icon: 'star', label: String(showMeta.score), accent: true })
+  if (showMeta?.status) meta.push({ icon: 'tv', label: showMeta.status })
 
-  const handlePopupMouseEnter = () => {
-    mouseInsideRef.current = true
-    onMouseEnter()
-  }
+  const genres =
+    Array.isArray(showMeta?.genres) && showMeta.genres.length > 0
+      ? showMeta.genres
+          .filter(Boolean)
+          .slice(0, 4)
+          .map((g) => (typeof g === 'string' ? g : g?.name))
+          .filter((name): name is string => !!name)
+      : []
 
-  const handlePopupMouseLeave = () => {
-    mouseInsideRef.current = false
-    if (queueMenuOpen) return
-    onMouseLeave()
-  }
-
-  const handleQueueMenuOpenChange = (open: boolean) => {
-    setQueueMenuOpen(open)
-    if (!open && !mouseInsideRef.current) {
-      onMouseLeave()
-    }
-  }
-
-  const content = (
-    <MediaPopupShell
+  return (
+    <MediaPopup
       anchorRect={anchorRect}
-      onMouseEnter={handlePopupMouseEnter}
-      onMouseLeave={handlePopupMouseLeave}
+      title={displayTitle}
+      loading={loadingMeta}
+      error={showMeta ? undefined : 'Failed to load info.'}
+      meta={meta}
+      genres={genres}
+      synopsis={
+        showMeta?.description ? sanitizeText(showMeta.description) : 'No synopsis available.'
+      }
+      primaryAction={{ to: `/watch/${showMeta?.id || showId}`, label: 'Watch now', icon: 'play' }}
+      secondaryAction={{ to: `/anime/${showMeta?.id || showId}`, label: 'Read more' }}
+      bookmarked={inWatchlist}
+      onToggleBookmark={toggleWatchlist}
+      extraActions={(onSubMenuOpenChange) =>
+        showMeta ? (
+          <QueueOptionsButton
+            showId={showId}
+            showName={showMeta.name || showMeta.names?.romaji}
+            showThumbnail={showMeta.thumbnail}
+            nativeName={showMeta.names?.native}
+            englishName={showMeta.names?.english}
+            showType={showMeta.type}
+            className={popupStyles.watchlistBtn}
+            activeClassName={popupStyles.active}
+            align="left"
+            onMenuOpenChange={onSubMenuOpenChange}
+          />
+        ) : null
+      }
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       onRequestClose={onRequestClose}
-    >
-      {loadingMeta ? (
-        <div className={styles.loading}>
-          <div className={styles.spinner} />
-          <span>Fetching details...</span>
-        </div>
-      ) : showMeta ? (
-        <>
-          <div className={styles.header}>
-            <div className={styles.title}>{displayTitle}</div>
-          </div>
-
-          <div className={styles.body}>
-            <div className={styles.metaRow}>
-              {showMeta.score && (
-                <div className={styles.metaItem}>
-                  <Icon name="star" className={styles.scoreIcon} size={14} />
-                  <span>{showMeta.score}</span>
-                </div>
-              )}
-              {showMeta.status && (
-                <div className={styles.metaItem}>
-                  <Icon name="tv" size={14} />
-                  <span>{showMeta.status}</span>
-                </div>
-              )}
-            </div>
-
-            <div className={styles.synopsis}>
-              {showMeta.description ? sanitizeText(showMeta.description) : 'No synopsis available.'}
-            </div>
-
-            <div className={styles.details}>
-              {showMeta.nextEpisodeAirDate && (
-                <div className={styles.detailItem}>
-                  <strong>Aired:</strong> {showMeta.nextEpisodeAirDate}
-                </div>
-              )}
-              {Array.isArray(showMeta.genres) && showMeta.genres.length > 0 && (
-                <div className={styles.genres}>
-                  {showMeta.genres
-                    .filter(Boolean)
-                    .slice(0, 4)
-                    .map((g) => {
-                      const genreName = typeof g === 'string' ? g : g?.name
-                      return (
-                        <span key={genreName} className={styles.genre}>
-                          {genreName}
-                        </span>
-                      )
-                    })}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className={styles.footer}>
-            <div className={styles.primaryAction}>
-              <Link to={`/watch/${showMeta?.id || showId}`} className={styles.watchBtn}>
-                <Icon name="play" size={14} />
-                Watch now
-              </Link>
-            </div>
-            <div className={styles.secondaryActions}>
-              <button
-                className={`${styles.watchlistBtn} ${inWatchlist ? styles.active : ''}`}
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  toggleWatchlist()
-                }}
-              >
-                {inWatchlist ? <Icon name="check" size={12} /> : <Icon name="plus" size={12} />}
-                <span>{inWatchlist ? 'Remove' : 'Watchlist'}</span>
-              </button>
-              <QueueOptionsButton
-                showId={showId}
-                showName={showMeta.name || showMeta.names?.romaji}
-                showThumbnail={showMeta.thumbnail}
-                nativeName={showMeta.names?.native}
-                englishName={showMeta.names?.english}
-                showType={showMeta.type}
-                className={styles.watchlistBtn}
-                activeClassName={styles.active}
-                align="left"
-                onMenuOpenChange={handleQueueMenuOpenChange}
-              />
-              <Link to={`/anime/${showMeta?.id || showId}`} className={styles.detailsBtn}>
-                Read more
-              </Link>
-            </div>
-          </div>
-        </>
-      ) : (
-        <div className={styles.loading}>Failed to load info.</div>
-      )}
-    </MediaPopupShell>
+    />
   )
-
-  return content
 }
 
 export default AnimePopup

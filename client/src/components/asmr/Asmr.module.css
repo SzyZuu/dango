@@ -136,26 +136,9 @@
   color: var(--accent-text);
 }
 
-.popupCover {
-  display: block;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  object-fit: cover;
-  border-radius: var(--radius-md);
-  margin-bottom: var(--space-3);
-  background: var(--bg-tertiary);
-}
-
 @media (hover: none), (pointer: coarse) {
   .bookmarkBtn {
     opacity: 1;
-  }
-}
-
-@media (max-width: 768px) {
-  .popupCover {
-    aspect-ratio: 3 / 4;
-    max-height: 38vh;
   }
 }
 

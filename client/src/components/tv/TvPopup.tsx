@@ -1,11 +1,9 @@
-import React, { useMemo, useRef, useState, useEffect } from 'react'
-import Icon from '../common/Icon'
-import { Link } from 'react-router'
+import React, { useMemo, useState, useEffect } from 'react'
 import { tvDetailPath, tvWatchPath, buildTvId } from '../../lib/tv'
 import { useToggleTvBookmark } from '../../hooks/useTvLibrary'
 import { trpcClient } from '../../lib/trpc'
-import MediaPopupShell from '../common/MediaPopupShell'
-import styles from '../common/MediaPopup.module.css'
+import MediaPopup from '../common/MediaPopup'
+import type { MediaPopupMeta } from '../common/MediaPopup'
 import type { TvItem } from './TvCard'
 
 interface TvPopupDetails {
@@ -33,7 +31,6 @@ const TvPopup: React.FC<TvPopupProps> = ({
   onMouseLeave,
   onRequestClose,
 }) => {
-  const mouseInsideRef = useRef(false)
   const [details, setDetails] = useState<TvPopupDetails | null>(null)
   const [loading, setLoading] = useState(true)
   const { toggle, bookmarkedIds } = useToggleTvBookmark()
@@ -69,112 +66,48 @@ const TvPopup: React.FC<TvPopupProps> = ({
     return details.genres.slice(0, 4).map((g) => g.name)
   }, [details?.genres])
 
-  const detailPath = tvDetailPath(item.type, item.id)
-  const watchPath = tvWatchPath(item.type, item.id)
-
-  const handleToggleWatchlist = (e: React.MouseEvent<HTMLElement>) => {
-    e.preventDefault()
-    e.stopPropagation()
-    toggle({
-      tmdbId: item.id,
-      mediaType: item.type,
-      title: item.title,
-      poster: item.image,
-      year: item.year,
-    })
+  const meta: MediaPopupMeta[] = []
+  if (details?.vote_average != null && details.vote_average > 0) {
+    meta.push({ icon: 'star', label: Number(details.vote_average).toFixed(1), accent: true })
   }
+  meta.push({ icon: 'tv', label: item.type === 'tv' ? 'TV Show' : 'Movie' })
+  if (item.year) meta.push({ label: item.year })
+  if (details?.status) meta.push({ label: details.status })
 
   return (
-    <MediaPopupShell
+    <MediaPopup
       anchorRect={anchorRect}
-      onMouseEnter={() => {
-        mouseInsideRef.current = true
-        onMouseEnter()
+      title={item.title}
+      loading={loading}
+      meta={meta}
+      genres={genres}
+      synopsis={
+        details?.overview
+          ? details.overview.length > 200
+            ? details.overview.slice(0, 200) + '...'
+            : details.overview
+          : undefined
+      }
+      primaryAction={{ to: tvWatchPath(item.type, item.id), label: 'Watch now', icon: 'play' }}
+      secondaryAction={{
+        to: tvDetailPath(item.type, item.id),
+        label: 'Details',
+        icon: 'info-circle',
       }}
-      onMouseLeave={() => {
-        mouseInsideRef.current = false
-        onMouseLeave()
-      }}
+      bookmarked={inWatchlist}
+      onToggleBookmark={() =>
+        toggle({
+          tmdbId: item.id,
+          mediaType: item.type,
+          title: item.title,
+          poster: item.image,
+          year: item.year,
+        })
+      }
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
       onRequestClose={onRequestClose}
-    >
-      <div className={styles.header}>
-        <div className={styles.title}>{item.title}</div>
-      </div>
-
-      <div className={styles.body}>
-        {loading ? (
-          <div className={styles.loading}>
-            <div className={styles.spinner} />
-            <span>Fetching details...</span>
-          </div>
-        ) : (
-          <>
-            <div className={styles.metaRow}>
-              {details?.vote_average != null && details.vote_average > 0 && (
-                <div className={styles.metaItem}>
-                  <Icon name="star" className={styles.scoreIcon} size={14} />
-                  <span>{Number(details.vote_average).toFixed(1)}</span>
-                </div>
-              )}
-              <div className={styles.metaItem}>
-                <Icon name="tv" size={14} />
-                <span>{item.type === 'tv' ? 'TV Show' : 'Movie'}</span>
-              </div>
-              {item.year && (
-                <div className={styles.metaItem}>
-                  <span>{item.year}</span>
-                </div>
-              )}
-              {details?.status && (
-                <div className={styles.metaItem}>
-                  <span>{details.status}</span>
-                </div>
-              )}
-            </div>
-
-            {genres.length > 0 && (
-              <div className={styles.genres}>
-                {genres.map((g) => (
-                  <span key={g} className={styles.genre}>
-                    {g}
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {details?.overview && (
-              <div className={styles.synopsis}>
-                {details.overview.length > 200
-                  ? details.overview.slice(0, 200) + '...'
-                  : details.overview}
-              </div>
-            )}
-          </>
-        )}
-      </div>
-
-      <div className={styles.footer}>
-        <div className={styles.primaryAction}>
-          <Link to={watchPath} className={styles.watchBtn} onClick={onRequestClose}>
-            <Icon name="play" size={14} />
-            Watch now
-          </Link>
-        </div>
-        <div className={styles.secondaryActions}>
-          <button
-            className={`${styles.watchlistBtn} ${inWatchlist ? styles.active : ''}`}
-            onClick={handleToggleWatchlist}
-          >
-            {inWatchlist ? <Icon name="check" size={12} /> : <Icon name="plus" size={12} />}
-            <span>{inWatchlist ? 'Remove' : 'Watchlist'}</span>
-          </button>
-          <Link to={detailPath} className={styles.detailsBtn} onClick={onRequestClose}>
-            <Icon name="info-circle" size={12} />
-            <span>Details</span>
-          </Link>
-        </div>
-      </div>
-    </MediaPopupShell>
+    />
   )
 }
 

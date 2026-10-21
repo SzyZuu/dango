@@ -8,19 +8,7 @@ import shellStyles from '../components/player/UnifiedPlayer.module.css'
 import Icon from '../components/common/Icon'
 import { fixThumbnailUrl } from '../lib/utils'
 import { isProgressCompleted, isShowFinale, storeAutoplayEnabled } from '../lib/playbackCompletion'
-import { loadHls } from '../lib/hls'
-import { trpcClient } from '../lib/trpc'
-import { pickSubtitleIndex } from '../lib/subtitles'
-import {
-  buildCueCss,
-  buildOverlayCss,
-  fitSubtitleSize,
-  renderCueHtml,
-  stripCueTags,
-  subtitleBottomPx,
-  type SubtitleStyleSettings,
-} from '../lib/subtitleStyle'
-import type Hls from 'hls.js'
+import { type SubtitleStyleSettings } from '../lib/subtitleStyle'
 import { Modal } from '../components/common/Modal'
 import { Button } from '../components/common/Button'
 import MatureConsentModal from '../components/common/MatureConsentModal'
@@ -41,6 +29,7 @@ import { ProviderSelector } from '../components/player/SourceSelector'
 import useVideoPlayer from '../hooks/useVideoPlayer'
 import useAutoRotateFullscreen from '../hooks/useAutoRotateFullscreen'
 import useAnime4K, { type Anime4KProfile } from '../hooks/useAnime4K'
+import { useAnime4KEpisodeCycle } from '../hooks/useAnime4KEpisodeCycle'
 import useDelayCanvas from '../hooks/useDelayCanvas'
 import { useAvSync } from '../hooks/useAvSync'
 import { useTheaterMode } from '../hooks/useTheaterMode'
@@ -48,20 +37,21 @@ import { useAmbientLight } from '../hooks/useAmbientLight'
 import AmbientLightCanvas from '../components/player/AmbientLightCanvas'
 import AvSyncCalibrator from '../components/player/AvSyncCalibrator'
 import { usePlayerData } from '../hooks/usePlayerData'
+import { usePlayerShortcuts } from '../hooks/usePlayerShortcuts'
+import { useProviderFallback } from '../hooks/useProviderFallback'
+import { useMediaSource } from '../hooks/useMediaSource'
+import { useSubtitleTracks } from '../hooks/useSubtitleTracks'
+import { useSubtitleCueLayout } from '../hooks/useSubtitleCueLayout'
+import { useSubtitleOverlay } from '../hooks/useSubtitleOverlay'
 import { savePreferredProvider } from '../reducers/playerReducer'
 import { useQueue, useRemoveFromQueue, useClearQueue, useReorderQueue } from '../hooks/useAnimeData'
 import type { QueueItem } from '../hooks/useAnimeData'
-import type { VideoLink, SubtitleTrack, VideoSource } from '../types/player'
+import type { VideoLink } from '../types/player'
 import AnimeMetaDetails from '../components/anime/AnimeMetaDetails'
 import SynopsisText from '../components/anime/SynopsisText'
 import AnimePaheCookieModal from '../components/anime/AnimePaheCookieModal'
 import MkissaVerificationModal from '../components/anime/MkissaVerificationModal'
 import QueueOptionsButton from '../components/anime/QueueOptionsButton'
-import {
-  getStoredFallbackAction,
-  storeFallbackAction,
-  type FallbackChoice,
-} from '../lib/fallbackChoice'
 
 import { useProviders } from '../hooks/useProviders'
 
@@ -138,14 +128,10 @@ const Player: React.FC = () => {
   })
   const { refs, actions } = player
 
-  const hlsInstance = useRef<Hls | null>(null)
   const isMobile = useIsMobile()
   const episodeSidebarRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const subtitleOverlayRef = useRef<HTMLDivElement>(null)
-  const seekToTimeRef = useRef<number>(0)
-  const resumeTimeRef = useRef(state.resumeTime)
-  const showResumeModalRef = useRef(state.showResumeModal)
 
   const [anime4kProfile, setAnime4kProfile] = useState<Anime4KProfile>(() => {
     try {
@@ -183,66 +169,15 @@ const Player: React.FC = () => {
   })
 
   const upscalerActive = upscaler.isEnabled && upscaler.isWebGPUSupported
-  const upscalerEpisodeKey = `${showId ?? ''}:${state.currentEpisode ?? ''}`
-  const prevUpscalerEpisodeKeyRef = useRef<string | null>(null)
-  const upscalerCyclePendingRef = useRef(false)
-  const upscalerDisableObservedRef = useRef(false)
-  const upscalerSetEnabledRef = useRef(upscaler.setEnabled)
-  upscalerSetEnabledRef.current = upscaler.setEnabled
-  useEffect(() => {
-    const prevKey = prevUpscalerEpisodeKeyRef.current
-    prevUpscalerEpisodeKeyRef.current = upscalerEpisodeKey
-    if (prevKey === null || prevKey === upscalerEpisodeKey) return
-    if (!upscaler.isEnabled || !upscaler.isWebGPUSupported) return
-    upscalerCyclePendingRef.current = true
-    upscalerDisableObservedRef.current = false
-    upscalerSetEnabledRef.current(false)
-  }, [upscalerEpisodeKey, upscaler.isEnabled, upscaler.isWebGPUSupported])
-  useEffect(() => {
-    if (!upscalerCyclePendingRef.current) return
-    if (upscaler.isEnabled) {
-      if (upscalerDisableObservedRef.current) upscalerCyclePendingRef.current = false
-      return
-    }
-    upscalerDisableObservedRef.current = true
-    if (state.loadingVideo || !state.selectedLink) return
-    if (state.selectedSource?.type === 'iframe') {
-      upscalerCyclePendingRef.current = false
-      upscalerSetEnabledRef.current(true)
-      return
-    }
-    const video = refs.videoRef.current
-    if (!video) return
-    let timer: number | undefined
-    let settled = false
-    const reenable = () => {
-      if (settled) return
-      settled = true
-      upscalerCyclePendingRef.current = false
-      upscalerSetEnabledRef.current(true)
-    }
-    if (video.readyState >= 2) {
-      timer = window.setTimeout(reenable, 500)
-      return () => window.clearTimeout(timer)
-    }
-    const onReady = () => {
-      window.setTimeout(reenable, 500)
-    }
-    video.addEventListener('canplay', onReady, { once: true })
-    video.addEventListener('playing', onReady, { once: true })
-    timer = window.setTimeout(reenable, 5000)
-    return () => {
-      window.clearTimeout(timer)
-      video.removeEventListener('canplay', onReady)
-      video.removeEventListener('playing', onReady)
-    }
-  }, [
-    upscaler.isEnabled,
-    state.loadingVideo,
-    state.selectedLink,
-    state.selectedSource?.type,
-    refs.videoRef,
-  ])
+  useAnime4KEpisodeCycle({
+    videoRef: refs.videoRef,
+    episodeKey: `${showId ?? ''}:${state.currentEpisode ?? ''}`,
+    isEnabled: upscaler.isEnabled,
+    isSupported: upscaler.isWebGPUSupported,
+    mediaReady: !state.loadingVideo && !!state.selectedLink,
+    isIframeSource: state.selectedSource?.type === 'iframe',
+    setEnabled: upscaler.setEnabled,
+  })
   useDelayCanvas({
     videoRef: refs.videoRef,
     canvasRef: delayCanvasRef,
@@ -252,36 +187,11 @@ const Player: React.FC = () => {
   const delayCanvasActive = videoDelayEnabled && !upscalerActive
   const canvasPresentationActive = upscalerActive || delayCanvasActive
 
-  useEffect(() => {
-    resumeTimeRef.current = state.resumeTime
-    showResumeModalRef.current = state.showResumeModal
-  }, [state.resumeTime, state.showResumeModal])
-
   const [showNextEpisodePrompt, setShowNextEpisodePrompt] = useState(false)
   const [hasReachedEpisodeEnd, setHasReachedEpisodeEnd] = useState(false)
   const [isEpisodeDrawerOpen, setIsEpisodeDrawerOpen] = useState(false)
   const hasDismissedShowCompletedRef = useRef(false)
   const [queueCountdown, setQueueCountdown] = useState<number | null>(null)
-  const hasAutoFallbackRef = useRef(false)
-  const triedProvidersRef = useRef<string[]>([])
-  const fallbackDismissedRef = useRef(false)
-  const [fallbackPrompt, setFallbackPrompt] = useState<{ retryFailed: boolean } | null>(null)
-  const [isRetryingProvider, setIsRetryingProvider] = useState(false)
-  const [rememberFallbackChoice, setRememberFallbackChoice] = useState(false)
-  const [fallbackChoice, setFallbackChoiceState] = useState<FallbackChoice>(
-    () => getStoredFallbackAction() ?? 'ask'
-  )
-  const updateFallbackChoice = useCallback((value: FallbackChoice) => {
-    setFallbackChoiceState(value)
-    storeFallbackAction(value === 'ask' ? null : value)
-  }, [])
-  const fallbackChoiceRef = useRef(fallbackChoice)
-  useEffect(() => {
-    fallbackChoiceRef.current = fallbackChoice
-  }, [fallbackChoice])
-  const videoSourcesRef = useRef(state.videoSources)
-  videoSourcesRef.current = state.videoSources
-  const handleVideoSourceErrorRef = useRef<() => void>(() => {})
   const [pendingQueueTransition, setPendingQueueTransition] = useState<{
     nextItem: QueueItem | null
     playedItem: QueueItem | null
@@ -297,14 +207,6 @@ const Player: React.FC = () => {
       stopCalibration()
     }
   }, [episodeNumber, stopCalibration])
-
-  useEffect(() => {
-    hasAutoFallbackRef.current = false
-    triedProvidersRef.current = []
-    fallbackDismissedRef.current = false
-    setFallbackPrompt(null)
-    setIsRetryingProvider(false)
-  }, [showId, state.currentEpisode])
 
   useEffect(() => {
     if (!hasReachedEpisodeEnd) {
@@ -365,338 +267,47 @@ const Player: React.FC = () => {
 
   useAutoRotateFullscreen(player, !!state.selectedLink && !isTheaterMode && !shouldPauseForModal)
 
-  useEffect(() => {
-    const videoElement = refs.videoRef.current
-    if (!videoElement) return
-
-    let cancelled = false
-    if (hlsInstance.current) {
-      hlsInstance.current.destroy()
-      hlsInstance.current = null
-    }
-
-    if (state.loadingVideo || state.selectedSource) {
-      videoElement.pause()
-      videoElement.removeAttribute('src')
-      videoElement.load()
-    }
-
-    while (videoElement.firstChild) {
-      videoElement.removeChild(videoElement.firstChild)
-    }
-
-    if (testClipActive) {
-      videoElement.src = '/av-sync-test.mp4'
-      videoElement.play().catch(() => {
-        actions.setShowControls(true)
-      })
-      return () => {
-        cancelled = true
-      }
-    }
-
-    if (!state.selectedSource || !state.selectedLink) return
-
-    if (state.selectedSource.type === 'iframe') {
-      seekToTimeRef.current = 0
-      return
-    }
-
-    if (calibReturnRef.current != null) {
-      seekToTimeRef.current = calibReturnRef.current
-      calibReturnRef.current = null
-    } else if (resumeTimeRef.current > 5 && !showResumeModalRef.current) {
-      seekToTimeRef.current = resumeTimeRef.current
-    } else if (showResumeModalRef.current) {
-      seekToTimeRef.current = 0
-    }
-
-    let proxiedUrl = state.selectedLink.link
-    if (!proxiedUrl.startsWith('/api/proxy')) {
-      proxiedUrl = `/api/proxy?url=${encodeURIComponent(proxiedUrl)}`
-      if (state.selectedLink.headers?.Referer) {
-        proxiedUrl += `&referer=${encodeURIComponent(state.selectedLink.headers.Referer)}`
-      }
-    }
-
-    if (state.selectedSource.subtitles) {
-      const subtitlesEnabled = localStorage.getItem('playerSubtitlesEnabled') !== 'false'
-      let lastKey: string | null = null
-      try {
-        lastKey = localStorage.getItem('playerLastSubtitle')
-      } catch {
-        // ignore
-      }
-      const pickedIdx = pickSubtitleIndex(state.selectedSource.subtitles, {
-        lastKey,
-        enabled: subtitlesEnabled,
-      })
-      const pickedTrack = pickedIdx >= 0 ? state.selectedSource.subtitles[pickedIdx] : null
-      state.selectedSource.subtitles.forEach((sub) => {
-        const track = document.createElement('track')
-        track.kind = 'subtitles'
-        track.label = sub.label
-        track.srclang = sub.lang
-
-        const subSrc = sub.src ?? sub.url
-        if (subSrc) {
-          let subUrl = `/api/subtitle-proxy?url=${encodeURIComponent(subSrc)}`
-          const subReferer = state.selectedLink?.headers?.Referer
-          if (subReferer) {
-            subUrl += `&referer=${encodeURIComponent(subReferer)}`
-          }
-          track.src = subUrl
-        }
-
-        if (pickedTrack && sub.label === pickedTrack.label && sub.lang === pickedTrack.lang) {
-          track.default = true
-        }
-        videoElement.appendChild(track)
-      })
-      if (!subtitlesEnabled) {
-        actions.setActiveSubtitleTrack('off')
-      }
-      actions.setAvailableSubtitles(state.selectedSource.subtitles)
-    }
-
-    const targetTime = seekToTimeRef.current
-    seekToTimeRef.current = 0
-
-    const handleLoaded = () => {
-      if (targetTime > 0) {
-        videoElement.currentTime = targetTime
-      }
-    }
-    videoElement.addEventListener('loadedmetadata', handleLoaded, { once: true })
-
-    const shouldAutoPlay = !(showResumeModalRef.current && resumeTimeRef.current > 5)
-    const playWhenReady = () => {
-      if (shouldAutoPlay) {
-        videoElement.play().catch(() => {
-          actions.setShowControls(true)
-        })
-      }
-    }
-
-    if (state.selectedLink.hls) {
-      void (async () => {
-        const HlsClass = await loadHls()
-        if (cancelled) return
-        if (!HlsClass || !HlsClass.isSupported()) {
-          videoElement.src = proxiedUrl
-          playWhenReady()
-          return
-        }
-        const isLowEnd = document.body.classList.contains('low-end')
-        const hls = new HlsClass({
-          maxBufferLength: isLowEnd ? 15 : 30,
-          maxMaxBufferLength: isLowEnd ? 30 : 60,
-          maxBufferSize: isLowEnd ? 25 * 1000 * 1000 : 60 * 1000 * 1000,
-          startLevel: -1,
-          enableWorker: true,
-        })
-        hlsInstance.current = hls
-        hls.on(HlsClass.Events.ERROR, (_event, data) => {
-          if (data.fatal && !hasAutoFallbackRef.current) {
-            handleVideoSourceErrorRef.current()
-          }
-        })
-        const hasManualSubs = (state.selectedSource?.subtitles?.length ?? 0) > 0
-        const disableEmbeddedSubs = () => {
-          try {
-            if (
-              hasManualSubs &&
-              typeof hls.subtitleTrack === 'number' &&
-              hls.subtitleTrack !== -1
-            ) {
-              hls.subtitleTrack = -1
-            }
-          } catch {
-            // ignore
-          }
-        }
-        hls.on(HlsClass.Events.SUBTITLE_TRACK_SWITCH, (_event, data) => {
-          if (data?.id !== -1) disableEmbeddedSubs()
-        })
-        disableEmbeddedSubs()
-        hls.loadSource(proxiedUrl)
-        hls.attachMedia(videoElement)
-        hls.once(HlsClass.Events.MANIFEST_PARSED, () => {
-          if (!cancelled) playWhenReady()
-        })
-      })()
-    } else {
-      videoElement.src = proxiedUrl
-      playWhenReady()
-    }
-
-    const savedVolume = localStorage.getItem('playerVolume')
-    const savedMuted = localStorage.getItem('playerMuted')
-
-    if (savedVolume !== null) {
-      videoElement.volume = parseFloat(savedVolume)
-    }
-    if (savedMuted !== null) {
-      videoElement.muted = savedMuted === 'true'
-    }
-
-    return () => {
-      cancelled = true
-      videoElement.removeEventListener('loadedmetadata', handleLoaded)
-      if (hlsInstance.current) {
-        hlsInstance.current.destroy()
-        hlsInstance.current = null
-      }
-    }
-  }, [
-    state.selectedSource,
-    state.selectedLink,
-    refs.videoRef,
-    calibReturnRef,
-    actions,
-    state.loadingVideo,
-    testClipActive,
-  ])
-
-  const switchToIframeFallback = useCallback(
-    (fallbackSource: VideoSource) => {
-      if (hasAutoFallbackRef.current) return
-      hasAutoFallbackRef.current = true
-      const bestLink = fallbackSource.links[0]
-      setPreferredSource(fallbackSource.sourceName)
-      dispatch({
-        type: 'SET_STATE',
-        payload: { selectedSource: fallbackSource, selectedLink: bestLink },
-      })
-      setFallbackPrompt(null)
-    },
-    [dispatch, setPreferredSource]
-  )
-
-  const findIframeFallback = useCallback((): VideoSource | null => {
-    const sources = videoSourcesRef.current
-    const fallbackSource = sources.find((s) => s.type === 'iframe')
-    return fallbackSource?.links?.length ? fallbackSource : null
-  }, [])
-
-  const runProviderRetry = useCallback(async () => {
-    const isAdult = state.showMeta?.isAdult
-    const ordered = DIRECT_PROVIDER_ORDER.filter((provider) => {
-      if (triedProvidersRef.current.includes(provider)) return false
-      const mature = MATURE_PROVIDERS.has(provider)
-      if (isAdult === undefined) return true
-      return mature === isAdult
-    })
-    setIsRetryingProvider(true)
-    try {
-      for (const provider of ordered) {
-        triedProvidersRef.current.push(provider)
-        let sources: VideoSource[] | null = null
-        try {
-          sources = (await trpcClient.data.video.query({
-            showId,
-            episodeNumber: state.currentEpisode ?? undefined,
-            mode: state.currentMode,
-            provider,
-          })) as VideoSource[] | null
-        } catch {
-          continue
-        }
-        const pool = (sources ?? []).filter((s) => {
-          const name = s.sourceName.toLowerCase()
-          if (state.currentMode === 'dub') {
-            return name.includes('eng') || name.includes('dub')
-          }
-          return (
-            name.includes('jpn') ||
-            name.includes('sub') ||
-            (!name.includes('eng') && !name.includes('dub'))
-          )
-        })
-        const withDirect = pool.length > 0 ? pool : (sources ?? [])
-        const direct = withDirect.find((s) => s.type !== 'iframe' && s.links?.length)
-        if (direct) {
-          triedProvidersRef.current = [state.selectedProvider]
-          fallbackDismissedRef.current = false
-          dispatch({
-            type: 'SET_STATE',
-            payload: {
-              selectedProvider: provider,
-              videoSources: [],
-              selectedSource: null,
-              selectedLink: null,
-              loadingVideo: true,
-            },
-          })
-          savePreferredProvider(provider, state.showMeta?.isAdult === true)
-          setFallbackPrompt(null)
-          toast.success(`Switched to ${provider} (direct stream)`)
-          return
-        }
-      }
-      setFallbackPrompt({ retryFailed: true })
-      toast.error('No working direct stream found on other providers')
-    } finally {
-      setIsRetryingProvider(false)
-    }
-  }, [
+  const {
+    fallbackPrompt,
+    isRetryingProvider,
+    rememberFallbackChoice,
+    setRememberFallbackChoice,
+    fallbackChoice,
+    updateFallbackChoice,
+    dismissFallbackPrompt,
+    chooseIframeFallback,
+    chooseProviderRetry,
+    handleVideoSourceError,
+    resetFallback,
+  } = useProviderFallback({
     showId,
-    state.currentEpisode,
-    state.currentMode,
-    state.showMeta?.isAdult,
-    state.selectedProvider,
+    episodeNumber: state.currentEpisode ?? undefined,
+    currentMode: state.currentMode,
+    selectedProvider: state.selectedProvider,
+    selectedSourceType: state.selectedSource?.type,
+    videoSources: state.videoSources,
+    isAdult: state.showMeta?.isAdult,
+    providerOrder: DIRECT_PROVIDER_ORDER,
+    matureProviders: MATURE_PROVIDERS,
+    setPreferredSource,
     dispatch,
-    DIRECT_PROVIDER_ORDER,
-    MATURE_PROVIDERS,
-  ])
+    showControls: actions.setShowControls,
+  })
 
-  const handleVideoSourceError = useCallback(() => {
-    if (hasAutoFallbackRef.current || fallbackDismissedRef.current) return
-    if (state.selectedSource?.type !== 'player') return
-    const fallbackSource = findIframeFallback()
-    if (!fallbackSource) return
-
-    if (!triedProvidersRef.current.includes(state.selectedProvider)) {
-      triedProvidersRef.current.push(state.selectedProvider)
-    }
-    const choice = fallbackChoiceRef.current
-    if (choice === 'iframe') {
-      switchToIframeFallback(fallbackSource)
-      return
-    }
-    if (choice === 'retry') {
-      void runProviderRetry()
-      return
-    }
-    actions.setShowControls(true)
-    setFallbackPrompt({ retryFailed: false })
-  }, [
-    state.selectedSource,
-    state.selectedProvider,
-    findIframeFallback,
-    switchToIframeFallback,
-    runProviderRetry,
-    actions,
-  ])
-  handleVideoSourceErrorRef.current = handleVideoSourceError
-
-  const dismissFallbackPrompt = useCallback(() => {
-    fallbackDismissedRef.current = true
-    setFallbackPrompt(null)
-    setRememberFallbackChoice(false)
-  }, [])
-
-  const chooseIframeFallback = useCallback(() => {
-    if (rememberFallbackChoice) updateFallbackChoice('iframe')
-    const fallbackSource = findIframeFallback()
-    if (fallbackSource) switchToIframeFallback(fallbackSource)
-    else setFallbackPrompt(null)
-  }, [rememberFallbackChoice, updateFallbackChoice, findIframeFallback, switchToIframeFallback])
-
-  const chooseProviderRetry = useCallback(() => {
-    if (rememberFallbackChoice) updateFallbackChoice('retry')
-    void runProviderRetry()
-  }, [rememberFallbackChoice, updateFallbackChoice, runProviderRetry])
+  const { seekToTimeRef } = useMediaSource({
+    videoRef: refs.videoRef,
+    selectedSource: state.selectedSource,
+    selectedLink: state.selectedLink,
+    loadingVideo: state.loadingVideo,
+    testClipActive,
+    resumeTime: state.resumeTime,
+    showResumeModal: state.showResumeModal,
+    calibReturnRef,
+    setAvailableSubtitles: actions.setAvailableSubtitles,
+    setActiveSubtitleTrack: actions.setActiveSubtitleTrack,
+    showControls: actions.setShowControls,
+    onFatalError: handleVideoSourceError,
+  })
 
   const matchesQueueItem = (item: QueueItem, id: string | undefined, metaId: string | undefined) =>
     item.showId === id || (!!metaId && item.showId === metaId)
@@ -923,115 +534,42 @@ const Player: React.FC = () => {
     }
   }, [displayTitle, state.currentEpisode])
 
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement
-      if (
-        target.closest(
-          'input, textarea, button, select, a, [role="button"], [contenteditable="true"]'
-        )
-      )
-        return
-
-      if (['arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(e.key.toLowerCase())) {
-        actions.setShowControls(true)
-        if (player.actions.inactivityTimer.current) {
-          clearTimeout(player.actions.inactivityTimer.current)
-        }
-        player.actions.inactivityTimer.current = window.setTimeout(() => {
-          actions.setShowControls(false)
-        }, 1000)
-      }
-
-      if (e.key.toLowerCase() === 'n') {
-        handleNShortcut()
-      }
-
-      if (e.key.toLowerCase() === 't') {
-        toggleTheaterMode()
-      }
-    }
-    document.addEventListener('keydown', handleKeyDown)
-    return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [actions, player.actions.inactivityTimer, handleNShortcut, toggleTheaterMode])
+  usePlayerShortcuts({
+    onNext: handleNShortcut,
+    onToggleTheater: toggleTheaterMode,
+    flashControls: player.actions.flashControls,
+  })
 
   const { setAvailableSubtitles, setActiveSubtitleTrack } = actions
 
-  useEffect(() => {
-    const videoElement = refs.videoRef.current
-    if (!videoElement) return
-    const handleTracksChange = () => {
-      const tracks: SubtitleTrack[] = Array.from(videoElement.textTracks).map((t) => ({
-        label: t.label,
-        lang: t.language,
-        src: undefined,
-        mode: t.mode as 'showing' | 'hidden' | 'disabled',
-      }))
-      setAvailableSubtitles(tracks)
-    }
-    videoElement.textTracks.addEventListener('addtrack', handleTracksChange)
-    videoElement.textTracks.addEventListener('removetrack', handleTracksChange)
-    handleTracksChange()
-    return () => {
-      if (videoElement) {
-        videoElement.textTracks.removeEventListener('addtrack', handleTracksChange)
-        videoElement.textTracks.removeEventListener('removetrack', handleTracksChange)
-      }
-    }
-  }, [refs.videoRef, setAvailableSubtitles])
+  const subtitleStyle = useMemo<SubtitleStyleSettings>(
+    () => ({
+      fontSize: player.state.subtitleFontSize,
+      position: player.state.subtitlePosition,
+      bgOpacity: player.state.subtitleBgOpacity,
+      bgColor: player.state.subtitleBgColor,
+      textColor: player.state.subtitleTextColor,
+      edge: player.state.subtitleEdge,
+      bold: player.state.subtitleBold,
+    }),
+    [
+      player.state.subtitleFontSize,
+      player.state.subtitlePosition,
+      player.state.subtitleBgOpacity,
+      player.state.subtitleBgColor,
+      player.state.subtitleTextColor,
+      player.state.subtitleEdge,
+      player.state.subtitleBold,
+    ]
+  )
 
-  useEffect(() => {
-    if (
-      player.state.activeSubtitleTrack === null &&
-      player.state.availableSubtitles.length > 0 &&
-      localStorage.getItem('playerSubtitlesEnabled') !== 'false'
-    ) {
-      let lastKey: string | null = null
-      try {
-        lastKey = localStorage.getItem('playerLastSubtitle')
-      } catch {
-        // ignore
-      }
-      const idx = pickSubtitleIndex(player.state.availableSubtitles, {
-        lastKey,
-        enabled: true,
-      })
-      if (idx < 0) {
-        setActiveSubtitleTrack('off')
-        return
-      }
-      const trackToActivate = player.state.availableSubtitles[idx]
-      setActiveSubtitleTrack(trackToActivate.lang || trackToActivate.label)
-    }
-  }, [player.state.activeSubtitleTrack, player.state.availableSubtitles, setActiveSubtitleTrack])
-
-  useEffect(() => {
-    const video = refs.videoRef.current
-    if (!video || player.state.availableSubtitles.length === 0) return
-    const active = player.state.activeSubtitleTrack
-    const enabled = localStorage.getItem('playerSubtitlesEnabled') !== 'false'
-    if (!enabled || active === 'off' || active === null) {
-      Array.from(video.textTracks).forEach((t) => {
-        t.mode = 'hidden'
-      })
-      return
-    }
-    let matched = false
-    Array.from(video.textTracks).forEach((t) => {
-      const isMatch = t.language === active || t.label === active
-      const shouldShow = isMatch && !matched
-      t.mode = shouldShow ? 'showing' : 'hidden'
-      if (shouldShow) matched = true
-    })
-    if (!matched && video.textTracks.length > 0) {
-      const fallback =
-        Array.from(video.textTracks).find((t) => t.language === 'en' || t.label === 'English') ||
-        video.textTracks[0]
-      if (fallback) fallback.mode = 'showing'
-    }
-  }, [player.state.activeSubtitleTrack, player.state.availableSubtitles, refs.videoRef])
+  useSubtitleTracks({
+    videoRef: refs.videoRef,
+    availableSubtitles: player.state.availableSubtitles,
+    activeSubtitleTrack: player.state.activeSubtitleTrack,
+    setAvailableSubtitles,
+    setActiveSubtitleTrack,
+  })
 
   const [videoBoxH, setVideoBoxH] = useState(0)
 
@@ -1045,227 +583,23 @@ const Player: React.FC = () => {
     return () => observer.disconnect()
   }, [refs.videoRef, state.selectedSource, state.selectedLink])
 
-  useEffect(() => {
-    const styleId = 'dynamic-subtitle-styles'
-    let styleTag = document.getElementById(styleId)
-    if (!styleTag) {
-      styleTag = document.createElement('style')
-      styleTag.id = styleId
-      document.head.appendChild(styleTag)
-    }
-
-    const subtitleStyle: SubtitleStyleSettings = {
-      fontSize: player.state.subtitleFontSize,
-      position: player.state.subtitlePosition,
-      bgOpacity: player.state.subtitleBgOpacity,
-      bgColor: player.state.subtitleBgColor,
-      textColor: player.state.subtitleTextColor,
-      edge: player.state.subtitleEdge,
-      bold: player.state.subtitleBold,
-    }
-
-    styleTag.textContent = buildCueCss(subtitleStyle)
-
-    const video = refs.videoRef.current
-    if (!video) return
-    const fittedSize = fitSubtitleSize(
-      player.state.subtitleFontSize,
-      videoBoxH || video.clientHeight || 720
-    )
-    styleTag.textContent = buildCueCss({ ...subtitleStyle, fontSize: fittedSize })
-
-    const getPos = () => {
-      const raw = Number(player.state.subtitlePosition)
-      const lift = isNaN(raw) ? 0 : Math.max(0, Math.min(100, raw))
-      return Math.max(0, Math.min(100, 100 - lift))
-    }
-
-    const setCueLine = (cue: unknown, line: number) => {
-      try {
-        const vttCue = cue as { snapToLines?: boolean; line?: number }
-        vttCue.snapToLines = false
-        vttCue.line = line
-      } catch {
-        // ignore
-      }
-    }
-
-    const cueMetrics = () => {
-      const px = fittedSize * 16
-      const h = video.videoHeight || video.clientHeight || 720
-      const w = video.videoWidth || video.clientWidth || 1280
-      return { step: ((px * 1.3) / h) * 100, chars: Math.max(20, Math.floor(w / (px * 0.55))) }
-    }
-
-    const restackTrack = (track: TextTrack) => {
-      const pos = getPos()
-      const active = Array.from(track.activeCues ?? [])
-      if (active.length <= 1) {
-        active.forEach((cue) => setCueLine(cue, pos))
-        return
-      }
-      const { step, chars } = cueMetrics()
-      let bottom = pos
-      for (let i = active.length - 1; i >= 0; i--) {
-        const text = String((active[i] as { text?: unknown }).text ?? '').replace(/<[^>]*>/g, '')
-        const visual = text
-          .split('\n')
-          .reduce((n, seg) => n + Math.max(1, Math.ceil(seg.length / chars)), 0)
-        const top = bottom - visual * step
-        setCueLine(active[i], Math.max(0, top))
-        bottom = top - step * 0.4
-      }
-    }
-
-    const applyToTrack = (track: TextTrack) => {
-      if (!track.cues) return
-      const pos = getPos()
-      Array.from(track.cues).forEach((cue: unknown) => setCueLine(cue, pos))
-      if (track.mode === 'showing') restackTrack(track)
-    }
-
-    const applyToAllTracks = () => {
-      Array.from(video.textTracks).forEach(applyToTrack)
-    }
-
-    applyToAllTracks()
-
-    const handleCueChange = (e: Event) => {
-      const track = e.target as TextTrack
-      if (track.mode === 'showing') restackTrack(track)
-    }
-
-    Array.from(video.textTracks).forEach((t) => {
-      t.addEventListener('cuechange', handleCueChange)
-    })
-
-    const handleAddTrack = () => {
-      Array.from(video.textTracks).forEach((t) => {
-        t.removeEventListener('cuechange', handleCueChange)
-        t.addEventListener('cuechange', handleCueChange)
-      })
-      applyToAllTracks()
-    }
-    video.textTracks.addEventListener('addtrack', handleAddTrack)
-    video.textTracks.addEventListener('removetrack', handleAddTrack)
-
-    const trackElements = Array.from(video.querySelectorAll('track'))
-    const handleTrackLoad = () => {
-      applyToAllTracks()
-    }
-    trackElements.forEach((el) => {
-      el.addEventListener('load', handleTrackLoad)
-    })
-
-    return () => {
-      Array.from(video.textTracks).forEach((t) => {
-        t.removeEventListener('cuechange', handleCueChange)
-      })
-      video.textTracks.removeEventListener('addtrack', handleAddTrack)
-      video.textTracks.removeEventListener('removetrack', handleAddTrack)
-      trackElements.forEach((el) => {
-        el.removeEventListener('load', handleTrackLoad)
-      })
-    }
-  }, [
-    player.state.subtitleFontSize,
-    player.state.subtitlePosition,
-    player.state.subtitleBgOpacity,
-    player.state.subtitleBgColor,
-    player.state.subtitleTextColor,
-    player.state.subtitleEdge,
-    player.state.subtitleBold,
-    player.state.activeSubtitleTrack,
-    player.state.availableSubtitles,
-    state.selectedSource,
-    state.selectedLink,
-    refs.videoRef,
+  useSubtitleCueLayout({
+    videoRef: refs.videoRef,
     videoBoxH,
-  ])
+    style: subtitleStyle,
+    sourceKey: `${state.selectedSource?.sourceName ?? ''}:${state.selectedLink?.link ?? ''}`,
+    activeSubtitleTrack: player.state.activeSubtitleTrack,
+    availableSubtitles: player.state.availableSubtitles,
+  })
 
-  useEffect(() => {
-    if (!canvasPresentationActive) return
-    const video = refs.videoRef.current
-    const overlay = subtitleOverlayRef.current
-    if (!video || !overlay) return
-
-    const enabled = localStorage.getItem('playerSubtitlesEnabled') !== 'false'
-    const activeTrackLabel = player.state.activeSubtitleTrack
-
-    const renderCues = () => {
-      overlay.innerHTML = ''
-      if (!enabled || activeTrackLabel === 'off' || activeTrackLabel === null) return
-
-      const track = Array.from(video.textTracks).find(
-        (t) => t.language === activeTrackLabel || t.label === activeTrackLabel
-      )
-      if (!track || track.mode !== 'showing') return
-
-      const delaySec = effectiveVideoDelayMs / 1000
-      let cues: ArrayLike<TextTrackCue> | TextTrackCue[]
-      if (delaySec > 0 && track.cues) {
-        const t = video.currentTime - delaySec
-        cues = Array.from(track.cues).filter((c) => c.startTime <= t && t <= c.endTime)
-      } else {
-        cues = Array.from(track.activeCues ?? [])
-      }
-      if (cues.length === 0) return
-
-      const subtitleStyle: SubtitleStyleSettings = {
-        fontSize: fitSubtitleSize(player.state.subtitleFontSize, video.clientHeight || 0),
-        position: player.state.subtitlePosition,
-        bgOpacity: player.state.subtitleBgOpacity,
-        bgColor: player.state.subtitleBgColor,
-        textColor: player.state.subtitleTextColor,
-        edge: player.state.subtitleEdge,
-        bold: player.state.subtitleBold,
-      }
-      const baseCss = buildOverlayCss(subtitleStyle)
-      const baseBottomPx = subtitleBottomPx(video, subtitleStyle.position)
-      const cueArray = Array.from(cues as ArrayLike<TextTrackCue>)
-
-      cueArray.forEach((cue, index) => {
-        const raw = String((cue as { text?: unknown }).text ?? '')
-        if (!stripCueTags(raw).trim()) return
-        const div = document.createElement('div')
-        const stackOffset = (cueArray.length - 1 - index) * 1.7
-        div.style.cssText = `${baseCss}\nbottom: calc(${baseBottomPx}px + ${stackOffset}em);`
-        div.innerHTML = renderCueHtml(raw)
-        overlay.appendChild(div)
-      })
-    }
-
-    const handleCueChange = () => renderCues()
-    const handleTimeUpdate = () => renderCues()
-
-    Array.from(video.textTracks).forEach((t) => {
-      t.addEventListener('cuechange', handleCueChange)
-    })
-    video.addEventListener('timeupdate', handleTimeUpdate)
-    renderCues()
-
-    return () => {
-      Array.from(video.textTracks).forEach((t) => {
-        t.removeEventListener('cuechange', handleCueChange)
-      })
-      video.removeEventListener('timeupdate', handleTimeUpdate)
-      overlay.innerHTML = ''
-    }
-  }, [
-    upscaler.isEnabled,
-    upscaler.isWebGPUSupported,
-    player.state.subtitleFontSize,
-    player.state.subtitlePosition,
-    player.state.subtitleBgOpacity,
-    player.state.subtitleBgColor,
-    player.state.subtitleTextColor,
-    player.state.subtitleEdge,
-    player.state.subtitleBold,
-    player.state.activeSubtitleTrack,
-    refs.videoRef,
-    canvasPresentationActive,
-    effectiveVideoDelayMs,
-  ])
+  useSubtitleOverlay({
+    videoRef: refs.videoRef,
+    overlayRef: subtitleOverlayRef,
+    style: subtitleStyle,
+    activeSubtitleTrack: player.state.activeSubtitleTrack,
+    delayMs: effectiveVideoDelayMs,
+    enabled: canvasPresentationActive,
+  })
 
   useEffect(() => {
     try {
@@ -1881,10 +1215,7 @@ const Player: React.FC = () => {
                 isAdult={state.showMeta?.isAdult}
                 options={animeOptions}
                 onProviderChange={(newProvider) => {
-                  hasAutoFallbackRef.current = false
-                  triedProvidersRef.current = []
-                  fallbackDismissedRef.current = false
-                  setFallbackPrompt(null)
+                  resetFallback()
                   dispatch({
                     type: 'SET_STATE',
                     payload: {
@@ -2013,10 +1344,7 @@ const Player: React.FC = () => {
                       className={`${styles.watchlistBtn} ${styles.modeToggleBtn} ${state.currentMode === 'dub' ? styles.modeToggleActive : ''}`}
                       onClick={() => {
                         const mode = state.currentMode === 'dub' ? 'sub' : 'dub'
-                        hasAutoFallbackRef.current = false
-                        triedProvidersRef.current = []
-                        fallbackDismissedRef.current = false
-                        setFallbackPrompt(null)
+                        resetFallback()
                         dispatch({ type: 'SET_MODE', payload: mode })
                         localStorage.setItem('preferredMode', mode)
                       }}

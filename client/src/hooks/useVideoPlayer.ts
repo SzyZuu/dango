@@ -208,6 +208,16 @@ const useVideoPlayer = ({
     }
   }, [sendProgressUpdate])
 
+  // show the controls again and hide them again after a moment, the page
+  // used to poke the timer ref directly
+  const flashControls = useCallback(() => {
+    setShowControls(true)
+    if (inactivityTimer.current) clearTimeout(inactivityTimer.current)
+    inactivityTimer.current = window.setTimeout(() => {
+      setShowControls(false)
+    }, 1000)
+  }, [setShowControls])
+
   const toggleFullscreen = useCallback(() => {
     const container = playerContainerRef.current
     if (!container) return
@@ -687,6 +697,7 @@ const useVideoPlayer = ({
       setShowVolumeSlider,
       wasPlayingBeforeScrub,
       inactivityTimer,
+      flashControls,
       setIsFullscreen,
       onWaiting,
       onPlaying,
@@ -713,6 +724,7 @@ const useVideoPlayer = ({
       sendProgressUpdate,
       setUseNativeControls,
       resetMediaState,
+      flashControls,
     ]
   )
 

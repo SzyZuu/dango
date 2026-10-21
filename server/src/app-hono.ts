@@ -23,10 +23,7 @@ import {
   validateLanSession,
   verifyAppPassword,
 } from './app-auth.js'
-import {
-  importMangaFromMalXmlItems,
-  type MalXmlMangaItem,
-} from './lib/tracker/manga-sync.service.js'
+import { importMangaFromMalXmlItems, type MalXmlMangaItem } from './lib/tracker/manga-sync/index.js'
 import type { ProviderCatalogItem, RemoteProxyRule } from './providers/remote-types.js'
 import type { DatabaseWrapper } from './db.js'
 import { LibraryRepository } from './repositories/library.repository.js'
@@ -560,7 +557,7 @@ export function createHonoApp(
   app.get('/api/tracker/anilist/callback', (c) => {
     return c.html(`<!doctype html>
 <html><head><meta charset="utf-8"><title>AniList - completing login</title></head>
-<body style="font-family:system-ui;padding:24px;background:#0b1426;color:#e5eefc"><p>Completing AniList loginâ€¦</p>
+<body style="font-family:system-ui;padding:24px;background:#0b1426;color:#e5eefc"><p>Completing AniList loginÃ¢â‚¬Â¦</p>
 <script>
 (function(){
   var qs = new URLSearchParams(location.search);

@@ -7,12 +7,12 @@ import {
   syncAniList,
   importFromMalUsername,
   importFromUsername,
-} from '../../lib/tracker/sync.service.js'
+} from '../../lib/tracker/anime-sync/index.js'
 import {
   syncAniListManga,
   importFromUsernameManga,
   importMangaFromMalUsername,
-} from '../../lib/tracker/manga-sync.service.js'
+} from '../../lib/tracker/manga-sync/index.js'
 import { badRequest, defineSchema, failed, reqObj } from '../validation.js'
 
 const TRACKER_TOKEN_KEY = 'tracker_anilist_token'

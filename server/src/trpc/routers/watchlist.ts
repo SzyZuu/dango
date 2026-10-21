@@ -35,9 +35,9 @@ import {
 } from '../validation.js'
 
 const watchlistListInput = () =>
-  defineSchema<WatchlistListInput, WatchlistListInput>((value) => {
+  defineSchema<WatchlistListInput, WatchlistListParsed>((value) => {
     const obj = reqObj(value)
-    const out: WatchlistListInput = {
+    const out: WatchlistListParsed = {
       ...readFilterFields(obj),
       page: readPage(obj),
       limit: readLimit(obj, 10, 100),
@@ -50,9 +50,9 @@ const watchlistListInput = () =>
   })
 
 const continueWatchingAllInput = () =>
-  defineSchema<ContinueWatchingAllInput, ContinueWatchingAllInput>((value) => {
+  defineSchema<ContinueWatchingAllInput, ContinueWatchingAllParsed>((value) => {
     const obj = reqObj(value)
-    const out: ContinueWatchingAllInput = {
+    const out: ContinueWatchingAllParsed = {
       ...readFilterFields(obj),
       page: readPage(obj),
       limit: readLimit(obj, 10, 100),
@@ -332,10 +332,15 @@ interface WatchlistFilterOptions {
   titlePreference?: 'name' | 'nativeName' | 'englishName'
 }
 
-export type WatchlistListInput = {
-  status?: string
+type WatchlistListParsed = Omit<WatchlistListInput, 'page' | 'limit'> & {
   page: number
   limit: number
+}
+
+export type WatchlistListInput = {
+  status?: string
+  page?: number
+  limit?: number
   showMature?: string
   query?: string
   type?: string
@@ -347,9 +352,14 @@ export type WatchlistListInput = {
   titlePreference?: string
 }
 
-export type ContinueWatchingAllInput = {
+type ContinueWatchingAllParsed = Omit<ContinueWatchingAllInput, 'page' | 'limit'> & {
   page: number
   limit: number
+}
+
+export type ContinueWatchingAllInput = {
+  page?: number
+  limit?: number
   query?: string
   type?: string
   season?: string

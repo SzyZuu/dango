@@ -405,10 +405,10 @@ export const tvRouter = router({
     const tmdbId = input.tmdbId
     const mediaType = type === 'movie' ? 'movie' : 'tv'
     const numericTmdbId = parseInt(tmdbId, 10)
-    if (!numericTmdbId) return { sources: [], audioTracks: [], error: 'Bad tmdb id' }
+    if (!numericTmdbId) throw badRequest('Bad tmdb id')
     const mod = ctx.getTvProvider(String(provider).toLowerCase())
     if (!mod || typeof mod.getSources !== 'function') {
-      return { sources: [], audioTracks: [], error: `Unknown TV provider ${provider}` }
+      throw badRequest(`Unknown TV provider ${provider}`)
     }
     const season = input.season || 1
     const episode = input.episode || 1
@@ -453,13 +453,7 @@ export const tvRouter = router({
         valid: true,
       }
     } catch (e) {
-      return {
-        provider: mod.name,
-        sources: [],
-        audioTracks: [],
-        valid: false,
-        error: (e as Error).message,
-      }
+      throw failed((e as Error).message)
     }
   }),
 })

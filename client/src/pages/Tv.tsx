@@ -1141,10 +1141,10 @@ const Tv: React.FC = () => {
         })
         .catch(() => {})
       setStreamError('')
-    } catch {
+    } catch (e) {
       if (streamKeyRef.current !== episodeKey) return
       setStreamLoading(false)
-      setStreamError('Failed to load streams.')
+      setStreamError(e instanceof Error ? e.message : 'Failed to load streams.')
     }
   }, [
     details,

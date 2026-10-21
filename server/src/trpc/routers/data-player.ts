@@ -35,9 +35,9 @@ const defaultValidate = (d: unknown) => Array.isArray(d) && d.length > 0
 
 export const dataPlayerRouter = router({
   skipTimes: protectedProcedure.input(dataSkipTimesInput()).query(async ({ input }) => {
+    const showId = input.showId || ''
+    const episodeNumber = input.episodeNumber || ''
     try {
-      const showId = input.showId || ''
-      const episodeNumber = input.episodeNumber || ''
       if (/^\d+$/.test(showId)) {
         const skipRes = await fetchWithRetry(
           `https://api.aniskip.com/v1/skip-times/${showId}/${episodeNumber}?types=op&types=ed`,
@@ -49,7 +49,8 @@ export const dataPlayerRouter = router({
         }
       }
       return { found: false, results: [] }
-    } catch {
+    } catch (e) {
+      logger.warn({ err: e, showId, episodeNumber }, 'Skip-times fetch failed')
       return { found: false, results: [] }
     }
   }),
@@ -95,6 +96,7 @@ export const dataPlayerRouter = router({
             if ((e as Error).message === 'AUTH_REQUIRED') {
               throw authRequiredError(String(input.provider || 'animepahe'))
             }
+            logger.warn({ err: e, showId }, 'Temp show episodes fetch failed')
           }
           return { episodes: [] }
         }
@@ -106,6 +108,7 @@ export const dataPlayerRouter = router({
             }
           } catch (e) {
             if ((e as Error).message === 'AUTH_REQUIRED') throw authRequiredError('animepahe')
+            logger.warn({ err: e, showId }, 'Animepahe episodes fetch failed')
             return { episodes: [] }
           }
         }
@@ -141,6 +144,7 @@ export const dataPlayerRouter = router({
                 if ((e as Error).message === 'AUTH_REQUIRED') {
                   throw authRequiredError(providerName || 'animepahe')
                 }
+                logger.warn({ err: e, showId, provider: providerName }, 'Episodes fetch failed')
               }
             }
           }
@@ -156,6 +160,7 @@ export const dataPlayerRouter = router({
             if ((e as Error).message === 'AUTH_REQUIRED') {
               throw authRequiredError(providerName || 'animepahe')
             }
+            logger.warn({ err: e, showId, provider: providerName }, 'Episodes fetch failed')
           }
         }
         return { episodes: [] }

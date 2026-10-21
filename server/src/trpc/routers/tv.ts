@@ -14,6 +14,7 @@ import {
   type TmdbSeason,
 } from '../../lib/tmdb.js'
 import { fetchWithRetry, parseJsonBody } from '../../utils/http.utils.js'
+import logger from '../../logger.js'
 import type { TvMediaRequest } from '../../providers/tv.types.js'
 
 async function resolveTvMeta(
@@ -394,7 +395,8 @@ export const tvRouter = router({
       const payload: TvSubtitlesPayload = { subtitles }
       ctx.apiCache.set(cacheKey, payload, 3600)
       return payload
-    } catch {
+    } catch (e) {
+      logger.warn({ err: e, mediaType, tmdbId }, 'Subtitle fetch failed')
       return { subtitles: [] }
     }
   }),

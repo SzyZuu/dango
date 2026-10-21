@@ -1,5 +1,6 @@
 import { DatabaseWrapper } from '../../db.js'
 import { SettingsRepository } from '../../repositories/settings.repository.js'
+import logger from '../../logger.js'
 
 export interface TrackerSyncStateEntry {
   lastSyncedAt: number
@@ -16,7 +17,8 @@ export async function readTrackerSyncState(
   if (!row?.value) return {}
   try {
     return JSON.parse(row.value) as TrackerSyncState
-  } catch {
+  } catch (e) {
+    logger.warn({ err: e, key }, 'The stored tracker sync state is not valid json')
     return {}
   }
 }

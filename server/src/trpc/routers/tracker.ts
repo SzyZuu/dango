@@ -1,6 +1,7 @@
 import { TRPCError } from '@trpc/server'
 import { protectedProcedure, router } from '../index.js'
 import { SettingsRepository } from '../../repositories/settings.repository.js'
+import logger from '../../logger.js'
 import { performWriteTransactionAsync } from '../../db/transaction.js'
 import { AniListTracker } from '../../lib/tracker/anilist-tracker.js'
 import {
@@ -98,7 +99,8 @@ export const trackerRouter = router({
       if (userRow?.value) {
         try {
           user = JSON.parse(userRow.value)
-        } catch {
+        } catch (e) {
+          logger.warn({ err: e }, 'The stored tracker user is not valid json')
           user = null
         }
       }

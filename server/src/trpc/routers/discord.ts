@@ -25,7 +25,8 @@ function cleanProxyThumb(value: unknown): string {
     if (match) {
       try {
         thumb = decodeURIComponent(match[1])
-      } catch {
+      } catch (e) {
+        gatewayLog.warn({ err: e, thumb }, 'The proxy thumbnail url is not decodable')
         return ''
       }
     }

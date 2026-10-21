@@ -1,6 +1,7 @@
 import { AppCache } from '../utils/cache.utils.js'
 import { parseJsonBody } from '../utils/http.utils.js'
 import { pickBestMatch } from '../providers/title-matching.js'
+import logger from '../logger.js'
 
 const dlsitePosterCache = new AppCache({ ttlSeconds: 3600, maxKeys: 2000 })
 const mangadexCoverCache = new AppCache({ ttlSeconds: 3600, maxKeys: 2000 })
@@ -49,7 +50,8 @@ export async function getMangadexCover(title: string): Promise<string | null> {
     const url = match ? match.item.cover : null
     mangadexCoverCache.set(key, url)
     return url
-  } catch {
+  } catch (e) {
+    logger.warn({ err: e, title }, 'The MangaDex cover lookup failed')
     return null
   }
 }
@@ -75,7 +77,8 @@ export async function getDlsitePoster(rjCode: string): Promise<string | null> {
     const url = img.startsWith('//') ? `https:${img}` : img
     dlsitePosterCache.set(key, url)
     return url
-  } catch {
+  } catch (e) {
+    logger.warn({ err: e, rjCode: key }, 'The DLsite poster lookup failed')
     return null
   }
 }

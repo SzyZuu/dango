@@ -1,5 +1,5 @@
 import { protectedProcedure, router } from '../index.js'
-import { defineSchema, optStr, reqObj } from '../validation.js'
+import { defineSchema, optNum, optStr, reqObj } from '../validation.js'
 import { badRequest, failed } from '../errors.js'
 import { discordRPCService } from '../../discord-rpc.js'
 import { discordGatewayService } from '../../discord-gateway.js'
@@ -13,10 +13,6 @@ function maskToken(t: string | undefined | null): string {
 }
 
 const gatewayLog = logger.child({ module: 'DiscordGatewayRoutes' })
-
-function optUnknown(obj: Record<string, unknown>, name: string): unknown {
-  return obj[name]
-}
 
 function cleanProxyThumb(value: unknown): string {
   let thumb = String(value || '')
@@ -36,139 +32,196 @@ function cleanProxyThumb(value: unknown): string {
   return thumb
 }
 
-export type PresenceBase = Record<string, unknown>
+export type PresenceInput = {
+  sessionId?: string
+  title?: string
+  thumbnail?: string
+  thumbnails?: string[]
+  isPlaying?: boolean
+  isAdult?: boolean
+  currentTime?: number
+  duration?: number
+  trackLabel?: string
+  chapterLabel?: string
+  episodeLabel?: string
+  rjCode?: string
+}
 
-const presenceInput = () =>
-  defineSchema<PresenceBase, PresenceBase>((value) => {
+export const presenceInput = () =>
+  defineSchema<PresenceInput, PresenceInput>((value) => {
     if (value === undefined || value === null) return {}
-    return { ...reqObj(value) }
+    const obj = reqObj(value)
+    const out: PresenceInput = {}
+    for (const key of [
+      'sessionId',
+      'title',
+      'thumbnail',
+      'trackLabel',
+      'chapterLabel',
+      'episodeLabel',
+      'rjCode',
+    ] as const) {
+      const v = optStr(obj, key)
+      if (v !== undefined) out[key] = v
+    }
+    const thumbs = obj.thumbnails
+    if (Array.isArray(thumbs)) out.thumbnails = thumbs.map(String).filter(Boolean)
+    if (typeof obj.isPlaying === 'boolean') out.isPlaying = obj.isPlaying
+    if (typeof obj.isAdult === 'boolean') out.isAdult = obj.isAdult
+    const currentTime = optNum(obj, 'currentTime')
+    if (currentTime !== undefined) out.currentTime = currentTime
+    const duration = optNum(obj, 'duration')
+    if (duration !== undefined) out.duration = duration
+    return out
   })
 
+const pageStatusInput = () =>
+  defineSchema<{ page?: string }, { page?: string }>((value) => {
+    if (value === undefined || value === null) return {}
+    const page = optStr(reqObj(value), 'page')
+    return page === undefined ? {} : { page }
+  })
+
+const heartbeatInput = () =>
+  defineSchema<{ sessionId?: string; bye?: boolean }, { sessionId?: string; bye?: boolean }>(
+    (value) => {
+      if (value === undefined || value === null) return {}
+      const obj = reqObj(value)
+      const out: { sessionId?: string; bye?: boolean } = {}
+      const sessionId = optStr(obj, 'sessionId')
+      if (sessionId !== undefined) out.sessionId = sessionId
+      if (typeof obj.bye === 'boolean') out.bye = obj.bye
+      return out
+    }
+  )
+
+type PresenceKind = 'asmr' | 'manga' | 'tv'
+
+const PRESENCE_KIND: Record<
+  PresenceKind,
+  {
+    provider: string
+    labelField: 'trackLabel' | 'chapterLabel' | 'episodeLabel'
+    fallbackTitle: string
+    playingByDefault: boolean
+    state: (label: string) => string
+  }
+> = {
+  asmr: {
+    provider: 'ASMR',
+    labelField: 'trackLabel',
+    fallbackTitle: 'ASMR',
+    playingByDefault: false,
+    state: () => '',
+  },
+  manga: {
+    provider: 'Manga',
+    labelField: 'chapterLabel',
+    fallbackTitle: 'Manga',
+    playingByDefault: true,
+    state: (label) => (label ? `Reading ${label}` : 'Reading'),
+  },
+  tv: {
+    provider: 'TV',
+    labelField: 'episodeLabel',
+    fallbackTitle: 'TV',
+    playingByDefault: false,
+    state: (label) => label || 'Movie',
+  },
+}
+
+async function presenceThumbnails(
+  input: PresenceInput,
+  kind: PresenceKind
+): Promise<{ thumb: string; thumbs?: string[] }> {
+  const raw = input.thumbnail || ''
+  if (kind === 'asmr') {
+    let thumb = raw
+    const needsDlsite =
+      !thumb || thumb.includes('weeabo0.xyz') || thumb.includes('japaneseasmr.com')
+    if (needsDlsite && input.rjCode) {
+      const dlsiteThumb = await getDlsitePoster(input.rjCode)
+      if (dlsiteThumb) thumb = dlsiteThumb
+    }
+    if (thumb.includes('/api/image-proxy') || thumb.includes('weeabo0.xyz')) thumb = ''
+    return { thumb, thumbs: input.thumbnails?.filter(Boolean) }
+  }
+  if (kind === 'manga') {
+    const thumb = cleanProxyThumb(raw)
+    const thumbs = input.thumbnails?.map(cleanProxyThumb).filter(Boolean)
+    if (!thumb && input.title) {
+      const fallback = await getMangadexCover(input.title)
+      if (fallback) return { thumb: fallback, thumbs: [fallback, ...(thumbs || [])] }
+    }
+    return { thumb, thumbs }
+  }
+  return { thumb: cleanProxyThumb(raw) }
+}
+
+async function sendPresence(input: PresenceInput, kind: PresenceKind): Promise<void> {
+  if (!discordRPCService.isServiceEnabled) return
+  if (input.sessionId) discordRPCService.heartbeat(input.sessionId)
+  const conf = PRESENCE_KIND[kind]
+  const label = input[conf.labelField] || ''
+  const { thumb, thumbs } = await presenceThumbnails(input, kind)
+  const timed = kind !== 'manga'
+  discordRPCService.updatePresence({
+    title: (input.title || conf.fallbackTitle).slice(0, 128),
+    episode: label.slice(0, 64),
+    totalEpisodes: '',
+    stateLine: conf.state(label).slice(0, 64),
+    currentTime: timed ? input.currentTime || 0 : 0,
+    duration: timed ? input.duration || 0 : 0,
+    thumbnail: thumb,
+    thumbnails: thumbs,
+    isPlaying: input.isPlaying === undefined ? conf.playingByDefault : input.isPlaying,
+    providerName: conf.provider,
+    sessionId: input.sessionId,
+    isAdult: input.isAdult === true,
+  })
+}
+
 export const discordRouter = router({
-  pageStatus: protectedProcedure.input(presenceInput()).mutation(async ({ input }) => {
-    const page = optUnknown(input, 'page')
-    if (typeof page !== 'string' || !discordRPCService.isServiceEnabled) {
+  pageStatus: protectedProcedure.input(pageStatusInput()).mutation(async ({ input }) => {
+    if (!input.page || !discordRPCService.isServiceEnabled) {
       return { success: true }
     }
-    discordRPCService.setIdleStatus(page)
+    discordRPCService.setIdleStatus(input.page)
     return { success: true }
   }),
 
-  heartbeat: protectedProcedure.input(presenceInput()).mutation(async ({ input }) => {
-    const sessionId = optUnknown(input, 'sessionId')
-    const bye = optUnknown(input, 'bye')
-    if (typeof sessionId !== 'string' || !discordRPCService.isServiceEnabled) {
+  heartbeat: protectedProcedure.input(heartbeatInput()).mutation(async ({ input }) => {
+    if (!input.sessionId || !discordRPCService.isServiceEnabled) {
       return { success: true }
     }
-    if (bye) {
-      discordRPCService.removeHeartbeat(sessionId)
+    if (input.bye) {
+      discordRPCService.removeHeartbeat(input.sessionId)
     } else {
-      discordRPCService.heartbeat(sessionId)
+      discordRPCService.heartbeat(input.sessionId)
     }
     return { success: true }
   }),
 
-  clear: protectedProcedure.input(presenceInput()).mutation(async ({ input }) => {
-    const sessionId = optUnknown(input, 'sessionId')
+  clear: protectedProcedure.input(heartbeatInput()).mutation(async ({ input }) => {
     if (!discordRPCService.isServiceEnabled) {
       return { success: true }
     }
-    discordRPCService.clearPresence(typeof sessionId === 'string' ? sessionId : undefined)
+    discordRPCService.clearPresence(input.sessionId)
     return { success: true }
   }),
 
   asmrPresence: protectedProcedure.input(presenceInput()).mutation(async ({ input }) => {
-    if (!discordRPCService.isServiceEnabled) return { success: true }
-    const sessionId = optUnknown(input, 'sessionId')
-    if (typeof sessionId === 'string') discordRPCService.heartbeat(sessionId)
-    const thumbnail = optUnknown(input, 'thumbnail')
-    const thumbnails = optUnknown(input, 'thumbnails')
-    const rjCode = optUnknown(input, 'rjCode')
-    let thumb = String(thumbnail || '')
-    const thumbs = Array.isArray(thumbnails) ? thumbnails.map(String).filter(Boolean) : undefined
-    const needsDlsite =
-      !thumb || thumb.includes('weeabo0.xyz') || thumb.includes('japaneseasmr.com')
-    if (needsDlsite && rjCode) {
-      const dlsiteThumb = await getDlsitePoster(String(rjCode))
-      if (dlsiteThumb) thumb = dlsiteThumb
-    }
-    if (thumb.includes('/api/image-proxy') || thumb.includes('weeabo0.xyz')) thumb = ''
-    discordRPCService.updatePresence({
-      title: String(optUnknown(input, 'title') || 'ASMR').slice(0, 128),
-      episode: String(optUnknown(input, 'trackLabel') || '').slice(0, 64),
-      totalEpisodes: '',
-      currentTime: Number(optUnknown(input, 'currentTime')) || 0,
-      duration: Number(optUnknown(input, 'duration')) || 0,
-      thumbnail: thumb,
-      thumbnails: thumbs,
-      isPlaying: !!optUnknown(input, 'isPlaying'),
-      providerName: 'ASMR',
-      sessionId: typeof sessionId === 'string' ? sessionId : undefined,
-      isAdult: !!optUnknown(input, 'isAdult'),
-    })
+    await sendPresence(input, 'asmr')
     return { success: true }
   }),
 
   mangaPresence: protectedProcedure.input(presenceInput()).mutation(async ({ input }) => {
-    if (!discordRPCService.isServiceEnabled) return { success: true }
-    const sessionId = optUnknown(input, 'sessionId')
-    if (typeof sessionId === 'string') discordRPCService.heartbeat(sessionId)
-    const thumbnails = optUnknown(input, 'thumbnails')
-    const title = optUnknown(input, 'title')
-    let thumb = cleanProxyThumb(optUnknown(input, 'thumbnail'))
-    let thumbs = Array.isArray(thumbnails)
-      ? (thumbnails.map(cleanProxyThumb).filter(Boolean) as string[])
-      : undefined
-    if (!thumb && title) {
-      const fallback = await getMangadexCover(String(title))
-      if (fallback) {
-        thumb = fallback
-        thumbs = [fallback, ...(thumbs || [])]
-      }
-    }
-    const chapterLabel = String(optUnknown(input, 'chapterLabel') || '')
-    discordRPCService.updatePresence({
-      title: String(title || 'Manga').slice(0, 128),
-      episode: chapterLabel.slice(0, 64),
-      totalEpisodes: '',
-      stateLine: (chapterLabel ? `Reading ${chapterLabel}` : 'Reading').slice(0, 64),
-      currentTime: 0,
-      duration: 0,
-      thumbnail: thumb,
-      thumbnails: thumbs,
-      isPlaying: optUnknown(input, 'isPlaying') !== false,
-      providerName: 'Manga',
-      sessionId: typeof sessionId === 'string' ? sessionId : undefined,
-      isAdult: optUnknown(input, 'isAdult') === true,
-    })
+    await sendPresence(input, 'manga')
     return { success: true }
   }),
 
   tvPresence: protectedProcedure.input(presenceInput()).mutation(async ({ input }) => {
-    if (!discordRPCService.isServiceEnabled) return { success: true }
-    const sessionId = optUnknown(input, 'sessionId')
-    if (typeof sessionId === 'string') discordRPCService.heartbeat(sessionId)
-    const thumbnail = optUnknown(input, 'thumbnail')
-    let thumb = String(thumbnail || '')
-    if (thumb.includes('/api/image-proxy')) {
-      const match = thumb.match(/url=([^&]+)/)
-      if (match) thumb = decodeURIComponent(match[1])
-    }
-    if (thumb.includes('localhost') || thumb.includes('127.0.0.1')) thumb = ''
-    const episodeLabel = String(optUnknown(input, 'episodeLabel') || '')
-    discordRPCService.updatePresence({
-      title: String(optUnknown(input, 'title') || 'TV').slice(0, 128),
-      episode: episodeLabel.slice(0, 64),
-      totalEpisodes: '',
-      stateLine: (episodeLabel || 'Movie').slice(0, 64),
-      currentTime: Number(optUnknown(input, 'currentTime')) || 0,
-      duration: Number(optUnknown(input, 'duration')) || 0,
-      thumbnail: thumb,
-      isPlaying: !!optUnknown(input, 'isPlaying'),
-      providerName: 'TV',
-      sessionId: typeof sessionId === 'string' ? sessionId : undefined,
-      isAdult: optUnknown(input, 'isAdult') === true,
-    })
+    await sendPresence(input, 'tv')
     return { success: true }
   }),
 

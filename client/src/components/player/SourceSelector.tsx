@@ -1,5 +1,5 @@
 import React from 'react'
-import styles from './Player.module.css'
+import styles from './SourceSelector.module.css'
 import type { VideoLink, VideoSource } from '../../types/player'
 import { SUB_LABEL, TIER_LABEL, TIER_ORDER, type ProviderOption } from '../../types/providers'
 

@@ -1,5 +1,5 @@
 import React from 'react'
-import styles from '../player/Player.module.css'
+import styles from '../player/SourceSelector.module.css'
 
 interface Props {
   servers: string[]

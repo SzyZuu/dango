@@ -228,16 +228,6 @@
   border-radius: 4px;
 }
 
-.skipSegment.op {
-  background-color: var(--color-success);
-}
-.skipSegment.ed {
-  background-color: var(--accent-blue);
-}
-.skipSegment.recap {
-  background-color: var(--color-warning);
-}
-
 .bottomControlsRow {
   display: flex;
   justify-content: space-between;
@@ -338,24 +328,6 @@
   gap: var(--space-2);
 }
 
-.skipBtn {
-  background: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0.7);
-  cursor: pointer;
-  font-size: 1.3rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all var(--transition-fast);
-  padding: 6px;
-}
-
-.skipBtn:hover {
-  color: white;
-  transform: scale(1.1);
-}
-
 .nextEpisodeBtn {
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -377,84 +349,6 @@
   color: white;
   transform: translateY(-1px);
   border-color: rgba(255, 255, 255, 0.2);
-}
-
-.volumeContainer {
-  display: flex;
-  align-items: center;
-  position: relative;
-}
-
-.volumeSlider {
-  width: 0;
-  opacity: 0;
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: all 0.3s var(--ease-smooth);
-  cursor: pointer;
-  margin-left: 8px;
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  height: 20px;
-}
-
-.volumeContainer:hover .volumeSlider,
-.volumeSlider:focus {
-  width: 80px;
-  opacity: 1;
-  transform: scaleX(1);
-}
-
-.volumeSlider::-webkit-slider-runnable-track {
-  width: 100%;
-  height: 4px;
-  background: linear-gradient(
-    to right,
-    var(--accent) 0%,
-    var(--accent) var(--volume-percent, 0%),
-    rgba(255, 255, 255, 0.2) var(--volume-percent, 0%),
-    rgba(255, 255, 255, 0.2) 100%
-  );
-  border-radius: 4px;
-}
-
-.volumeSlider::-moz-range-track {
-  width: 100%;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-}
-
-.volumeSlider::-moz-range-progress {
-  height: 4px;
-  background: var(--accent);
-  border-radius: 4px;
-}
-
-.volumeSlider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  height: 12px;
-  width: 12px;
-  border-radius: 50%;
-  background: white;
-  margin-top: -4px;
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-}
-
-@media (max-width: 900px) and (orientation: landscape) {
-  .playerPageLayout {
-    padding: 0;
-    gap: 0;
-  }
-  .videoPlayerWrapper {
-    border-radius: 0;
-    height: 100vh;
-    padding-top: 0;
-  }
-  .playerInfoContainer {
-    padding: 1.5rem;
-  }
 }
 
 /* Low End Mode Overrides for Player Controls */
@@ -542,43 +436,6 @@
     margin-right: 2px;
   }
 
-  .volumeContainer {
-    display: flex;
-    flex-direction: column-reverse;
-    align-items: center;
-    position: relative;
-  }
-
-  .volumeSlider {
-    display: block !important;
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    width: 0;
-    height: 32px;
-    opacity: 0;
-    transform: translateX(-50%) rotate(-90deg) scaleX(0);
-    transform-origin: center;
-    transition: all 0.3s var(--ease-smooth);
-    margin: 0 0 20px 0;
-    background: rgba(15, 15, 17, 0.95);
-    border: 1px solid var(--glass-border);
-    padding: 4px 12px;
-    border-radius: 16px;
-    z-index: var(--z-dropdown);
-    pointer-events: none;
-  }
-
-  .volumeContainer.visible .volumeSlider,
-  .volumeContainer:hover .volumeSlider,
-  .volumeContainer:active .volumeSlider,
-  .volumeSlider:focus {
-    width: 100px;
-    opacity: 1;
-    transform: translateX(-50%) rotate(-90deg) scaleX(1);
-    pointer-events: auto;
-  }
-
   .nextEpisodeBtn {
     padding: 0.35rem 0.6rem;
     font-size: 0.75rem;
@@ -587,10 +444,6 @@
 
 /* Extra small screens (portrait phones) */
 @media (max-width: 480px) {
-  .shortcuts {
-    gap: 0.25rem;
-  }
-
   .timeDisplay {
     display: none;
   }

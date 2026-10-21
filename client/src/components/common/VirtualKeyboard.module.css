@@ -15,27 +15,6 @@
   user-select: none;
 }
 
-.small {
-  --keyboard-width: 500px;
-  --key-size: 34px;
-  --key-font: 0.8rem;
-  --keyboard-gap: 5px;
-}
-
-.medium {
-  --keyboard-width: 650px;
-  --key-size: 42px;
-  --key-font: 0.95rem;
-  --keyboard-gap: 7px;
-}
-
-.large {
-  --keyboard-width: 820px;
-  --key-size: 52px;
-  --key-font: 1.08rem;
-  --keyboard-gap: 9px;
-}
-
 .topBar {
   display: flex;
   align-items: center;
@@ -128,10 +107,6 @@
   min-width: calc(var(--key-size) * 1.75);
 }
 
-.extraWideKey {
-  min-width: calc(var(--key-size) * 2.3);
-}
-
 .spaceKey {
   flex: 1;
   max-width: calc(
@@ -157,14 +132,6 @@
   .keyboard {
     left: 8px !important;
     width: calc(100vw - 16px);
-  }
-
-  .small,
-  .medium,
-  .large {
-    --key-size: 31px;
-    --keyboard-gap: 4px;
-    --key-font: 0.76rem;
   }
 
   .dragHandle span {

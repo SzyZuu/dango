@@ -1,7 +1,4 @@
-.fullscreenFlat,
-.fullscreenFlat .video,
-.fullscreenFlat .delayCanvas,
-.fullscreenFlat .subtitleOverlay {
+.fullscreenFlat {
   border-radius: 0;
 }
 
@@ -30,18 +27,6 @@
     min-width: 2.125rem;
     min-height: 2.125rem;
   }
-}
-
-.video {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  display: block;
-  background: black;
-  border: none;
 }
 
 .controlsOverlay {
@@ -356,69 +341,6 @@
   color: var(--accent);
 }
 
-.volumeContainer {
-  display: flex;
-  align-items: center;
-  position: relative;
-}
-
-.volumeSlider {
-  width: 0;
-  opacity: 0;
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: pointer;
-  margin-left: 8px;
-  -webkit-appearance: none;
-  appearance: none;
-  background: transparent;
-  height: 20px;
-}
-
-.volumeContainer:hover .volumeSlider,
-.volumeSlider:focus {
-  width: 80px;
-  opacity: 1;
-  transform: scaleX(1);
-}
-
-.volumeSlider::-webkit-slider-runnable-track {
-  width: 100%;
-  height: 4px;
-  background: linear-gradient(
-    to right,
-    var(--accent) 0%,
-    var(--accent) var(--volume-percent, 0%),
-    rgba(255, 255, 255, 0.2) var(--volume-percent, 0%),
-    rgba(255, 255, 255, 0.2) 100%
-  );
-  border-radius: 4px;
-}
-
-.volumeSlider::-moz-range-track {
-  width: 100%;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 4px;
-}
-
-.volumeSlider::-moz-range-progress {
-  height: 4px;
-  background: var(--accent);
-  border-radius: 4px;
-}
-
-.volumeSlider::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  height: 12px;
-  width: 12px;
-  border-radius: 50%;
-  background: white;
-  margin-top: -4px;
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
-}
-
 .timeDisplay {
   color: rgba(255, 255, 255, 0.8);
   font-size: 0.85rem;
@@ -498,15 +420,6 @@
   font-weight: 500;
 }
 
-.settingsLabel {
-  padding: var(--space-2) var(--space-4);
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-secondary);
-}
-
 .menuItem {
   display: flex;
   align-items: center;
@@ -547,10 +460,6 @@
   color: var(--text-tertiary);
   white-space: normal;
   overflow-wrap: break-word;
-}
-
-.spin {
-  animation: spin 1s linear infinite;
 }
 
 .loadingOverlay {

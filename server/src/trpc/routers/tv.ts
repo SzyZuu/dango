@@ -1,7 +1,17 @@
 import { TRPCError } from '@trpc/server'
 import { protectedProcedure, router } from '../index.js'
 import { defineSchema, failed, optStr, readCount, reqId, reqObj, reqStr } from '../validation.js'
-import { getTmdbKey, TMDB_BASE, TMDB_IMAGE } from '../../lib/tmdb.js'
+import {
+  tmdbMediaDetails,
+  tmdbMediaMeta,
+  tmdbSearchMedia,
+  tmdbSeasonEpisodes,
+  tmdbTrendingMedia,
+  TMDB_IMAGE,
+  type TmdbEpisode,
+  type TmdbSearchItem,
+  type TmdbSeason,
+} from '../../lib/tmdb.js'
 import { fetchWithRetry, parseJsonBody } from '../../utils/http.utils.js'
 import type { TvMediaRequest } from '../../providers/tv.types.js'
 
@@ -12,79 +22,14 @@ async function resolveTvMeta(
 ): Promise<{ title: string; year: string; imdbId: string; totalSeasons: string }> {
   const meta = { ...partial }
   if (meta.title && meta.imdbId && meta.year) return meta
-  try {
-    const tmdbKey = await getTmdbKey()
-    if (tmdbKey) {
-      const tmdbRes = await fetchWithRetry(
-        `${TMDB_BASE}/${mediaType}/${numericTmdbId}?api_key=${tmdbKey}&append_to_response=external_ids`,
-        { headers: { 'User-Agent': 'Mozilla/5.0' } },
-        { timeoutMs: 4000 }
-      )
-      if (tmdbRes.ok) {
-        const d = await parseJsonBody<TmdbMetaBody>(tmdbRes)
-        if (!meta.title) meta.title = d.title || d.name || ''
-        if (!meta.year) meta.year = (d.release_date || d.first_air_date || '').split('-')[0] || ''
-        if (!meta.imdbId) meta.imdbId = d.external_ids?.imdb_id || d.imdb_id || ''
-        if (mediaType === 'tv' && d.number_of_seasons)
-          meta.totalSeasons = String(d.number_of_seasons)
-      }
-    }
-  } catch {
-    // ignore
+  const d = await tmdbMediaMeta(mediaType, numericTmdbId)
+  if (d) {
+    if (!meta.title) meta.title = d.title || d.name || ''
+    if (!meta.year) meta.year = (d.release_date || d.first_air_date || '').split('-')[0] || ''
+    if (!meta.imdbId) meta.imdbId = d.external_ids?.imdb_id || d.imdb_id || ''
+    if (mediaType === 'tv' && d.number_of_seasons) meta.totalSeasons = String(d.number_of_seasons)
   }
   return meta
-}
-
-interface TmdbSearchItem {
-  id: number
-  title?: string
-  name?: string
-  release_date?: string
-  first_air_date?: string
-  media_type?: string
-  poster_path?: string | null
-  vote_average?: number
-  adult?: boolean
-}
-
-interface TmdbSeason {
-  season_number: number
-  episode_count: number
-}
-
-interface TmdbEpisode {
-  episode_number: number
-  name?: string
-  vote_average?: number
-  overview?: string
-  still_path?: string | null
-}
-
-interface TmdbMetaBody {
-  title?: string
-  name?: string
-  release_date?: string
-  first_air_date?: string
-  imdb_id?: string | null
-  external_ids?: { imdb_id?: string | null }
-  number_of_seasons?: number
-}
-
-interface TmdbDetailsBody {
-  id: number
-  title?: string
-  name?: string
-  overview?: string
-  vote_average?: number
-  release_date?: string
-  first_air_date?: string
-  poster_path?: string | null
-  backdrop_path?: string | null
-  adult?: boolean
-  imdb_id?: string | null
-  external_ids?: { imdb_id?: string | null }
-  seasons?: TmdbSeason[]
-  number_of_seasons?: number
 }
 
 type SearchResultItem = {
@@ -254,62 +199,8 @@ export const tvRouter = router({
     const cacheKey = `tv-search-${query.toLowerCase()}-${page}-${type}-${genre}-${year}-${sortBy}`
     const cached = ctx.apiCache.get<TvSearchPayload>(cacheKey)
     if (cached) return cached
-    const key = await getTmdbKey()
-    if (!key) throw failed('No TMDB API key available')
     try {
-      let url: string
-      if (type === 'tv' || type === 'movie') {
-        if (!query.trim()) {
-          const params = new URLSearchParams({
-            api_key: key,
-            page: String(page),
-            sort_by: sortBy,
-          })
-          if (genre) params.set('with_genres', genre)
-          if (year) {
-            if (type === 'tv') params.set('first_air_date_year', year)
-            else params.set('primary_release_year', year)
-          }
-          url = `${TMDB_BASE}/discover/${type}?${params.toString()}`
-        } else {
-          const params = new URLSearchParams({
-            api_key: key,
-            query: encodeURIComponent(query.trim()),
-            page: String(page),
-            include_adult: 'true',
-          })
-          url = `${TMDB_BASE}/search/${type}?${params.toString()}`
-        }
-      } else if (!query.trim()) {
-        const params = new URLSearchParams({
-          api_key: key,
-          page: String(page),
-          sort_by: sortBy,
-        })
-        if (genre) params.set('with_genres', genre)
-        if (year) params.set('first_air_date_year', year)
-        url = `${TMDB_BASE}/discover/tv?${params.toString()}`
-      } else {
-        const params = new URLSearchParams({
-          api_key: key,
-          query: encodeURIComponent(query),
-          page: String(page),
-          include_adult: 'true',
-        })
-        url = `${TMDB_BASE}/search/multi?${params.toString()}`
-      }
-      const r = await fetchWithRetry(
-        url,
-        { headers: { 'User-Agent': 'Mozilla/5.0' } },
-        { timeoutMs: 10000 }
-      )
-      if (!r.ok) throw failed('TMDB search failed')
-      const d = await parseJsonBody<{
-        results?: TmdbSearchItem[]
-        total_results?: number
-        total_pages?: number
-        page?: number
-      }>(r)
+      const d = await tmdbSearchMedia({ query, page, type, genre, year, sortBy })
       let results: SearchResultItem[]
       if (type === 'tv' || type === 'movie') {
         results = (d.results || []).map(
@@ -355,25 +246,8 @@ export const tvRouter = router({
     const cacheKey = `tv-trending-${mediaType}-${timeWindow}-${page}`
     const cached = ctx.apiCache.get<TvSearchPayload>(cacheKey)
     if (cached) return cached
-    const key = await getTmdbKey()
-    if (!key) throw failed('No TMDB API key available')
     try {
-      const r = await fetchWithRetry(
-        `${TMDB_BASE}/trending/${mediaType}/${timeWindow}?api_key=${key}&page=${page}`,
-        { headers: { 'User-Agent': 'Mozilla/5.0' } },
-        { timeoutMs: 10000 }
-      )
-      if (!r.ok) throw failed('TMDB trending failed')
-      const d = await parseJsonBody<{
-        results?: (TmdbSearchItem & {
-          overview?: string
-          genre_ids?: number[]
-          backdrop_path?: string | null
-        })[]
-        total_results?: number
-        total_pages?: number
-        page?: number
-      }>(r)
+      const d = await tmdbTrendingMedia(mediaType, timeWindow, page)
       const results = (d.results || [])
         .filter((item: TmdbSearchItem) => item.media_type !== 'person')
         .map(
@@ -402,16 +276,8 @@ export const tvRouter = router({
   details: protectedProcedure.input(tvDetailsInput()).query(async ({ input }) => {
     const type = input.type
     const id = input.id
-    const key = await getTmdbKey()
-    if (!key) throw failed('No TMDB API key available')
     try {
-      const r = await fetchWithRetry(
-        `${TMDB_BASE}/${type}/${id}?api_key=${key}&append_to_response=external_ids`,
-        { headers: { 'User-Agent': 'Mozilla/5.0' } },
-        { timeoutMs: 10000 }
-      )
-      if (!r.ok) throw failed('TMDB details failed')
-      const d = await parseJsonBody<TmdbDetailsBody>(r)
+      const d = await tmdbMediaDetails(type, id)
       const result: {
         id: number
         imdb_id: string | null
@@ -454,17 +320,8 @@ export const tvRouter = router({
   episodes: protectedProcedure.input(tvEpisodesInput()).query(async ({ input }) => {
     const id = input.id
     const season = input.season
-    const key = await getTmdbKey()
-    if (!key) throw failed('No TMDB API key available')
     try {
-      const r = await fetchWithRetry(
-        `${TMDB_BASE}/tv/${id}/season/${season}?api_key=${key}`,
-        { headers: { 'User-Agent': 'Mozilla/5.0' } },
-        { timeoutMs: 10000 }
-      )
-      if (!r.ok) throw failed('TMDB episodes failed')
-      const d = await parseJsonBody<{ episodes?: TmdbEpisode[] }>(r)
-      const episodes = (d.episodes || []).map((ep: TmdbEpisode) => ({
+      const episodes = (await tmdbSeasonEpisodes(id, season)).map((ep: TmdbEpisode) => ({
         episode_number: ep.episode_number,
         name: ep.name,
         vote_average: ep.vote_average,

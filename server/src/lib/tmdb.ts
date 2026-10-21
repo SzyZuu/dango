@@ -75,6 +75,164 @@ export interface TmdbArtwork {
   overview?: string
 }
 
+export interface TmdbSearchItem {
+  id: number
+  title?: string
+  name?: string
+  release_date?: string
+  first_air_date?: string
+  media_type?: string
+  poster_path?: string | null
+  vote_average?: number
+  adult?: boolean
+  overview?: string
+  genre_ids?: number[]
+  backdrop_path?: string | null
+}
+
+export interface TmdbSeason {
+  season_number: number
+  episode_count: number
+}
+
+export interface TmdbEpisode {
+  episode_number: number
+  name?: string
+  vote_average?: number
+  overview?: string
+  still_path?: string | null
+}
+
+export interface TmdbMetaBody {
+  title?: string
+  name?: string
+  release_date?: string
+  first_air_date?: string
+  imdb_id?: string | null
+  external_ids?: { imdb_id?: string | null }
+  number_of_seasons?: number
+}
+
+export interface TmdbDetailsBody extends TmdbMetaBody {
+  id: number
+  vote_average?: number
+  overview?: string
+  poster_path?: string | null
+  backdrop_path?: string | null
+  adult?: boolean
+  seasons?: TmdbSeason[]
+}
+
+export interface TmdbListResponse {
+  results?: TmdbSearchItem[]
+  total_results?: number
+  total_pages?: number
+  page?: number
+}
+
+async function tmdbGet<T>(url: string, label: string, timeoutMs = 10000): Promise<T> {
+  const res = await fetchWithRetry(url, { headers: { 'User-Agent': 'Mozilla/5.0' } }, { timeoutMs })
+  if (!res.ok) throw new Error(label)
+  return parseJsonBody<T>(res)
+}
+
+export async function tmdbSearchMedia(options: {
+  query: string
+  page: number
+  type: string
+  genre?: string
+  year?: string
+  sortBy?: string
+}): Promise<TmdbListResponse> {
+  const key = await getTmdbKey()
+  if (!key) throw new Error('No TMDB API key available')
+  const { query, page, type, genre = '', year = '', sortBy = 'popularity.desc' } = options
+  const trimmed = query.trim()
+  let url: string
+  if (type === 'tv' || type === 'movie') {
+    if (!trimmed) {
+      const params = new URLSearchParams({
+        api_key: key,
+        page: String(page),
+        sort_by: sortBy,
+      })
+      if (genre) params.set('with_genres', genre)
+      if (year) {
+        if (type === 'tv') params.set('first_air_date_year', year)
+        else params.set('primary_release_year', year)
+      }
+      url = `${TMDB_BASE}/discover/${type}?${params.toString()}`
+    } else {
+      const params = new URLSearchParams({
+        api_key: key,
+        query: encodeURIComponent(trimmed),
+        page: String(page),
+        include_adult: 'true',
+      })
+      url = `${TMDB_BASE}/search/${type}?${params.toString()}`
+    }
+  } else if (!trimmed) {
+    const params = new URLSearchParams({
+      api_key: key,
+      page: String(page),
+      sort_by: sortBy,
+    })
+    if (genre) params.set('with_genres', genre)
+    if (year) params.set('first_air_date_year', year)
+    url = `${TMDB_BASE}/discover/tv?${params.toString()}`
+  } else {
+    const params = new URLSearchParams({
+      api_key: key,
+      query: encodeURIComponent(trimmed),
+      page: String(page),
+      include_adult: 'true',
+    })
+    url = `${TMDB_BASE}/search/multi?${params.toString()}`
+  }
+  return tmdbGet<TmdbListResponse>(url, 'TMDB search failed')
+}
+
+export async function tmdbTrendingMedia(
+  mediaType: string,
+  timeWindow: string,
+  page: number
+): Promise<TmdbListResponse> {
+  const key = await getTmdbKey()
+  if (!key) throw new Error('No TMDB API key available')
+  const url = `${TMDB_BASE}/trending/${mediaType}/${timeWindow}?api_key=${key}&page=${page}`
+  return tmdbGet<TmdbListResponse>(url, 'TMDB trending failed')
+}
+
+export async function tmdbMediaDetails(type: string, id: string): Promise<TmdbDetailsBody> {
+  const key = await getTmdbKey()
+  if (!key) throw new Error('No TMDB API key available')
+  const url = `${TMDB_BASE}/${type}/${id}?api_key=${key}&append_to_response=external_ids`
+  return tmdbGet<TmdbDetailsBody>(url, 'TMDB details failed')
+}
+
+export async function tmdbSeasonEpisodes(id: string, season: string): Promise<TmdbEpisode[]> {
+  const key = await getTmdbKey()
+  if (!key) throw new Error('No TMDB API key available')
+  const url = `${TMDB_BASE}/tv/${id}/season/${season}?api_key=${key}`
+  const d = await tmdbGet<{ episodes?: TmdbEpisode[] }>(url, 'TMDB episodes failed')
+  return d.episodes || []
+}
+
+export async function tmdbMediaMeta(
+  mediaType: 'movie' | 'tv',
+  numericTmdbId: number
+): Promise<TmdbMetaBody | null> {
+  try {
+    const key = await getTmdbKey()
+    if (!key) return null
+    const url = `${TMDB_BASE}/${mediaType}/${numericTmdbId}?api_key=${key}&append_to_response=external_ids`
+    return await tmdbGet<TmdbMetaBody>(url, 'TMDB meta failed', 4000)
+  } catch {
+    // ignore
+  }
+  return null
+}
+
 export async function findTmdbDefaultBackdrop(titleParts: {
   english?: string
   romaji?: string

@@ -29,7 +29,7 @@ import {
   EN_TITLE_CACHE_PREFIX,
   toAnilistSearchMedia,
   toAnilistDetailMedia,
-} from './mal.js'
+} from './mal/index.js'
 import { malCacheStore } from '../repositories/mal-cache.repository.js'
 import { offlineDb, type OfflineEntry } from './offline-db/index.js'
 import { stripHtml } from './html.js'

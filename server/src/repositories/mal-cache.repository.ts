@@ -4,7 +4,7 @@ import path from 'path'
 import { CONFIG } from '../config.js'
 import { DatabaseWrapper } from '../db.js'
 import { dbGet, dbRun } from '../utils/db-utils.js'
-import type { MalCacheStore } from '../lib/mal.js'
+import type { MalCacheStore } from '../lib/mal/index.js'
 
 export const MAL_CACHE_MAX_ROWS = 5000
 const DEFAULT_TTL_SECONDS = 6 * 3600

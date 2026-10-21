@@ -29,7 +29,7 @@ import {
   getShowMetaByMalId,
   fromAnilistMedia,
 } from '../../lib/anilist.js'
-import { malAnimeDetail, malSearchMedia, malSearchTitle } from '../../lib/mal.js'
+import { malAnimeDetail, malSearchMedia, malSearchTitle } from '../../lib/mal/index.js'
 import { malCacheStore } from '../../repositories/mal-cache.repository.js'
 import { getMigratedId } from '../../lib/migration.js'
 import { isTempShowId } from '../../lib/temp-ids.js'

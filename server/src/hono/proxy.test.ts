@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { applyEmbedPatches, mirrorUrls } from './proxy.js'
+import { applyEmbedPatches } from './proxy/embed.js'
+import { mirrorUrls } from './proxy/rules.js'
 
 test('mirrorUrls returns the url itself when there are no mirrors', () => {
   assert.deepEqual(mirrorUrls('https://host/x.m3u8', undefined), ['https://host/x.m3u8'])

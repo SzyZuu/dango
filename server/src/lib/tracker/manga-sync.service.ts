@@ -12,7 +12,7 @@ import {
 import { DatabaseWrapper } from '../../db.js'
 import logger from '../../logger.js'
 import { searchAnilistMangaByTitle, getMangaMetaById, getMangaMetaByMalId } from '../anilist.js'
-import { fetchMalMangaList, mapMalMangaStatusCode } from '../mal.js'
+import { fetchMalMangaList, mapMalMangaStatusCode } from '../mal/index.js'
 import { readTrackerSyncState, resolveStatus } from './sync-state.js'
 import type { TrackerSyncState, TrackerSyncStateEntry } from './sync-state.js'
 import { assertDeleteCap, collectMediaIds, pushRemoteChanges } from './sync-engine.js'

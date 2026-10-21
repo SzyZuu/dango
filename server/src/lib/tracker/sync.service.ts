@@ -9,7 +9,7 @@ import { performWriteTransactionAsync } from '../../db/transaction.js'
 import { DatabaseWrapper } from '../../db.js'
 import { dbGet } from '../../utils/db-utils.js'
 import logger from '../../logger.js'
-import { fetchMalUserList, type MalUserListEntry } from '../mal.js'
+import { fetchMalUserList, type MalUserListEntry } from '../mal/index.js'
 import { offlineDb } from '../offline-db/index.js'
 import {
   getShowMetaById,

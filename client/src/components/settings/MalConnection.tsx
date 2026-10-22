@@ -70,104 +70,118 @@ export default function MalConnection({ connecting }: { connecting: boolean }) {
   const mal = status?.mal
   return (
     <div>
-      <p>
-        Connect your account for two-way anime list sync. Completed episodes automatically update
-        MyAnimeList and AniList when connected.
+      <div className={styles.loginSection}>
+        <p className={styles.loginText}>
+          Connect your account for two-way anime list sync. Completed episodes automatically update
+          MyAnimeList and AniList when connected.
+        </p>
+        {mal?.connected ? (
+          <>
+            <p className={styles.loginText}>
+              Connected as <strong>{mal.user?.name || 'MyAnimeList user'}</strong>
+            </p>
+            <div className={styles.inputGroup}>
+              <Button
+                onClick={() => {
+                  setError('')
+                  sync.mutate()
+                }}
+                loading={sync.isPending}
+              >
+                Sync Now
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => disconnect.mutate()}
+                loading={disconnect.isPending}
+                disabled={sync.isPending}
+              >
+                Disconnect
+              </Button>
+            </div>
+            <p className={styles.helpText}>
+              Progress merges keep the higher watched episode number. Sync does not delete entries
+              from either library.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className={styles.helpText}>
+              Create an app at{' '}
+              <a href="https://myanimelist.net/apiconfig" target="_blank" rel="noopener noreferrer">
+                MyAnimeList API settings
+              </a>
+              . Use this exact redirect URL:
+            </p>
+            <p className={styles.helpText}>
+              <code>{window.location.origin}/trackers</code>
+            </p>
+            <div className={styles.credentialFields}>
+              <label className={`${styles.fieldLabel} ${styles.credentialField}`}>
+                Client ID
+                <input
+                  className={styles.input}
+                  placeholder="Client ID"
+                  value={clientId}
+                  onChange={(e) => setClientId(e.currentTarget.value)}
+                  autoComplete="off"
+                />
+              </label>
+              <label className={`${styles.fieldLabel} ${styles.credentialField}`}>
+                Client secret (if required by your app type)
+                <input
+                  className={styles.input}
+                  type="password"
+                  value={clientSecret}
+                  onChange={(e) => setClientSecret(e.currentTarget.value)}
+                  placeholder={
+                    config?.hasSecret ? 'Saved — leave blank to keep' : 'Optional for a public app'
+                  }
+                  autoComplete="new-password"
+                />
+              </label>
+            </div>
+            <p className={styles.helpText}>
+              Public apps use PKCE without a client secret. App credentials are saved on your dango
+              server; the secret is never returned to the browser.
+            </p>
+            <Button
+              className={styles.primaryBtn}
+              onClick={() => connect.mutate()}
+              loading={connect.isPending || connecting}
+              disabled={!clientId.trim()}
+            >
+              Connect to MyAnimeList
+            </Button>
+          </>
+        )}
+        {mal?.updates.pending ? (
+          <p className={styles.helpText} role="status">
+            {mal.updates.pending} episode update(s) pending.{' '}
+            {mal.updates.error || 'Updates retry automatically.'}
+          </p>
+        ) : null}
+        {status?.anilist.updates.pending ? (
+          <p className={styles.helpText} role="status">
+            AniList: {status.anilist.updates.pending} episode update(s) pending.{' '}
+            {status.anilist.updates.error}
+          </p>
+        ) : null}
+        {summary && (
+          <p className={styles.syncSummary} role="status">
+            {summary}
+          </p>
+        )}
+        {error && (
+          <p className={`${styles.helpText} ${styles.syncErrors}`} role="alert">
+            {error}
+          </p>
+        )}
+      </div>
+      <hr className={styles.divider} />
+      <p className={styles.syncHint}>
+        You can also import a public list or XML file without connecting an account:
       </p>
-      {mal?.connected ? (
-        <>
-          <p>
-            Connected as <strong>{mal.user?.name || 'MyAnimeList user'}</strong>
-          </p>
-          <div className={styles.inputGroup}>
-            <Button
-              onClick={() => {
-                setError('')
-                sync.mutate()
-              }}
-              loading={sync.isPending}
-            >
-              Sync Now
-            </Button>
-            <Button
-              variant="secondary"
-              onClick={() => disconnect.mutate()}
-              loading={disconnect.isPending}
-              disabled={sync.isPending}
-            >
-              Disconnect
-            </Button>
-          </div>
-          <p>
-            Progress merges keep the higher watched episode number. Sync does not delete entries
-            from either library.
-          </p>
-        </>
-      ) : (
-        <>
-          <p>
-            Create an app at{' '}
-            <a href="https://myanimelist.net/apiconfig" target="_blank" rel="noopener noreferrer">
-              MyAnimeList API settings
-            </a>
-            . Use this exact redirect URL:
-          </p>
-          <p>
-            <code>{window.location.origin}/trackers</code>
-          </p>
-          <div className={styles.inputGroup}>
-            <label>
-              Client ID
-              <input
-                className={styles.input}
-                value={clientId}
-                onChange={(e) => setClientId(e.currentTarget.value)}
-                autoComplete="off"
-              />
-            </label>
-            <label>
-              Client secret (if required by your app type)
-              <input
-                className={styles.input}
-                type="password"
-                value={clientSecret}
-                onChange={(e) => setClientSecret(e.currentTarget.value)}
-                placeholder={
-                  config?.hasSecret ? 'Saved — leave blank to keep' : 'Optional for a public app'
-                }
-                autoComplete="new-password"
-              />
-            </label>
-          </div>
-          <p>
-            Public apps use PKCE without a client secret. App credentials are saved on your dango
-            server; the secret is never returned to the browser.
-          </p>
-          <Button
-            onClick={() => connect.mutate()}
-            loading={connect.isPending || connecting}
-            disabled={!clientId.trim()}
-          >
-            Connect to MyAnimeList
-          </Button>
-        </>
-      )}
-      {mal?.updates.pending ? (
-        <p role="status">
-          {mal.updates.pending} episode update(s) pending.{' '}
-          {mal.updates.error || 'Updates retry automatically.'}
-        </p>
-      ) : null}
-      {status?.anilist.updates.pending ? (
-        <p role="status">
-          AniList: {status.anilist.updates.pending} episode update(s) pending.{' '}
-          {status.anilist.updates.error}
-        </p>
-      ) : null}
-      {summary && <p role="status">{summary}</p>}
-      {error && <p role="alert">{error}</p>}
-      <hr />
-      <p>You can also import a public list or XML file without connecting an account:</p>
     </div>
   )
 }

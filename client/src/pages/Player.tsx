@@ -6,9 +6,10 @@ import layoutStyles from '../components/player/PlayerPageLayout.module.css'
 import shellStyles from '../components/player/UnifiedPlayer.module.css'
 import Icon from '../components/common/Icon'
 import { fixThumbnailUrl } from '../lib/utils'
-import { isProgressCompleted, storeAutoplayEnabled } from '../lib/playbackCompletion'
+import { storeAutoplayEnabled } from '../lib/playbackCompletion'
 import { type SubtitleStyleSettings } from '../lib/subtitleStyle'
 import { Modal } from '../components/common/Modal'
+import CompletionModal from '../components/common/CompletionModal'
 import { Button } from '../components/common/Button'
 import MatureConsentModal from '../components/common/MatureConsentModal'
 import ResumeModal from '../components/common/ResumeModal'
@@ -39,6 +40,7 @@ import { usePlayerData } from '../hooks/usePlayerData'
 import { usePlayerShortcuts } from '../hooks/usePlayerShortcuts'
 import { useEpisodeEndFlow, matchesQueueItem } from '../hooks/useEpisodeEndFlow'
 import { useNextEpisodePrompt } from '../hooks/useNextEpisodePrompt'
+import { usePlaybackEnd } from '../hooks/usePlaybackEnd'
 import { useProviderFallback } from '../hooks/useProviderFallback'
 import { useMediaSource } from '../hooks/useMediaSource'
 import { useSubtitleTracks } from '../hooks/useSubtitleTracks'
@@ -236,11 +238,9 @@ const Player: React.FC = () => {
       ? state.episodes[currentEpisodeIndex + 1]
       : null
   const hasNextEpisode = currentEpisodeIndex > -1 && currentEpisodeIndex < state.episodes.length - 1
-  const isCompleted = isProgressCompleted(state.resumeTime, state.resumeDuration)
 
   const {
-    endedModal,
-    effectiveIsCompleted,
+    showCompleteModal,
     queueCountdown,
     pendingQueueTransition,
     handleQueueTransition,
@@ -248,9 +248,7 @@ const Player: React.FC = () => {
     handleNShortcut,
     handlePreviousEpisode,
     handlePlaybackFinished,
-    dismissEndedModal,
-    resetReachedEpisodeEnd,
-    setReachedEpisodeEnd,
+    closeCompleteModal,
     cancelQueueTransition,
   } = useEpisodeEndFlow({
     testClipActive,
@@ -260,12 +258,8 @@ const Player: React.FC = () => {
     removeFromQueue: removeQueue.mutate,
     showId,
     showMetaId: state.showMeta?.id,
-    showMetaStatus: state.showMeta.status,
-    showEpisodeCount: state.showMeta.episodeCount,
     currentEpisode: state.currentEpisode,
-    episodes: state.episodes,
     isAutoplayEnabled: state.isAutoplayEnabled,
-    isCompleted,
     nextEpisode,
     previousEpisode,
     navigate,
@@ -283,16 +277,19 @@ const Player: React.FC = () => {
     hasNextEpisode,
     nextEpisode,
     prefetchEpisodeSources,
-    setReachedEpisodeEnd,
     matchesQueueItem,
   })
 
-  const shouldShowResumeModal = state.showResumeModal && !effectiveIsCompleted
-  const shouldShowCompleteModal = endedModal === 'complete'
-  const shouldShowNextEpisodeModal =
-    endedModal === 'watched' && queue.length === 0 && !pendingQueueTransition
-  const shouldPauseForModal =
-    shouldShowResumeModal || shouldShowCompleteModal || shouldShowNextEpisodeModal
+  const { checkEnd, logDuration } = usePlaybackEnd({
+    videoRef: refs.videoRef,
+    sourceType: state.selectedSource?.type,
+    resetKey: `${showId}:${state.currentEpisode}`,
+    onEnd: handlePlaybackFinished,
+  })
+
+  const shouldShowResumeModal = state.showResumeModal
+  const shouldShowCompleteModal = showCompleteModal
+  const shouldPauseForModal = shouldShowResumeModal || shouldShowCompleteModal
 
   useAutoRotateFullscreen(player, !!state.selectedLink && !isTheaterMode && !shouldPauseForModal)
 
@@ -465,36 +462,20 @@ const Player: React.FC = () => {
     dispatch({ type: 'SET_STATE', payload: { showResumeModal: false } })
   }
 
-  const handleCloseModal = useCallback(() => {
-    dismissEndedModal()
-    resetReachedEpisodeEnd()
+  const handleCloseResumeModal = useCallback(() => {
     dispatch({ type: 'SET_STATE', payload: { showResumeModal: false } })
-  }, [dispatch, dismissEndedModal, resetReachedEpisodeEnd])
-
-  const handleReplayCompleted = useCallback(() => {
-    dismissEndedModal()
-    resetReachedEpisodeEnd()
-    if (refs.videoRef.current) {
-      try {
-        refs.videoRef.current.currentTime = 0
-        void refs.videoRef.current.play().catch(() => {})
-      } catch {
-        // ignore
-      }
-    }
-    dispatch({ type: 'SET_STATE', payload: { showResumeModal: false } })
-  }, [dispatch, refs, dismissEndedModal, resetReachedEpisodeEnd])
+  }, [dispatch])
 
   const handleMoveToCompletedAndNavigate = useCallback(async () => {
     try {
       await moveToCompleted()
-      dismissEndedModal()
+      closeCompleteModal()
       dispatch({ type: 'SET_STATE', payload: { showResumeModal: false } })
       navigate('/')
     } catch {
       // ignore
     }
-  }, [moveToCompleted, dispatch, navigate, dismissEndedModal])
+  }, [moveToCompleted, closeCompleteModal, dispatch, navigate])
 
   const episodeNavControls = (className: string, variant: 'desktop' | 'mobile') => (
     <div className={className}>
@@ -595,25 +576,24 @@ const Player: React.FC = () => {
           settings={ambientSettings}
         />
       )}
-      <Modal
+      <CompletionModal
         isOpen={shouldShowCompleteModal}
-        onClose={handleCloseModal}
+        onClose={closeCompleteModal}
         title="Show Completed!"
-        width="sm"
+        heading={displayTitle}
+        message="Congratulations! You finished all available episodes."
       >
-        <Modal.Body>
-          <p>Congratulations! You&apos;ve finished the final episode of this series.</p>
-        </Modal.Body>
-        <Modal.Actions>
-          <Button onClick={handleMoveToCompletedAndNavigate} disabled={isUpdatingWatchlistStatus}>
-            {isUpdatingWatchlistStatus ? 'Saving...' : 'Move to Completed'}
-          </Button>
-        </Modal.Actions>
-      </Modal>
+        <Button variant="secondary" onClick={closeCompleteModal}>
+          Close
+        </Button>
+        <Button onClick={handleMoveToCompletedAndNavigate} disabled={isUpdatingWatchlistStatus}>
+          {isUpdatingWatchlistStatus ? 'Saving...' : 'Move to Completed'}
+        </Button>
+      </CompletionModal>
 
       <ResumeModal
         isOpen={shouldShowResumeModal}
-        onClose={handleCloseModal}
+        onClose={handleCloseResumeModal}
         title="Resume Playback?"
         message={
           <>
@@ -624,26 +604,6 @@ const Player: React.FC = () => {
         onResume={handleResume}
         onRestart={handleStartOver}
       />
-
-      <Modal
-        isOpen={shouldShowNextEpisodeModal}
-        onClose={handleCloseModal}
-        title="Episode Completed"
-        width="sm"
-      >
-        <Modal.Body>
-          <p>
-            You&apos;ve already watched Episode <strong>{state.currentEpisode}</strong>.
-            {nextEpisode ? ' Would you like to watch the next episode?' : ''}
-          </p>
-        </Modal.Body>
-        <Modal.Actions>
-          <Button variant="secondary" onClick={handleReplayCompleted}>
-            Replay
-          </Button>
-          {nextEpisode && <Button onClick={handleNextEpisode}>{`Watch EP ${nextEpisode}`}</Button>}
-        </Modal.Actions>
-      </Modal>
 
       <Modal
         isOpen={!!fallbackPrompt}
@@ -869,15 +829,29 @@ const Player: React.FC = () => {
                     disableRemotePlayback
                     onPlay={actions.onPlay}
                     onPause={actions.onPause}
-                    onEnded={handlePlaybackFinished}
+                    onEnded={() => {
+                      if (!testClipActive) checkEnd(true)
+                    }}
+                    onDurationChange={() => {
+                      actions.onDurationChange()
+                      logDuration()
+                    }}
+                    onSeeked={() => {
+                      if (testClipActive) return
+                      handleThresholds()
+                      checkEnd()
+                    }}
                     onLoadedMetadata={() => {
                       actions.onLoadedMetadata()
                       handleThresholds()
+                      logDuration()
+                      if (!testClipActive) checkEnd()
                     }}
                     onTimeUpdate={() => {
                       if (testClipActive) return
                       actions.onTimeUpdate()
                       handleThresholds()
+                      checkEnd()
                       if (
                         pendingQueueTransition &&
                         refs.videoRef.current &&

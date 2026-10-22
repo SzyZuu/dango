@@ -192,15 +192,10 @@ const useVideoPlayer = ({
       const video = videoRef.current
       if (!video && sourceType !== 'iframe') return false
 
-      const isFinished = video ? video.currentTime >= video.duration * 0.8 : false
-      let timeToReport = video ? video.currentTime : 0
-
-      if (isFinalUpdate && isFinished) {
-        timeToReport = video ? video.duration : 0
-      }
+      const timeToReport = video ? video.currentTime : 0
 
       if (!force) {
-        if (timeToReport === 0 && !isFinished) return false
+        if (timeToReport === 0) return false
 
         const timeDiff = video ? Math.abs(timeToReport - lastReportedTime.current) : 0
         if (!isFinalUpdate && video && timeToReport !== video.duration && timeDiff < 5) {
@@ -550,6 +545,7 @@ const useVideoPlayer = ({
   }, [setKeyboardSpeedBoost, setMouseSpeedBoost])
 
   const onPlay = useCallback(() => {
+    hasEnded.current = false
     setIsPlaying(true)
     setIsBuffering(false)
     setTimeout(() => sendProgressUpdate(false, true), 50)
@@ -636,6 +632,10 @@ const useVideoPlayer = ({
     setDuration(videoRef.current?.duration || 0)
     syncPlaybackRate()
   }, [syncPlaybackRate])
+  const onDurationChange = useCallback(() => {
+    const duration = videoRef.current?.duration
+    if (duration && Number.isFinite(duration)) setDuration(duration)
+  }, [])
   const onVolumeChange = useCallback(() => {
     if (videoRef.current) {
       const newMuted = videoRef.current.muted
@@ -731,6 +731,7 @@ const useVideoPlayer = ({
       onPlay,
       onPause,
       onLoadedMetadata,
+      onDurationChange,
       formatTime,
       onVolumeChange,
       onTimeUpdate,
@@ -770,6 +771,7 @@ const useVideoPlayer = ({
       onPlay,
       onPause,
       onLoadedMetadata,
+      onDurationChange,
       onVolumeChange,
       onTimeUpdate,
       onEnded,

@@ -2,15 +2,17 @@ export const COMPLETION_THRESHOLD = 0.8
 
 export const RESUME_MIN_TIME = 5
 
-export const SEEK_END_GRACE_MS = 2000
-
 const AUTOPLAY_KEY = 'autoplayEnabled'
 
 export const isProgressCompleted = (currentTime: number, duration: number): boolean =>
   duration > 0 && currentTime >= duration * COMPLETION_THRESHOLD
 
-export const hasResumableProgress = (currentTime: number, duration: number): boolean =>
-  currentTime > RESUME_MIN_TIME && !isProgressCompleted(currentTime, duration)
+export const END_TOLERANCE_SECONDS = 0.25
+
+export const isPlaybackEnded = (currentTime: number, duration: number): boolean =>
+  duration > 0 && Number.isFinite(duration) && currentTime >= duration - END_TOLERANCE_SECONDS
+
+export const hasResumableProgress = (currentTime: number): boolean => currentTime > RESUME_MIN_TIME
 
 export const loadAutoplayEnabled = (): boolean => {
   try {
@@ -26,46 +28,4 @@ export const storeAutoplayEnabled = (value: boolean): void => {
   } catch {
     // ignore
   }
-}
-
-const FINISHED_STATUSES = ['finished', 'completed', 'complete', 'ended']
-
-export const isShowFinale = (
-  episodes: string[],
-  currentEpisode: string | undefined,
-  status: unknown,
-  episodeCount?: number | string | null
-): boolean => {
-  if (!currentEpisode) return false
-  const lastEpisode =
-    episodes.length > 0
-      ? episodes[episodes.length - 1]
-      : episodeCount != null && String(episodeCount) !== ''
-        ? String(episodeCount)
-        : null
-  if (!lastEpisode) return false
-  return (
-    lastEpisode === currentEpisode &&
-    FINISHED_STATUSES.some((s) =>
-      String(status || '')
-        .trim()
-        .toLowerCase()
-        .includes(s)
-    )
-  )
-}
-
-export type EpisodeEndAction = 'advance' | 'prompt-next' | 'prompt-complete' | 'none'
-
-export const decideEpisodeEnd = (options: {
-  seekInduced: boolean
-  autoplayEnabled: boolean
-  hasNext: boolean
-  isFinal: boolean
-}): EpisodeEndAction => {
-  if (options.seekInduced) return 'none'
-  if (options.autoplayEnabled && options.hasNext) return 'advance'
-  if (options.hasNext) return 'prompt-next'
-  if (options.isFinal) return 'prompt-complete'
-  return 'none'
 }

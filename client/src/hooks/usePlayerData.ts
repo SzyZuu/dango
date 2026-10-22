@@ -398,7 +398,23 @@ export const usePlayerData = (
     useMutation({
       mutationFn: async ({ status }: { status: string }) => {
         if (!showId) throw new Error('Missing showId')
-        await trpcClient.watchlist.setStatus.mutate({ id: showId, status })
+        if (playerData?.inWatchlist) {
+          await trpcClient.watchlist.setStatus.mutate({ id: showId, status })
+          return status
+        }
+        const meta = showMeta as unknown as DetailedShowMeta | undefined
+        const name = meta?.name || meta?.names?.romaji
+        if (!meta || !name) throw new Error('Missing show name')
+        await trpcClient.watchlist.add.mutate({
+          id: showId,
+          name,
+          thumbnail: meta.thumbnail,
+          nativeName: meta.names?.native,
+          englishName: meta.names?.english,
+          type: meta.type,
+          isAdult: meta.isAdult,
+          status,
+        })
         return status
       },
       onSuccess: (status) => {

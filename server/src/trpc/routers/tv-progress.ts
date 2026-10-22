@@ -124,16 +124,14 @@ export const tvProgressRouter = router({
     const timeNum = Math.max(Number(input.currentTime) || 0, 0)
     const durationNum = Math.max(Number(input.duration) || 0, 0)
     const clampedTime = durationNum > 0 ? Math.min(timeNum, durationNum) : timeNum
-    const storedTime =
-      durationNum > 0 && clampedTime >= durationNum * 0.8 ? durationNum : clampedTime
     const completedNow =
-      Number(input.completed) === 1 || (durationNum > 0 && storedTime >= durationNum * 0.8) ? 1 : 0
+      Number(input.completed) === 1 || (durationNum > 0 && clampedTime >= durationNum * 0.8) ? 1 : 0
     await performTvWriteTransactionAsync(ctx.tvDb, async (tx) => {
       await TvProgressRepository.upsert(tx, {
         mediaId: String(mediaId),
         season: Math.round(seasonNum),
         episode: Math.round(episodeNum),
-        currentTime: storedTime,
+        currentTime: clampedTime,
         duration: durationNum,
         completed: completedNow,
         title: input.title ?? null,

@@ -12,7 +12,6 @@ interface UseNextEpisodePromptOptions {
   hasNextEpisode: boolean
   nextEpisode: string | null
   prefetchEpisodeSources: (episodeNumber: string, targetShowId?: string) => void
-  setReachedEpisodeEnd: (reached: boolean) => void
   matchesQueueItem: (item: QueueItem, id: string | undefined, metaId: string | undefined) => boolean
 }
 
@@ -27,7 +26,6 @@ export function useNextEpisodePrompt({
   hasNextEpisode,
   nextEpisode,
   prefetchEpisodeSources,
-  setReachedEpisodeEnd,
   matchesQueueItem,
 }: UseNextEpisodePromptOptions) {
   const [showNextEpisodePrompt, setShowNextEpisodePrompt] = useState(false)
@@ -37,8 +35,7 @@ export function useNextEpisodePrompt({
 
   useEffect(() => {
     setShowNextEpisodePrompt(false)
-    setReachedEpisodeEnd(false)
-  }, [currentEpisode, setReachedEpisodeEnd])
+  }, [currentEpisode])
 
   const handleThresholds = useCallback(() => {
     const videoElement = videoRef.current
@@ -49,7 +46,6 @@ export function useNextEpisodePrompt({
 
     if (!duration || Number.isNaN(duration)) {
       setShowNextEpisodePrompt(false)
-      setReachedEpisodeEnd(false)
       return
     }
 
@@ -82,7 +78,6 @@ export function useNextEpisodePrompt({
     }
 
     setShowNextEpisodePrompt(hasNextEpisode && isProgressCompleted(currentTime, duration))
-    setReachedEpisodeEnd(currentTime >= Math.max(duration * 0.98, duration - 10))
   }, [
     videoRef,
     selectedSource,
@@ -92,7 +87,6 @@ export function useNextEpisodePrompt({
     currentEpisode,
     hasNextEpisode,
     nextEpisode,
-    setReachedEpisodeEnd,
     matchesQueueItem,
   ])
 

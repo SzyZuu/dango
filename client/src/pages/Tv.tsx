@@ -7,14 +7,15 @@ import toast from 'react-hot-toast'
 import Icon from '../components/common/Icon'
 import TvPlayerControls from '../components/tv/TvPlayerControls'
 import TvSourceSelector from '../components/tv/SourceSelector'
-import { Modal } from '../components/common/Modal'
 import { Button } from '../components/common/Button'
 import MatureConsentModal from '../components/common/MatureConsentModal'
+import CompletionModal from '../components/common/CompletionModal'
 import ResumeModal from '../components/common/ResumeModal'
 import { useMatureConsent } from '../hooks/useMatureConsent'
 import { useTvPresence } from '../hooks/useTvPresence'
 import { useProviders } from '../hooks/useProviders'
 import {
+  useAddTvBookmark,
   useSaveTvProgress,
   useTvLatestProgress,
   useTvProgress,
@@ -24,8 +25,6 @@ import {
 import { useTvLibraryCheck } from '../hooks/useTvLibrary'
 import { buildTvId } from '../lib/tv'
 import {
-  SEEK_END_GRACE_MS,
-  decideEpisodeEnd,
   hasResumableProgress,
   isProgressCompleted,
   loadAutoplayEnabled,
@@ -52,6 +51,7 @@ import AmbientLightCanvas from '../components/player/AmbientLightCanvas'
 import useIsMobile from '../hooks/useIsMobile'
 import useVideoPlayer from '../hooks/useVideoPlayer'
 import useAutoRotateFullscreen from '../hooks/useAutoRotateFullscreen'
+import { usePlaybackEnd } from '../hooks/usePlaybackEnd'
 import AvSyncCalibrator from '../components/player/AvSyncCalibrator'
 import EpisodeList, { type EpisodeListItem } from '../components/player/EpisodeList'
 import EpisodeListSkeleton from '../components/player/EpisodeListSkeleton'
@@ -344,6 +344,7 @@ const Tv: React.FC = () => {
   const mediaId = libraryId
   const saveProgress = useSaveTvProgress()
   const updateTvStatus = useUpdateTvStatus()
+  const addTvBookmark = useAddTvBookmark()
   const {
     toggle: toggleTvWatchlist,
     bookmarkedIds,
@@ -366,11 +367,11 @@ const Tv: React.FC = () => {
       adult: details.adult,
     })
   }, [details, id, typeParam, toggleTvWatchlist])
-  const {
-    data: savedProgress,
-    isFetched: resumeFetched,
-    isPending: progressPending,
-  } = useTvLatestProgress(mediaId || undefined, season, episode)
+  const { data: savedProgress, isFetched: resumeFetched } = useTvLatestProgress(
+    mediaId || undefined,
+    season,
+    episode
+  )
   const sortedEpisodeNumbers = useMemo(
     () => episodes.map((ep) => ep.episode_number).sort((a, b) => a - b),
     [episodes]
@@ -397,20 +398,7 @@ const Tv: React.FC = () => {
     return totalSeasons > season ? season + 1 : null
   }, [isMovie, nextEpisodeNumber, sortedSeasons, season, details?.number_of_seasons])
   const savedCt = (savedProgress as { currentTime?: number } | undefined)?.currentTime ?? 0
-  const savedDur = (savedProgress as { duration?: number } | undefined)?.duration ?? 0
-  const savedCompleted =
-    (savedProgress as { completed?: number | boolean } | undefined)?.completed === true ||
-    (savedProgress as { completed?: number | boolean } | undefined)?.completed === 1
-  const isSavedCompleted = savedCompleted || isProgressCompleted(savedCt, savedDur)
-  const [showWatchedModal, setShowWatchedModal] = useState(false)
-  const hasDismissedWatchedRef = useRef(false)
   const resumeEvaluatedKeyRef = useRef<string | null>(null)
-  const watchedEvaluatedKeyRef = useRef<string | null>(null)
-  useEffect(() => {
-    hasDismissedWatchedRef.current = false
-    watchedEvaluatedKeyRef.current = null
-    setShowWatchedModal(false)
-  }, [mediaId, season, episode])
 
   const [showResumeModal, setShowResumeModal] = useState(false)
   const [resumeTime, setResumeTime] = useState(0)
@@ -443,7 +431,6 @@ const Tv: React.FC = () => {
     (streams.length > 0 || iframeUrl !== '') &&
       !isTheaterMode &&
       !showResumeModal &&
-      !showWatchedModal &&
       !showCompleteModal
   )
   const isMobile = useIsMobile()
@@ -455,19 +442,11 @@ const Tv: React.FC = () => {
   const hasResumedRef = useRef(false)
   const progressSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const lastSavedTimeRef = useRef(0)
-  const videoEndedRef = useRef(false)
-  const lastSeekedAtRef = useRef(0)
   const pendingSeekRef = useRef<number | null>(null)
   const streamKeyRef = useRef('')
-  const hasSavedResumableProgress = hasResumableProgress(savedCt, savedDur)
+  const hasSavedResumableProgress = hasResumableProgress(savedCt)
   const playbackPromptBlocked =
-    !hasResumedRef.current &&
-    !hasDismissedWatchedRef.current &&
-    (showResumeModal ||
-      showWatchedModal ||
-      showCompleteModal ||
-      isSavedCompleted ||
-      hasSavedResumableProgress)
+    !hasResumedRef.current && (showResumeModal || showCompleteModal || hasSavedResumableProgress)
   const playbackPromptBlockedRef = useRef(playbackPromptBlocked)
   playbackPromptBlockedRef.current = playbackPromptBlocked
   const resumeCheckedRef = useRef(false)
@@ -479,14 +458,13 @@ const Tv: React.FC = () => {
     (currentTime: number, duration: number) => {
       if (!mediaId || !duration || duration < 30) return
       const isWatched = isProgressCompleted(currentTime, duration)
-      const timeToSave = isWatched ? duration : currentTime
-      if (Math.abs(timeToSave - lastSavedTimeRef.current) < 10 && !isWatched) return
-      lastSavedTimeRef.current = timeToSave
+      if (Math.abs(currentTime - lastSavedTimeRef.current) < 10 && !isWatched) return
+      lastSavedTimeRef.current = currentTime
       saveProgress.mutate({
         mediaId,
         season,
         episode,
-        currentTime: Math.floor(timeToSave),
+        currentTime: Math.floor(currentTime),
         duration: Math.floor(duration),
         completed: isWatched,
         title: details?.title ?? null,
@@ -611,26 +589,18 @@ const Tv: React.FC = () => {
     if (!video || !details) return
     if (progressSaveTimerRef.current) clearTimeout(progressSaveTimerRef.current)
     saveVideoProgress(video.currentTime, video.duration || 0)
-    videoEndedRef.current = true
-    const action = decideEpisodeEnd({
-      seekInduced: Date.now() - lastSeekedAtRef.current < SEEK_END_GRACE_MS,
-      autoplayEnabled: isAutoplayEnabled,
-      hasNext: !isMovie && nextEpisodeNumber != null,
-      isFinal: isMovie || nextEpisodeNumber == null,
-    })
-    if (action === 'advance' && nextEpisodeNumber != null) {
-      setEpisode(nextEpisodeNumber)
-      updateUrlEpisode(season, nextEpisodeNumber)
-    } else if (action === 'prompt-next') {
-      hasDismissedWatchedRef.current = false
-      hasResumedRef.current = true
-      setShowWatchedModal(true)
-    } else if (action === 'prompt-complete') {
-      setCompleteTitle(isMovie ? details.title : `${details.title} - Season ${season}`)
-      setShowCompleteModal(true)
-      hasDismissedWatchedRef.current = true
-      hasResumedRef.current = true
+
+    if (nextEpisodeNumber != null) {
+      if (isAutoplayEnabled) {
+        setEpisode(nextEpisodeNumber)
+        updateUrlEpisode(season, nextEpisodeNumber)
+      }
+      return
     }
+
+    setCompleteTitle(isMovie ? details.title : `${details.title} - Season ${season}`)
+    setShowCompleteModal(true)
+    hasResumedRef.current = true
   }, [
     isMovie,
     details,
@@ -642,8 +612,14 @@ const Tv: React.FC = () => {
     videoRef,
   ])
 
+  const { checkEnd, logDuration } = usePlaybackEnd({
+    videoRef,
+    sourceType: isEmbedProvider ? 'iframe' : undefined,
+    resetKey: `${mediaId}:${season}:${episode}`,
+    onEnd: handleVideoEnded,
+  })
+
   const handleVideoPlay = useCallback(() => {
-    videoEndedRef.current = false
     player.actions.onPlay()
   }, [player.actions])
 
@@ -716,32 +692,8 @@ const Tv: React.FC = () => {
     hasResumedRef.current = true
   }, [videoRef])
 
-  const handleCloseWatchedModal = useCallback(() => {
-    hasDismissedWatchedRef.current = true
-    setShowWatchedModal(false)
-    hasResumedRef.current = true
-  }, [])
-
-  const handleReplayWatched = useCallback(() => {
-    hasDismissedWatchedRef.current = true
-    setShowWatchedModal(false)
-    hasResumedRef.current = true
-    pendingSeekRef.current = null
-    const video = videoRef.current
-    if (video) {
-      try {
-        video.currentTime = 0
-      } catch {
-        // ignore
-      }
-      video.play().catch(() => {})
-    }
-  }, [videoRef])
-
   const handleWatchNextEpisode = useCallback(() => {
     if (nextEpisodeNumber == null) return
-    hasDismissedWatchedRef.current = true
-    setShowWatchedModal(false)
     hasResumedRef.current = true
     setEpisode(nextEpisodeNumber)
     updateUrlEpisode(season, nextEpisodeNumber)
@@ -749,8 +701,6 @@ const Tv: React.FC = () => {
 
   const handleStartNextSeason = useCallback(() => {
     if (nextSeasonNumber == null) return
-    hasDismissedWatchedRef.current = true
-    setShowWatchedModal(false)
     setShowCompleteModal(false)
     hasResumedRef.current = true
     setSeason(nextSeasonNumber)
@@ -761,14 +711,29 @@ const Tv: React.FC = () => {
   const handleMoveTvToCompletedAndHome = useCallback(async () => {
     if (!mediaId) return
     try {
-      await updateTvStatus.mutateAsync({ id: mediaId, status: 'Completed' })
+      if (inTvLibrary) {
+        await updateTvStatus.mutateAsync({ id: mediaId, status: 'Completed' })
+      } else if (details && id) {
+        await addTvBookmark.mutateAsync({
+          tmdbId: Number(id),
+          mediaType: typeParam || 'tv',
+          title: details.title,
+          poster: details.poster,
+          backdrop: details.backdrop,
+          year: details.year,
+          overview: details.overview,
+          adult: details.adult,
+          status: 'Completed',
+          silent: true,
+        })
+        toast.success('Moved to Completed')
+      }
       setShowCompleteModal(false)
-      setShowWatchedModal(false)
       navigate('/')
     } catch {
       // ignore
     }
-  }, [mediaId, updateTvStatus, navigate])
+  }, [mediaId, inTvLibrary, updateTvStatus, addTvBookmark, details, id, typeParam, navigate])
 
   useEffect(() => {
     hasResumedRef.current = false
@@ -795,64 +760,19 @@ const Tv: React.FC = () => {
     const epKey = `${mediaId}:${season}:${episode}`
     if (resumeEvaluatedKeyRef.current === epKey) return
     resumeEvaluatedKeyRef.current = epKey
-    const c = savedProgress as { currentTime?: number; duration?: number }
+    const c = savedProgress as { currentTime?: number }
     const ct = c.currentTime ?? 0
-    const dur = c.duration ?? 0
-    if (hasResumableProgress(ct, dur)) {
+    if (hasResumableProgress(ct)) {
       setResumeTime(ct)
       setShowResumeModal(true)
     }
   }, [savedProgress, mediaId, season, episode])
 
   useEffect(() => {
-    if (!resumeChecked || hasResumedRef.current || hasDismissedWatchedRef.current) return
-    if (showResumeModal || showCompleteModal || showWatchedModal) return
-    const epKey = `${mediaId}:${season}:${episode}`
-    if (watchedEvaluatedKeyRef.current === epKey) return
-    if (!isSavedCompleted) {
-      if (!progressPending) watchedEvaluatedKeyRef.current = epKey
-      return
-    }
-    if (isMovie) {
-      watchedEvaluatedKeyRef.current = epKey
-      setShowWatchedModal(true)
-      return
-    }
-    if (!details || episodeIndex < 0 || episodes.length === 0) return
-    watchedEvaluatedKeyRef.current = epKey
-    if (nextEpisodeNumber == null && nextSeasonNumber == null) {
-      if (details && episodes.length > 0) {
-        setCompleteTitle(`${details.title} - Season ${season}`)
-        setShowCompleteModal(true)
-        hasDismissedWatchedRef.current = true
-        hasResumedRef.current = true
-      }
-      return
-    }
-    setShowWatchedModal(true)
-  }, [
-    resumeChecked,
-    isSavedCompleted,
-    progressPending,
-    showResumeModal,
-    showCompleteModal,
-    showWatchedModal,
-    isMovie,
-    nextEpisodeNumber,
-    nextSeasonNumber,
-    details,
-    episodeIndex,
-    episodes.length,
-    mediaId,
-    season,
-    episode,
-  ])
-
-  useEffect(() => {
-    if ((showResumeModal || showWatchedModal) && videoRef.current) {
+    if (showResumeModal && videoRef.current) {
       videoRef.current.pause()
     }
-  }, [showResumeModal, showWatchedModal, videoRef])
+  }, [showResumeModal, videoRef])
 
   useEffect(() => {
     const video = videoRef.current
@@ -1462,7 +1382,6 @@ const Tv: React.FC = () => {
     if (
       !resumeChecked ||
       showResumeModal ||
-      showWatchedModal ||
       showCompleteModal ||
       playbackPromptBlocked ||
       isEmbedProvider ||
@@ -1476,7 +1395,6 @@ const Tv: React.FC = () => {
   }, [
     resumeChecked,
     showResumeModal,
-    showWatchedModal,
     showCompleteModal,
     playbackPromptBlocked,
     isEmbedProvider,
@@ -2059,10 +1977,7 @@ const Tv: React.FC = () => {
                   subtitleDelayMs={subtitleDelayMs}
                   onSubtitleDelayChange={handleSubtitleDelayChange}
                   showNextEpisodeButton={
-                    showNextEpisodePrompt &&
-                    !showResumeModal &&
-                    !showWatchedModal &&
-                    !showCompleteModal
+                    showNextEpisodePrompt && !showResumeModal && !showCompleteModal
                   }
                   onNextEpisode={handleWatchNextEpisode}
                   isLoading={streamLoading}
@@ -2077,17 +1992,30 @@ const Tv: React.FC = () => {
                     playsInline
                     disablePictureInPicture
                     className={`${styles.video} ${delayCanvasActive ? styles.videoHidden : ''}`}
-                    onTimeUpdate={handleVideoTimeUpdate}
+                    onTimeUpdate={() => {
+                      if (testClipActive) return
+                      handleVideoTimeUpdate()
+                      checkEnd()
+                    }}
                     onEnded={() => {
-                      if (!testClipActive) handleVideoEnded()
+                      if (!testClipActive) checkEnd(true)
                     }}
                     onPlay={handleVideoPlay}
                     onPause={handleVideoPause}
                     onSeeked={() => {
-                      lastSeekedAtRef.current = Date.now()
+                      if (testClipActive) return
                       updateNextEpisodePrompt()
+                      checkEnd()
                     }}
-                    onLoadedMetadata={handleVideoLoadedMetadata}
+                    onLoadedMetadata={() => {
+                      handleVideoLoadedMetadata()
+                      logDuration()
+                      checkEnd()
+                    }}
+                    onDurationChange={() => {
+                      player.actions.onDurationChange()
+                      logDuration()
+                    }}
                     onVolumeChange={player.actions.onVolumeChange}
                     onWaiting={player.actions.onWaiting}
                     onPlaying={player.actions.onPlaying}
@@ -2389,47 +2317,7 @@ const Tv: React.FC = () => {
           onRestart={handleSkipResume}
         />
 
-        <Modal
-          isOpen={showWatchedModal}
-          onClose={handleCloseWatchedModal}
-          title={isMovie ? 'Movie Completed' : 'Episode Completed'}
-        >
-          <div style={{ padding: '1rem', textAlign: 'center' }}>
-            <p>
-              {isMovie ? (
-                <>You&apos;ve already watched this movie.</>
-              ) : (
-                <>
-                  You&apos;ve already watched{' '}
-                  <strong>
-                    Season {season} Episode {episode}
-                  </strong>
-                  . Would you like to continue?
-                </>
-              )}
-            </p>
-            <div
-              style={{
-                marginTop: '1rem',
-                display: 'flex',
-                gap: '10px',
-                justifyContent: 'center',
-                flexWrap: 'wrap',
-              }}
-            >
-              <Button variant="secondary" onClick={handleReplayWatched}>
-                Replay
-              </Button>
-              {nextEpisodeNumber != null ? (
-                <Button onClick={handleWatchNextEpisode}>Watch EP {nextEpisodeNumber}</Button>
-              ) : nextSeasonNumber != null ? (
-                <Button onClick={handleStartNextSeason}>Start Season {nextSeasonNumber}</Button>
-              ) : null}
-            </div>
-          </div>
-        </Modal>
-
-        <Modal
+        <CompletionModal
           isOpen={showCompleteModal}
           onClose={() => setShowCompleteModal(false)}
           title={
@@ -2439,58 +2327,41 @@ const Tv: React.FC = () => {
                 ? 'Season Complete!'
                 : 'Show Completed!'
           }
+          heading={completeTitle}
+          message={
+            isMovie
+              ? 'You finished this movie!'
+              : nextSeasonNumber != null
+                ? `You finished Season ${season}.`
+                : 'Congratulations! You finished all available episodes.'
+          }
         >
-          <div style={{ padding: '1rem', textAlign: 'center' }}>
-            <Icon
-              name="check-circle"
-              size={48}
-              style={{ color: 'var(--accent-lighter)', marginBottom: '0.5rem' }}
-            />
-            <p style={{ fontSize: '1.1rem', fontWeight: 600 }}>{completeTitle}</p>
-            <p style={{ color: 'var(--text-secondary)' }}>
-              {isMovie
-                ? 'You finished this movie!'
-                : nextSeasonNumber != null
-                  ? `You finished Season ${season}.`
-                  : 'Congratulations! You finished all available episodes.'}
-            </p>
-            <div
-              style={{
-                marginTop: '1rem',
-                display: 'flex',
-                gap: '10px',
-                justifyContent: 'center',
-                flexWrap: 'wrap',
-              }}
-            >
-              <Button variant="secondary" onClick={() => setShowCompleteModal(false)}>
-                Close
+          <Button variant="secondary" onClick={() => setShowCompleteModal(false)}>
+            Close
+          </Button>
+          {nextSeasonNumber != null ? (
+            <Button onClick={handleStartNextSeason}>Start Season {nextSeasonNumber}</Button>
+          ) : (
+            <>
+              <Button
+                onClick={() => {
+                  setShowCompleteModal(false)
+                  handleBack()
+                }}
+              >
+                Back to Details
               </Button>
-              {nextSeasonNumber != null ? (
-                <Button onClick={handleStartNextSeason}>Start Season {nextSeasonNumber}</Button>
-              ) : (
-                <>
-                  <Button
-                    onClick={() => {
-                      setShowCompleteModal(false)
-                      handleBack()
-                    }}
-                  >
-                    Back to Details
-                  </Button>
-                  {inTvLibrary && (
-                    <Button
-                      onClick={handleMoveTvToCompletedAndHome}
-                      disabled={updateTvStatus.isPending}
-                    >
-                      {updateTvStatus.isPending ? 'Saving...' : 'Move to Completed'}
-                    </Button>
-                  )}
-                </>
-              )}
-            </div>
-          </div>
-        </Modal>
+              <Button
+                onClick={handleMoveTvToCompletedAndHome}
+                disabled={updateTvStatus.isPending || addTvBookmark.isPending}
+              >
+                {updateTvStatus.isPending || addTvBookmark.isPending
+                  ? 'Saving...'
+                  : 'Move to Completed'}
+              </Button>
+            </>
+          )}
+        </CompletionModal>
 
         {!details && (
           <div className={styles.statusMsg}>

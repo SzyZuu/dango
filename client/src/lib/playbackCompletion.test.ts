@@ -3,10 +3,9 @@ import {
   COMPLETION_THRESHOLD,
   isProgressCompleted,
   hasResumableProgress,
-  isShowFinale,
+  isPlaybackEnded,
   loadAutoplayEnabled,
   storeAutoplayEnabled,
-  decideEpisodeEnd,
 } from './playbackCompletion'
 
 describe('isProgressCompleted', () => {
@@ -19,12 +18,22 @@ describe('isProgressCompleted', () => {
   })
 })
 
+describe('isPlaybackEnded', () => {
+  it('tolerates a stream that stops just short of the duration', () => {
+    expect(isPlaybackEnded(100, 100)).toBe(true)
+    expect(isPlaybackEnded(99.8, 100)).toBe(true)
+    expect(isPlaybackEnded(99.5, 100)).toBe(false)
+    expect(isPlaybackEnded(0, 0)).toBe(false)
+    expect(isPlaybackEnded(10, Infinity)).toBe(false)
+  })
+})
+
 describe('hasResumableProgress', () => {
-  it('requires more than 5s and an unfinished episode', () => {
-    expect(hasResumableProgress(0, 100)).toBe(false)
-    expect(hasResumableProgress(5, 100)).toBe(false)
-    expect(hasResumableProgress(6, 100)).toBe(true)
-    expect(hasResumableProgress(90, 100)).toBe(false)
+  it('requires more than 5s, finished episodes included', () => {
+    expect(hasResumableProgress(0)).toBe(false)
+    expect(hasResumableProgress(5)).toBe(false)
+    expect(hasResumableProgress(6)).toBe(true)
+    expect(hasResumableProgress(90)).toBe(true)
   })
 })
 
@@ -49,59 +58,5 @@ describe('autoplay setting', () => {
     expect(loadAutoplayEnabled()).toBe(false)
     storeAutoplayEnabled(true)
     expect(loadAutoplayEnabled()).toBe(true)
-  })
-})
-
-describe('isShowFinale', () => {
-  it('requires the last episode plus a finished status', () => {
-    expect(isShowFinale(['1', '2'], '2', 'FINISHED')).toBe(true)
-    expect(isShowFinale(['1', '2'], '1', 'FINISHED')).toBe(false)
-    expect(isShowFinale(['1', '2'], '2', 'RELEASING')).toBe(false)
-    expect(isShowFinale([], undefined, 'FINISHED')).toBe(false)
-    expect(isShowFinale(['1'], '1', 'Complete')).toBe(true)
-    expect(isShowFinale(['1'], '1', 'ended')).toBe(true)
-  })
-
-  it('falls back to the episode count when the episode list is empty', () => {
-    expect(isShowFinale([], '10', 'FINISHED', 10)).toBe(true)
-    expect(isShowFinale([], '9', 'FINISHED', 10)).toBe(false)
-    expect(isShowFinale([], '10', 'RELEASING', 10)).toBe(false)
-    expect(isShowFinale([], '10', 'FINISHED')).toBe(false)
-  })
-})
-
-describe('decideEpisodeEnd', () => {
-  it('never acts on a seek-induced end', () => {
-    expect(
-      decideEpisodeEnd({ seekInduced: true, autoplayEnabled: true, hasNext: true, isFinal: false })
-    ).toBe('none')
-  })
-
-  it('advances only with autoplay on and a next episode', () => {
-    expect(
-      decideEpisodeEnd({ seekInduced: false, autoplayEnabled: true, hasNext: true, isFinal: false })
-    ).toBe('advance')
-    expect(
-      decideEpisodeEnd({
-        seekInduced: false,
-        autoplayEnabled: false,
-        hasNext: true,
-        isFinal: false,
-      })
-    ).toBe('prompt-next')
-  })
-
-  it('prompts completion for finals and does nothing otherwise', () => {
-    expect(
-      decideEpisodeEnd({ seekInduced: false, autoplayEnabled: true, hasNext: false, isFinal: true })
-    ).toBe('prompt-complete')
-    expect(
-      decideEpisodeEnd({
-        seekInduced: false,
-        autoplayEnabled: true,
-        hasNext: false,
-        isFinal: false,
-      })
-    ).toBe('none')
   })
 })

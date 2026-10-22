@@ -1,4 +1,5 @@
 import { startEpisodeSync } from './lib/tracker/episode-sync.js'
+import { closeTrackerActivityStreams } from './hono/tracker-activity.js'
 process.setMaxListeners(100)
 import { EventEmitter } from 'events'
 EventEmitter.defaultMaxListeners = 100
@@ -294,6 +295,7 @@ async function main() {
     if (isShuttingDown) return
     isShuttingDown = true
     stopEpisodeSync()
+    closeTrackerActivityStreams(db)
     stopWatchlistDiscovery()
     clearInterval(syncInterval)
     clearInterval(offlineDbInterval)

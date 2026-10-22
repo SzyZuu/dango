@@ -61,6 +61,7 @@ import type { TvProvider } from './providers/tv.types.js'
 import { discordRPCService } from './discord-rpc.js'
 import { offlineDb } from './lib/offline-db/index.js'
 import { malCacheStore } from './repositories/mal-cache.repository.js'
+import { registerTrackerActivity } from './hono/tracker-activity.js'
 
 export type HonoHealthState = {
   shuttingDown: boolean
@@ -478,6 +479,8 @@ export function createHonoApp(
     }
     return c.json({ error: 'LAN_AUTH_REQUIRED' }, 401)
   })
+
+  registerTrackerActivity(app, () => getDbs().db)
 
   app.all('/api/trpc/*', (c) =>
     fetchRequestHandler({

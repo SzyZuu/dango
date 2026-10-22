@@ -419,3 +419,19 @@ await test('manual list status updates sync and later playback ticks do not undo
   await flushEpisodeSync(db)
   assert.equal(writes.length, 2)
 })
+
+await test('MAL write activity surrounds the request and clears even when it fails', async (t) => {
+  const db = await database(t)
+  await connect(db)
+  const { subscribeMalUpdates } = await import('./mal-update-events.js')
+  const events: boolean[] = []
+  const unsubscribe = subscribeMalUpdates(db, (value) => events.push(value))
+  t.after(unsubscribe)
+  mockFetch(t, (_url, init) => {
+    assert.equal(init.method, 'PUT')
+    assert.deepEqual(events, [false, true])
+    return json({}, 503)
+  })
+  await assert.rejects(new MalTracker(db).update(1, 2, 'Watching'))
+  assert.deepEqual(events, [false, true, false])
+})

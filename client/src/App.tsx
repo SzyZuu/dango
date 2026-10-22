@@ -40,6 +40,7 @@ import ErrorBoundary from './components/common/ErrorBoundary'
 import { LanAuthProvider } from './contexts/LanAuthProvider'
 import { useLanAuth } from './contexts/LanAuthContext'
 import LanAuthModal from './components/modals/LanAuthModal'
+import MalSyncNotice from './components/common/MalSyncNotice'
 
 function App() {
   useDangoAnimation()
@@ -174,6 +175,7 @@ function App() {
           },
         }}
       />
+      <MalSyncNotice enabled={!lanLocked && !lanAuthOpen} />
       <Header />
       <Sidebar />
       <main className="main-content">

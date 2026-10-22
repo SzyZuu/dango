@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import type { DatabaseWrapper } from '../../db.js'
 import { SettingsRepository } from '../../repositories/settings.repository.js'
 import { withTrackerLock } from './sync-lock.js'
+import { withMalUpdate } from './mal-update-events.js'
 
 export const MAL_KEYS = {
   clientId: 'tracker_mal_client_id',
@@ -231,9 +232,11 @@ export class MalTracker {
   update(id: number, progress: number, status: string) {
     const remoteStatus = DANGO_TO_MAL[status]
     if (!remoteStatus) throw new Error(`Unsupported tracker status: ${status}`)
-    return this.request<MalListStatus>(`anime/${id}/my_list_status`, {
-      method: 'PUT',
-      body: new URLSearchParams({ status: remoteStatus, num_watched_episodes: String(progress) }),
-    })
+    return withMalUpdate(this.db, () =>
+      this.request<MalListStatus>(`anime/${id}/my_list_status`, {
+        method: 'PUT',
+        body: new URLSearchParams({ status: remoteStatus, num_watched_episodes: String(progress) }),
+      })
+    )
   }
 }

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { trpcClient } from '../../lib/trpc'
 import { Button } from '../common/Button'
+import Icon from '../common/Icon'
 import { MAL_OAUTH_STATE_KEY } from '../../hooks/useMalAuthCallback'
 import styles from '../../pages/Trackers.module.css'
 
@@ -107,18 +108,23 @@ export default function MalConnection({ connecting }: { connecting: boolean }) {
         ) : (
           <>
             <p className={styles.helpText}>
-              Create an app at{' '}
-              <a href="https://myanimelist.net/apiconfig" target="_blank" rel="noopener noreferrer">
-                MyAnimeList API settings
-              </a>
-              . Use this exact redirect URL:
+              Set your app's <strong>Redirect URL</strong> to:
             </p>
             <p className={styles.helpText}>
               <code>{window.location.origin}/trackers</code>
             </p>
             <div className={styles.credentialFields}>
               <label className={`${styles.fieldLabel} ${styles.credentialField}`}>
-                Client ID
+                <span>
+                  Client ID{' '}
+                  <a
+                    href="https://myanimelist.net/apiconfig"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    create your own app <Icon name="external-link-alt" size={9} />
+                  </a>
+                </span>
                 <input
                   className={styles.input}
                   placeholder="Client ID"

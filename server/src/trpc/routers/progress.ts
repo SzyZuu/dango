@@ -7,7 +7,6 @@ import { SettingsRepository } from '../../repositories/settings.repository.js'
 import { performWriteTransactionAsync } from '../../db/transaction.js'
 import { getMigratedId } from '../../lib/migration.js'
 import { episodeProgressInput, progressUpdateInput, showIdInput } from '../validation.js'
-import { queueEpisodeSync, flushEpisodeSync } from '../../lib/tracker/episode-sync.js'
 
 async function showsMetaChanged(
   db: DatabaseWrapper,
@@ -143,15 +142,6 @@ export const progressRouter = router({
       }
 
       await performWriteTransactionAsync(ctx.db, async (tx) => {
-        const previous = await WatchedEpisodesRepository.getByShowAndEpisode(
-          tx,
-          showId,
-          episodeNumber
-        )
-        const alreadyCompleted =
-          previous &&
-          ((previous.duration > 0 && previous.currentTime >= previous.duration * 0.8) ||
-            (previous.duration === 0 && previous.currentTime === 0))
         await WatchedEpisodesRepository.upsert(tx, {
           showId,
           episodeNumber,
@@ -161,12 +151,7 @@ export const progressRouter = router({
 
         await NotificationsRepository.deleteSpecificDismissed(tx, showId, episodeNumber)
         await NotificationsRepository.deleteDiscovered(tx, showId, episodeNumber)
-        if (!alreadyCompleted && duration > 0 && currentTime >= duration * 0.8) {
-          await queueEpisodeSync(tx, showId)
-        }
       })
-
-      void flushEpisodeSync(ctx.db).catch(() => {})
 
       return { success: true }
     }),

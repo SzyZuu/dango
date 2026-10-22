@@ -2,12 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { trpcClient } from '../../lib/trpc'
-import { Button } from '../common/Button'
+import { qk } from '../../lib/queryKeys'
 import Icon from '../common/Icon'
-import { MAL_OAUTH_STATE_KEY } from '../../hooks/useMalAuthCallback'
 import styles from '../../pages/Trackers.module.css'
 
-export default function MalConnection({ connecting }: { connecting: boolean }) {
+export default function MalConnection({ kind = 'anime' }: { kind?: 'anime' | 'manga' }) {
   const queryClient = useQueryClient()
   const [clientId, setClientId] = useState('')
   const [clientSecret, setClientSecret] = useState('')
@@ -15,11 +14,11 @@ export default function MalConnection({ connecting }: { connecting: boolean }) {
   const [summary, setSummary] = useState('')
   const initialized = useRef(false)
   const { data: config } = useQuery({
-    queryKey: ['malClientConfig'],
+    queryKey: [qk.malClientConfig],
     queryFn: () => trpcClient.tracker.malConfig.query(),
   })
   const { data: status } = useQuery({
-    queryKey: ['trackerStatus'],
+    queryKey: [qk.trackerStatus],
     queryFn: () => trpcClient.tracker.status.query(),
     refetchInterval: 15000,
   })
@@ -33,15 +32,16 @@ export default function MalConnection({ connecting }: { connecting: boolean }) {
   const connect = useMutation({
     mutationFn: async () => {
       setError('')
-      await trpcClient.tracker.malSaveConfig.mutate({
-        clientId,
-        clientSecret: clientSecret || undefined,
-      })
+      if (clientSecret.trim() || (clientId.trim() && clientId.trim() !== config?.clientId)) {
+        await trpcClient.tracker.malSaveConfig.mutate({
+          clientId: clientId.trim(),
+          clientSecret: clientSecret.trim() || undefined,
+        })
+      }
       setClientSecret('')
       const result = await trpcClient.tracker.malLogin.mutate({
-        redirectUri: `${window.location.origin}/trackers`,
+        redirectUri: `${window.location.origin}/api/tracker/mal/callback`,
       })
-      sessionStorage.setItem(MAL_OAUTH_STATE_KEY, result.state)
       window.location.assign(result.url)
     },
     onError: (err: Error) => setError(err.message),
@@ -49,21 +49,42 @@ export default function MalConnection({ connecting }: { connecting: boolean }) {
   const disconnect = useMutation({
     mutationFn: () => trpcClient.tracker.malDisconnect.mutate(),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['trackerStatus'] })
+      queryClient.invalidateQueries({ queryKey: [qk.trackerStatus] })
       setSummary('')
       setError('')
       toast.success('Disconnected from MyAnimeList')
     },
     onError: (err: Error) => setError(err.message),
   })
+  const resetApp = useMutation({
+    mutationFn: () => trpcClient.tracker.malClearConfig.mutate(),
+    onSuccess: () => {
+      setClientId('')
+      setClientSecret('')
+      setSummary('')
+      setError('')
+      queryClient.invalidateQueries({ queryKey: [qk.trackerStatus] })
+      queryClient.invalidateQueries({ queryKey: [qk.malClientConfig] })
+      toast.success("Switched to dango's MyAnimeList app - reconnect to finish")
+    },
+    onError: (err: Error) => setError(err.message),
+  })
   const sync = useMutation({
-    mutationFn: () => trpcClient.tracker.sync.mutate({ provider: 'mal' }),
+    mutationFn: () =>
+      kind === 'manga'
+        ? trpcClient.tracker.mangaMalSync.mutate()
+        : trpcClient.tracker.sync.mutate({ provider: 'mal' }),
     onSuccess: (data) => {
       const s = data.summary
       setSummary(
-        `Sync complete: ${s.pushed} sent, ${s.pulled} imported, ${s.merged} merged, ${s.unchanged} unchanged.${s.errors.length ? ` ${s.errors.length} entries need attention: ${s.errors.join(' ')}` : ''}`
+        `Pushed: ${s.pushed} · Pulled: ${s.pulled} · Merged: ${s.merged} · Unchanged: ${s.unchanged}` +
+          (s.errors.length > 0
+            ? ` · ${s.errors.length} error${s.errors.length > 1 ? 's' : ''}`
+            : '')
       )
-      for (const queryKey of [['trackerStatus'], ['watchlist'], ['allContinueWatching']])
+      for (const queryKey of kind === 'manga'
+        ? [[qk.trackerStatus], [qk.mangaLibrary], [qk.mangaContinueReading]]
+        : [[qk.trackerStatus], [qk.watchlist], [qk.continueWatching]])
         queryClient.invalidateQueries({ queryKey })
     },
     onError: (err: Error) => setError(err.message),
@@ -71,119 +92,156 @@ export default function MalConnection({ connecting }: { connecting: boolean }) {
   const mal = status?.mal
   return (
     <div>
-      <div className={styles.loginSection}>
-        <p className={styles.loginText}>
-          Connect your account for two-way anime list sync. Completed episodes automatically update
-          MyAnimeList and AniList when connected.
-        </p>
-        {mal?.connected ? (
-          <>
-            <p className={styles.loginText}>
-              Connected as <strong>{mal.user?.name || 'MyAnimeList user'}</strong>
-            </p>
-            <div className={styles.inputGroup}>
-              <Button
-                onClick={() => {
-                  setError('')
-                  sync.mutate()
-                }}
-                loading={sync.isPending}
-              >
-                Sync Now
-              </Button>
-              <Button
-                variant="secondary"
-                onClick={() => disconnect.mutate()}
-                loading={disconnect.isPending}
-                disabled={sync.isPending}
-              >
-                Disconnect
-              </Button>
+      {mal?.connected ? (
+        <>
+          <div className={styles.connectedProfile}>
+            {mal.user?.avatar && (
+              <img
+                src={mal.user.avatar}
+                alt="Avatar"
+                className={styles.avatar}
+                loading="lazy"
+                decoding="async"
+              />
+            )}
+            <div className={styles.connectedInfo}>
+              <span className={styles.connectedName}>{mal.user?.name || 'MyAnimeList user'}</span>
+              <span className={styles.connectedHint}>2-way sync is ready</span>
             </div>
-            <p className={styles.helpText}>
-              Progress merges keep the higher watched episode number. Sync does not delete entries
-              from either library.
-            </p>
-          </>
-        ) : (
-          <>
-            <p className={styles.helpText}>
-              Set your app's <strong>Redirect URL</strong> to:
-            </p>
-            <p className={styles.helpText}>
-              <code>{window.location.origin}/trackers</code>
-            </p>
-            <div className={styles.credentialFields}>
-              <label className={`${styles.fieldLabel} ${styles.credentialField}`}>
-                <span>
-                  Client ID{' '}
-                  <a
-                    href="https://myanimelist.net/apiconfig"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    create your own app <Icon name="external-link-alt" size={9} />
-                  </a>
-                </span>
-                <input
-                  className={styles.input}
-                  placeholder="Client ID"
-                  value={clientId}
-                  onChange={(e) => setClientId(e.currentTarget.value)}
-                  autoComplete="off"
-                />
-              </label>
-              <label className={`${styles.fieldLabel} ${styles.credentialField}`}>
-                Client secret (if required by your app type)
-                <input
-                  className={styles.input}
-                  type="password"
-                  value={clientSecret}
-                  onChange={(e) => setClientSecret(e.currentTarget.value)}
-                  placeholder={
-                    config?.hasSecret ? 'Saved — leave blank to keep' : 'Optional for a public app'
-                  }
-                  autoComplete="new-password"
-                />
-              </label>
-            </div>
-            <p className={styles.helpText}>
-              Public apps use PKCE without a client secret. App credentials are saved on your dango
-              server; the secret is never returned to the browser.
-            </p>
-            <Button
-              className={styles.primaryBtn}
-              onClick={() => connect.mutate()}
-              loading={connect.isPending || connecting}
-              disabled={!clientId.trim()}
+            <button
+              className={styles.secondaryBtn}
+              onClick={() => disconnect.mutate()}
+              disabled={disconnect.isPending}
             >
-              Connect to MyAnimeList
-            </Button>
-          </>
-        )}
-        {mal?.updates.pending ? (
-          <p className={styles.helpText} role="status">
-            {mal.updates.pending} episode update(s) pending.{' '}
-            {mal.updates.error || 'Updates retry automatically.'}
+              <Icon name="sign-out-alt" /> Disconnect
+            </button>
+          </div>
+
+          <button
+            className={styles.syncBtn}
+            onClick={() => sync.mutate()}
+            disabled={sync.isPending}
+          >
+            <Icon name="sync-alt" className={sync.isPending ? styles.spin : ''} />
+            {sync.isPending ? 'Syncing...' : 'Start Sync'}
+          </button>
+          {summary && <div className={styles.syncSummary}>{summary}</div>}
+        </>
+      ) : (
+        <div className={styles.loginSection}>
+          <p className={styles.loginText}>
+            Log in with MyAnimeList to enable bidirectional progress &amp; status synchronization.
           </p>
-        ) : null}
-        {status?.anilist.updates.pending ? (
-          <p className={styles.helpText} role="status">
-            AniList: {status.anilist.updates.pending} episode update(s) pending.{' '}
-            {status.anilist.updates.error}
+          <div className={styles.credentialFields}>
+            <label className={`${styles.fieldLabel} ${styles.credentialField}`}>
+              <span>
+                Client ID{' '}
+                <a
+                  href="https://myanimelist.net/apiconfig"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  create your own app <Icon name="external-link-alt" size={9} />
+                </a>
+                {config?.mode === 'worker' && (
+                  <span className={styles.helpText}> — defaults to dango&apos;s app</span>
+                )}
+              </span>
+              <input
+                className={styles.input}
+                placeholder={config?.mode === 'worker' ? "dango's app (leave empty)" : 'Client ID'}
+                value={clientId}
+                onChange={(e) => setClientId(e.currentTarget.value)}
+                autoComplete="off"
+              />
+            </label>
+            <label className={`${styles.fieldLabel} ${styles.credentialField}`}>
+              <span>
+                Client secret{' '}
+                {config?.hasSecret && !clientSecret && (
+                  <span className={styles.helpText}>— saved</span>
+                )}
+              </span>
+              <input
+                className={styles.input}
+                type="password"
+                value={clientSecret}
+                onChange={(e) => setClientSecret(e.currentTarget.value)}
+                placeholder={
+                  config?.mode === 'worker'
+                    ? "dango's app (leave empty)"
+                    : config?.hasSecret
+                      ? 'Saved — leave blank to keep'
+                      : 'Client secret'
+                }
+                autoComplete="new-password"
+              />
+            </label>
+          </div>
+          {config?.hasCustomId && config?.hasWorker && (
+            <button
+              className={styles.resetBtn}
+              onClick={() => resetApp.mutate()}
+              disabled={resetApp.isPending}
+            >
+              Use dango&apos;s app instead
+            </button>
+          )}
+          <p className={styles.helpText}>
+            {config?.mode === 'worker' ? (
+              <>
+                By default uses dango&apos;s client. To use your own MyAnimeList app: create it at{' '}
+                <a
+                  href="https://myanimelist.net/apiconfig"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  myanimelist.net/apiconfig
+                </a>
+                , set its <strong>Redirect URL</strong> to{' '}
+                <code>{window.location.origin}/api/tracker/mal/callback</code>, then paste its{' '}
+                <strong>Client ID</strong> and <strong>Client secret</strong> above (leave both
+                empty to use dango&apos;s).
+              </>
+            ) : (
+              <>
+                No shipped client in this build - create your own app at{' '}
+                <a
+                  href="https://myanimelist.net/apiconfig"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  myanimelist.net/apiconfig
+                </a>
+                , set its <strong>Redirect URL</strong> to{' '}
+                <code>{window.location.origin}/api/tracker/mal/callback</code>, then paste the{' '}
+                <strong>Client ID</strong> and <strong>Client secret</strong> above. MAL requires
+                the secret even for PKCE apps; it stays on your dango server and is never returned
+                to the browser.
+              </>
+            )}
           </p>
-        ) : null}
-        {summary && (
-          <p className={styles.syncSummary} role="status">
-            {summary}
-          </p>
-        )}
-        {error && (
-          <p className={`${styles.helpText} ${styles.syncErrors}`} role="alert">
-            {error}
-          </p>
-        )}
-      </div>
+          <button
+            className={styles.primaryBtn}
+            onClick={() => connect.mutate()}
+            disabled={
+              !(
+                (clientId.trim() && clientSecret.trim()) ||
+                (!!config?.clientId && clientId.trim() === config.clientId && config.hasSecret) ||
+                (!clientId.trim() && !clientSecret.trim() && config?.mode === 'worker')
+              ) || connect.isPending
+            }
+          >
+            {connect.isPending ? 'Connecting...' : 'Connect to MyAnimeList'}
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <p className={`${styles.helpText} ${styles.syncErrors}`} role="alert">
+          {error}
+        </p>
+      )}
       <hr className={styles.divider} />
       <p className={styles.syncHint}>
         You can also import a public list or XML file without connecting an account:

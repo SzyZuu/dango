@@ -503,7 +503,7 @@ export async function syncAniListManga(
     })
   }
 
-  await pushRemoteChanges(tracker, pushUpdates, remoteDeleteEntryIds)
+  await pushRemoteChanges(db, tracker, pushUpdates, remoteDeleteEntryIds)
 
   if (
     libraryUpserts.length > 0 ||

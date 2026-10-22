@@ -446,6 +446,26 @@
   line-height: 1.6;
 }
 
+.resetBtn {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.resetBtn:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.resetBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .helpText code {
   background: var(--bg-tertiary);
   border: 1px solid var(--border-primary);

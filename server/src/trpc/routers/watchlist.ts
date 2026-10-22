@@ -1,4 +1,3 @@
-import { queueEpisodeSync, flushEpisodeSync } from '../../lib/tracker/episode-sync.js'
 import { protectedProcedure, router } from '../index.js'
 import type { TrpcContext } from '../context.js'
 import type { DatabaseWrapper } from '../../db.js'
@@ -138,9 +137,7 @@ export const watchlistRouter = router({
     const id = await getMigratedId(ctx.db, input.id)
     await performWriteTransactionAsync(ctx.db, async (tx) => {
       await WatchlistRepository.updateStatus(tx, id, input.status)
-      await queueEpisodeSync(tx, id, input.status)
     })
-    void flushEpisodeSync(ctx.db).catch(() => {})
     return { success: true }
   }),
 
@@ -150,9 +147,7 @@ export const watchlistRouter = router({
       const ids = await Promise.all(input.ids.map((id) => getMigratedId(ctx.db, id)))
       await performWriteTransactionAsync(ctx.db, async (tx) => {
         await WatchlistRepository.updateStatusMany(tx, ids, input.status)
-        for (const id of ids) await queueEpisodeSync(tx, id, input.status)
       })
-      void flushEpisodeSync(ctx.db).catch(() => {})
       return { success: true, updated: ids.length }
     }),
 

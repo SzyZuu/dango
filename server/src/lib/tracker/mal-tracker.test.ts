@@ -9,13 +9,11 @@ const { initializeDatabase } = await import('../../db/ddl.js')
 const { SettingsRepository: settings } = await import('../../repositories/settings.repository.js')
 const { WatchedEpisodesRepository: watched } =
   await import('../../repositories/watched-episodes.repository.js')
-const { MAL_KEYS, beginMalLogin, finishMalLogin, MalTracker } =
+const { MAL_KEYS, beginMalLogin, finishMalLogin, credentialSettings, MalTracker } =
   await import('../../lib/tracker/mal-tracker.js')
-const { queueEpisodeSync, flushEpisodeSync, completedProgress, trackerUpdateStatus } =
-  await import('../../lib/tracker/episode-sync.js')
+const { completedProgress } = await import('../../lib/tracker/episode-sync.js')
 const { syncMyAnimeList } = await import('../../lib/tracker/mal-sync.service.js')
 const { trackerRouter } = await import('../../trpc/routers/tracker.js')
-const { progressRouter } = await import('../../trpc/routers/progress.js')
 const { settingsRouter } = await import('../../trpc/routers/settings.js')
 const { exportTables, importTables } = await import('../../sync-payload.js')
 import type { TrpcContext } from '../../trpc/context.js'
@@ -51,7 +49,7 @@ function context(db: Awaited<ReturnType<typeof database>>) {
 await test('MAL login uses PKCE, verifies state, and consumes callback once', async (t) => {
   const db = await database(t)
   await settings.upsert(db, MAL_KEYS.clientId, 'test-client')
-  const login = await beginMalLogin(db, 'http://localhost:5174/trackers')
+  const login = await beginMalLogin(db, 'http://localhost:5174/api/tracker/mal/callback')
   const url = new URL(login.url)
   assert.equal(url.searchParams.get('code_challenge_method'), 'plain')
   assert.equal(url.searchParams.get('code_challenge')?.length, 128)
@@ -60,7 +58,7 @@ await test('MAL login uses PKCE, verifies state, and consumes callback once', as
     if (url.endsWith('/token')) {
       const body = init.body as URLSearchParams
       assert.equal(body.get('code_verifier'), new URL(login.url).searchParams.get('code_challenge'))
-      assert.equal(body.get('redirect_uri'), 'http://localhost:5174/trackers')
+      assert.equal(body.get('redirect_uri'), 'http://localhost:5174/api/tracker/mal/callback')
       return json({ access_token: 'test-access', refresh_token: 'test-refresh', expires_in: 3600 })
     }
     return json({ id: 1, name: 'Test viewer' })
@@ -72,11 +70,100 @@ await test('MAL login uses PKCE, verifies state, and consumes callback once', as
   assert.equal(JSON.stringify(status).includes('test-access'), false)
 })
 
+await test('credentials pair the saved app and otherwise fall back to the env app', async (t) => {
+  const db = await database(t)
+  const prev = { id: process.env.MAL_CLIENT_ID, secret: process.env.MAL_CLIENT_SECRET }
+  t.after(() => {
+    if (prev.id === undefined) delete process.env.MAL_CLIENT_ID
+    else process.env.MAL_CLIENT_ID = prev.id
+    if (prev.secret === undefined) delete process.env.MAL_CLIENT_SECRET
+    else process.env.MAL_CLIENT_SECRET = prev.secret
+  })
+  process.env.MAL_CLIENT_ID = 'env-client'
+  process.env.MAL_CLIENT_SECRET = 'env-secret'
+  assert.equal((await credentialSettings(db)).mode, 'local')
+  assert.equal((await credentialSettings(db)).clientId, 'env-client')
+  assert.equal((await credentialSettings(db)).clientSecret, 'env-secret')
+  await settings.upsert(db, MAL_KEYS.clientId, 'saved-client')
+  await settings.upsert(db, MAL_KEYS.clientSecret, 'saved-secret')
+  const saved = await credentialSettings(db)
+  assert.equal(saved.clientId, 'saved-client')
+  assert.equal(saved.clientSecret, 'saved-secret')
+  assert.equal(saved.hasCustomId, true)
+})
+
+await test('MAL login goes through the auth worker when no custom app is saved', async (t) => {
+  const db = await database(t)
+  const prev = process.env.MAL_AUTH_WORKER_URL
+  process.env.MAL_AUTH_WORKER_URL = 'https://mal-worker.test/'
+  t.after(() => {
+    if (prev === undefined) delete process.env.MAL_AUTH_WORKER_URL
+    else process.env.MAL_AUTH_WORKER_URL = prev
+  })
+  assert.equal((await credentialSettings(db)).mode, 'worker')
+  mockFetch(t, (url, init) => {
+    if (url.startsWith('https://mal-worker.test/auth-url')) {
+      const query = new URL(url).searchParams
+      assert.equal(query.get('return_to'), 'http://localhost:3000/api/tracker/mal/callback')
+      assert.equal(query.get('code_challenge_method'), 'plain')
+      const authorize = new URL('https://myanimelist.net/v1/oauth2/authorize')
+      authorize.search = new URLSearchParams({
+        state: query.get('state')!,
+        code_challenge: query.get('code_challenge')!,
+      }).toString()
+      return json({ url: authorize.toString() })
+    }
+    if (url === 'https://mal-worker.test/exchange') {
+      const body = JSON.parse(String(init.body))
+      assert.equal(body.code, 'worker-code')
+      assert.equal(body.code_verifier?.length, 128)
+      return json({
+        access_token: 'worker-access',
+        refresh_token: 'worker-refresh',
+        expires_in: 3600,
+      })
+    }
+    if (url === 'https://api.myanimelist.net/v2/users/@me')
+      return json({ id: 2, name: 'Worker viewer' })
+    throw new Error(`unexpected request ${url}`)
+  })
+  const login = await beginMalLogin(db, 'http://localhost:3000/api/tracker/mal/callback')
+  assert.equal(new URL(login.url).hostname, 'myanimelist.net')
+  const user = await finishMalLogin(db, 'worker-code', login.state)
+  assert.equal(user.name, 'Worker viewer')
+  const stored = JSON.parse((await settings.getByKey(db, MAL_KEYS.tokens))!.value)
+  assert.equal(stored.access_token, 'worker-access')
+})
+
+await test('clearing a custom app falls back to the auth worker', async (t) => {
+  const db = await database(t)
+  const prev = process.env.MAL_AUTH_WORKER_URL
+  process.env.MAL_AUTH_WORKER_URL = 'https://mal-worker.test'
+  t.after(() => {
+    if (prev === undefined) delete process.env.MAL_AUTH_WORKER_URL
+    else process.env.MAL_AUTH_WORKER_URL = prev
+  })
+  await settings.upsert(db, MAL_KEYS.clientId, 'custom-client')
+  await settings.upsert(db, MAL_KEYS.clientSecret, 'custom-secret')
+  await settings.upsert(db, MAL_KEYS.tokens, '{"access_token":"stale"}')
+  await settings.upsert(db, MAL_KEYS.user, '{"name":"stale"}')
+  const caller = trackerRouter.createCaller(context(db))
+  const custom = await caller.malConfig()
+  assert.equal(custom.mode, 'local')
+  assert.equal(custom.hasWorker, true)
+  await caller.malClearConfig()
+  const config = await caller.malConfig()
+  assert.equal(config.mode, 'worker')
+  assert.equal(config.hasCustomId, false)
+  assert.equal(!!(await settings.getByKey(db, MAL_KEYS.tokens)), false)
+  assert.equal(!!(await settings.getByKey(db, MAL_KEYS.user)), false)
+})
+
 await test('MAL rejects expired states and unsupported callback URLs', async (t) => {
   const db = await database(t)
   await settings.upsert(db, MAL_KEYS.clientId, 'test-client')
-  await assert.rejects(beginMalLogin(db, 'https://example.com/other'), /Trackers/)
-  const login = await beginMalLogin(db, 'http://localhost:3000/trackers')
+  await assert.rejects(beginMalLogin(db, 'https://example.com/other'), /callback/)
+  const login = await beginMalLogin(db, 'http://localhost:3000/api/tracker/mal/callback')
   const pending = JSON.parse((await settings.getByKey(db, MAL_KEYS.pending))!.value)
   pending.expiresAt = 1
   await settings.upsert(db, MAL_KEYS.pending, JSON.stringify(pending))
@@ -116,124 +203,6 @@ await test('MAL 401 refreshes and retries the request', async (t) => {
   })
   assert.equal((await new MalTracker(db).getAnime(1)).id, 1)
   assert.equal(calls, 2)
-})
-
-await test('episode completion updates both trackers, skips partial/special episodes, and deduplicates ticks', async (t) => {
-  const db = await database(t)
-  await connect(db)
-  await settings.upsert(db, 'tracker_anilist_token', 'test-anilist')
-  await settings.upsert(db, 'tracker_mal_link_101', '1')
-  db.run(
-    "INSERT INTO shows_meta (id, anilistId, name, episodeCount) VALUES ('101',101,'Example',2)"
-  )
-  const writes: { provider: string; progress: number; status: string }[] = []
-  mockFetch(t, (url, init) => {
-    if (url.includes('graphql.anilist')) {
-      const body = JSON.parse(String(init.body))
-      if (body.query.includes('SaveMediaListEntry')) {
-        writes.push({
-          provider: 'anilist',
-          progress: body.variables.progress,
-          status: body.variables.status,
-        })
-        return json({ data: {} })
-      }
-      return json({ data: { Media: { episodes: 2, mediaListEntry: { progress: 0 } } } })
-    }
-    if (init.method === 'PUT') {
-      const body = init.body as URLSearchParams
-      writes.push({
-        provider: 'mal',
-        progress: Number(body.get('num_watched_episodes')),
-        status: body.get('status')!,
-      })
-      return json({})
-    }
-    return json({ id: 1, num_episodes: 2, my_list_status: { num_episodes_watched: 0 } })
-  })
-  const caller = progressRouter.createCaller(context(db))
-  await caller.updateProgress({ showId: '101', episodeNumber: '1', currentTime: 79, duration: 100 })
-  await flushEpisodeSync(db)
-  assert.equal(writes.length, 0)
-  await caller.updateProgress({ showId: '101', episodeNumber: '1', currentTime: 80, duration: 100 })
-  await flushEpisodeSync(db)
-  assert.equal(writes.length, 2)
-  assert.ok(writes.some((w) => w.provider === 'mal' && w.status === 'watching' && w.progress === 1))
-  await caller.updateProgress({ showId: '101', episodeNumber: '1', currentTime: 90, duration: 100 })
-  await flushEpisodeSync(db)
-  assert.equal(writes.length, 2)
-  await caller.updateProgress({
-    showId: '101',
-    episodeNumber: '1.5',
-    currentTime: 100,
-    duration: 100,
-  })
-  await flushEpisodeSync(db)
-  assert.equal(writes.length, 2)
-  await caller.updateProgress({
-    showId: '101',
-    episodeNumber: '2',
-    currentTime: 100,
-    duration: 100,
-  })
-  await flushEpisodeSync(db)
-  assert.equal(writes.length, 4)
-  assert.ok(
-    writes.some((w) => w.provider === 'anilist' && w.progress === 2 && w.status === 'COMPLETED')
-  )
-  assert.ok(
-    writes.some((w) => w.provider === 'mal' && w.progress === 2 && w.status === 'completed')
-  )
-})
-
-await test('a MAL outage keeps durable pending progress while AniList succeeds, then retries', async (t) => {
-  const db = await database(t)
-  await connect(db)
-  await settings.upsert(db, 'tracker_anilist_token', 'test-anilist')
-  await settings.upsert(db, 'tracker_mal_link_101', '1')
-  db.run("INSERT INTO shows_meta (id, anilistId, episodeCount) VALUES ('101',101,12)")
-  await watched.upsert(db, { showId: '101', episodeNumber: '1', currentTime: 100, duration: 100 })
-  let failing = true,
-    malWrites = 0
-  mockFetch(t, (url, init) => {
-    if (url.includes('graphql.anilist'))
-      return json({ data: { Media: { episodes: 12, mediaListEntry: { progress: 0 } } } })
-    if (failing) return json({}, 503)
-    if (init.method === 'PUT') {
-      malWrites++
-      return json({})
-    }
-    return json({ id: 1, num_episodes: 12, my_list_status: { num_episodes_watched: 3 } })
-  })
-  await queueEpisodeSync(db, '101')
-  await flushEpisodeSync(db)
-  assert.equal(trackerUpdateStatus(db, 'anilist').pending, 0)
-  assert.equal(trackerUpdateStatus(db, 'mal').pending, 1)
-  assert.ok(trackerUpdateStatus(db, 'mal').error)
-  failing = false
-  await flushEpisodeSync(db, true)
-  assert.equal(malWrites, 1)
-  assert.equal(trackerUpdateStatus(db, 'mal').pending, 0)
-})
-
-await test('in-flight completion cannot acknowledge a newer queued episode', async (t) => {
-  const db = await database(t)
-  await connect(db)
-  await settings.upsert(db, 'tracker_mal_link_101', '1')
-  db.run("INSERT INTO shows_meta (id, anilistId, episodeCount) VALUES ('101',101,12)")
-  await watched.insertIfMissing(db, { showId: '101', episodeNumber: '1' })
-  await queueEpisodeSync(db, '101')
-  mockFetch(t, async (_url, init) => {
-    if (init.method === 'PUT') {
-      await watched.insertIfMissing(db, { showId: '101', episodeNumber: '2' })
-      await queueEpisodeSync(db, '101')
-      return json({})
-    }
-    return json({ id: 1, num_episodes: 12 })
-  })
-  await flushEpisodeSync(db)
-  assert.equal(trackerUpdateStatus(db, 'mal').pending, 1)
-  assert.equal(db.get<{ progress: number }>('SELECT progress FROM tracker_updates')?.progress, 2)
 })
 
 await test('MAL two-way sync paginates, pulls and pushes progress, and never deletes absent entries', async (t) => {
@@ -316,29 +285,6 @@ await test('MAL secrets stay out of generic settings, status, and library export
   assert.equal((await settings.getByKey(db, MAL_KEYS.clientId))?.value, 'test-client')
 })
 
-await test('pending episode updates survive a database close and reopen', async (t) => {
-  const file = path.join(mkdtempSync(path.join(tmpdir(), 'dango-pending-')), 'anime.db')
-  const first = await initializeDatabase(file)
-  await connect(first)
-  await settings.upsert(first, 'tracker_mal_link_101', '1')
-  first.run("INSERT INTO shows_meta (id, anilistId, episodeCount) VALUES ('101',101,12)")
-  await watched.insertIfMissing(first, { showId: '101', episodeNumber: '4' })
-  await queueEpisodeSync(first, '101')
-  await new Promise<void>((resolve) => first.close(() => resolve()))
-  const reopened = await initializeDatabase(file)
-  t.after(() => reopened.close(() => {}))
-  assert.equal(trackerUpdateStatus(reopened, 'mal').pending, 1)
-  mockFetch(t, (_url, init) => {
-    if (init.method === 'PUT') {
-      assert.equal((init.body as URLSearchParams).get('num_watched_episodes'), '4')
-      return json({})
-    }
-    return json({ id: 1, num_episodes: 12 })
-  })
-  await flushEpisodeSync(reopened)
-  assert.equal(trackerUpdateStatus(reopened, 'mal').pending, 0)
-})
-
 await test('remote MAL progress completes a partial local playback record', async (t) => {
   const db = await database(t)
   await connect(db)
@@ -384,54 +330,20 @@ await test('MAL sync does not retry a failed merge as a lower-progress local-onl
   assert.equal(writes, 1)
 })
 
-await test('manual list status updates sync and later playback ticks do not undo them', async (t) => {
-  const db = await database(t)
-  await connect(db)
-  await settings.upsert(db, 'tracker_mal_link_101', '1')
-  db.run("INSERT INTO shows_meta (id, anilistId, episodeCount) VALUES ('101',101,12)")
-  db.run("INSERT INTO watchlist (id, name, status) VALUES ('101','Example','Watching')")
-  const writes: string[] = []
-  mockFetch(t, (_url, init) => {
-    if (init.method === 'PUT') {
-      writes.push((init.body as URLSearchParams).get('status')!)
-      return json({})
-    }
-    return json({ id: 1, num_episodes: 12, my_list_status: { num_episodes_watched: 1 } })
-  })
-  const progress = progressRouter.createCaller(context(db))
-  await progress.updateProgress({
-    showId: '101',
-    episodeNumber: '1',
-    currentTime: 80,
-    duration: 100,
-  })
-  await flushEpisodeSync(db)
-  const { watchlistRouter } = await import('../../trpc/routers/watchlist.js')
-  await watchlistRouter.createCaller(context(db)).setStatus({ id: '101', status: 'On-Hold' })
-  await flushEpisodeSync(db)
-  assert.deepEqual(writes, ['watching', 'on_hold'])
-  await progress.updateProgress({
-    showId: '101',
-    episodeNumber: '1',
-    currentTime: 90,
-    duration: 100,
-  })
-  await flushEpisodeSync(db)
-  assert.equal(writes.length, 2)
-})
-
 await test('MAL write activity surrounds the request and clears even when it fails', async (t) => {
   const db = await database(t)
   await connect(db)
-  const { subscribeMalUpdates } = await import('./mal-update-events.js')
-  const events: boolean[] = []
-  const unsubscribe = subscribeMalUpdates(db, (value) => events.push(value))
+  const { subscribeTrackerActivity } = await import('./tracker-activity.js')
+  const events: string[] = []
+  const unsubscribe = subscribeTrackerActivity(db, (value) =>
+    events.push(`${value.provider}:${value.updating}`)
+  )
   t.after(unsubscribe)
   mockFetch(t, (_url, init) => {
     assert.equal(init.method, 'PUT')
-    assert.deepEqual(events, [false, true])
+    assert.deepEqual(events, ['anilist:false', 'mal:false', 'mal:true'])
     return json({}, 503)
   })
   await assert.rejects(new MalTracker(db).update(1, 2, 'Watching'))
-  assert.deepEqual(events, [false, true, false])
+  assert.deepEqual(events, ['anilist:false', 'mal:false', 'mal:true', 'mal:false'])
 })

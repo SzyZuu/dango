@@ -261,7 +261,7 @@ async function syncAniListEntries(db: DatabaseWrapper): Promise<SyncSummary> {
     })
   }
 
-  await pushRemoteChanges(tracker, pushUpdates, remoteDeleteEntryIds)
+  await pushRemoteChanges(db, tracker, pushUpdates, remoteDeleteEntryIds)
 
   if (
     watchlistUpserts.length > 0 ||

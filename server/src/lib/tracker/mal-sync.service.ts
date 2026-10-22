@@ -10,6 +10,9 @@ import { completedProgress, trackerIds } from './episode-sync.js'
 import { resolveStatus, readTrackerSyncState } from './sync-state.js'
 import type { SyncSummary } from './anime-sync/index.js'
 import { withTrackerLock } from './sync-lock.js'
+import logger from '../../logger.js'
+
+const SYNC_STATE_KEY = 'tracker_mal_sync_state'
 
 const syncing = new WeakMap<DatabaseWrapper, Promise<SyncSummary>>()
 export function syncMyAnimeList(db: DatabaseWrapper): Promise<SyncSummary> {
@@ -20,12 +23,23 @@ export function syncMyAnimeList(db: DatabaseWrapper): Promise<SyncSummary> {
   return run
 }
 
+interface WatchlistUpsert {
+  id: string
+  name: string
+  thumbnail: string
+  status: string
+  nativeName: string
+  englishName: string
+  type: string
+}
+
 async function sync(db: DatabaseWrapper): Promise<SyncSummary> {
   const tracker = new MalTracker(db)
   const remote = await tracker.fetchList()
   const local = await WatchlistRepository.getAll(db)
   const summary: SyncSummary = { pushed: 0, pulled: 0, merged: 0, unchanged: 0, errors: [] }
-  const state = await readTrackerSyncState(db, 'tracker_mal_sync_state')
+  const state = await readTrackerSyncState(db, SYNC_STATE_KEY)
+  const nextState = { ...state }
   const mapped = new Map<number, (typeof local)[number]>()
   for (const item of local) {
     try {
@@ -37,6 +51,16 @@ async function sync(db: DatabaseWrapper): Promise<SyncSummary> {
     }
   }
   const now = Math.floor(Date.now() / 1000)
+  const watchlistUpserts: WatchlistUpsert[] = []
+  const metaUpserts: {
+    id: string
+    name: string
+    episodeCount?: number
+    anilistId?: number
+  }[] = []
+  const watchedRanges: { showId: string; to: number }[] = []
+  const links: { key: string; value: string }[] = []
+
   for (const entry of remote) {
     const id = entry.node.id
     const item = mapped.get(id)
@@ -59,37 +83,28 @@ async function sync(db: DatabaseWrapper): Promise<SyncSummary> {
         : { status: remoteStatus }
       if (item && (progress > remoteProgress || status !== remoteStatus))
         await tracker.update(id, progress, status)
-      await performWriteTransactionAsync(db, async (tx) => {
-        await SettingsRepository.upsert(tx, `tracker_mal_link_${showId}`, String(id))
-        await WatchlistRepository.upsert(tx, {
-          id: showId,
-          name: item?.name || entry.node.title,
-          thumbnail:
-            item?.thumbnail ||
-            entry.node.main_picture?.large ||
-            entry.node.main_picture?.medium ||
-            '',
-          status,
-          nativeName: item?.nativeName || '',
-          englishName: item?.englishName || '',
-          type: item?.type || 'TV',
-        })
-        await ShowsMetaRepository.upsert(tx, {
-          id: showId,
-          name: entry.node.title,
-          episodeCount: entry.node.num_episodes,
-          anilistId: offlineDb.getByMalId(id)?.anilistId,
-        })
-        for (let ep = 1; ep <= remoteProgress; ep++)
-          await WatchedEpisodesRepository.markCompleted(tx, { showId, episodeNumber: String(ep) })
-        tx.run(
-          `UPDATE tracker_updates SET syncedProgress = progress, syncedStatus = status, error = NULL
-          WHERE provider = 'mal' AND showId = ? AND progress <= ?`,
-          [showId, progress]
-        )
-        state[String(id)] = { lastSyncedAt: now, remoteUpdatedAt: remoteUpdated }
-        await SettingsRepository.upsert(tx, 'tracker_mal_sync_state', JSON.stringify(state))
+      watchlistUpserts.push({
+        id: showId,
+        name: item?.name || entry.node.title,
+        thumbnail:
+          item?.thumbnail ||
+          entry.node.main_picture?.large ||
+          entry.node.main_picture?.medium ||
+          '',
+        status,
+        nativeName: item?.nativeName || '',
+        englishName: item?.englishName || '',
+        type: item?.type || 'TV',
       })
+      metaUpserts.push({
+        id: showId,
+        name: entry.node.title,
+        episodeCount: entry.node.num_episodes,
+        anilistId: offlineDb.getByMalId(id)?.anilistId,
+      })
+      if (remoteProgress > 0) watchedRanges.push({ showId, to: remoteProgress })
+      links.push({ key: `tracker_mal_link_${showId}`, value: String(id) })
+      nextState[String(id)] = { lastSyncedAt: now, remoteUpdatedAt: remoteUpdated }
       if (!item) summary.pulled++
       else if (
         localProgress !== remoteProgress ||
@@ -98,10 +113,29 @@ async function sync(db: DatabaseWrapper): Promise<SyncSummary> {
       )
         summary.merged++
       else summary.unchanged++
-    } catch {
+    } catch (err) {
+      logger.warn({ err, malId: id }, '[MyAnimeList Sync] Entry failed')
       summary.errors.push(`${entry.node.title}: Sync failed. Your local progress has been kept.`)
     }
   }
+
+  if (watchlistUpserts.length > 0) {
+    await performWriteTransactionAsync(db, async (tx) => {
+      for (const link of links) await SettingsRepository.upsert(tx, link.key, link.value)
+      for (const item of watchlistUpserts) await WatchlistRepository.upsert(tx, item)
+      for (const meta of metaUpserts) await ShowsMetaRepository.upsert(tx, meta)
+      for (const range of watchedRanges) {
+        for (let ep = 1; ep <= range.to; ep++) {
+          await WatchedEpisodesRepository.markCompleted(tx, {
+            showId: range.showId,
+            episodeNumber: String(ep),
+          })
+        }
+      }
+      await SettingsRepository.upsert(tx, SYNC_STATE_KEY, JSON.stringify(nextState))
+    })
+  }
+
   for (const [id, item] of mapped) {
     try {
       await tracker.update(id, await completedProgress(db, item.id), item.status)

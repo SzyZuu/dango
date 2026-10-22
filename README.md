@@ -25,7 +25,7 @@ _A local-first anime web app focused on performance, privacy, and personal libra
 - **Multi-Provider Playback:** Switch seamlessly between multiple third-party streaming providers directly within the player interface.
 - **Watchlist Tracking:** Categorize titles (Watching, Completed, Plan to Watch) with fine-grained progress states.
 - **Library Insights:** Built-in dashboard tracking viewing habits, personal stats, and completion ratios.
-- **Trackers & Sync:** Bi-directional AniList sync and one-way MyAnimeList list imports.
+- **Trackers & Sync:** Bi-directional AniList and MyAnimeList sync for anime and manga, plus username and XML list imports.
 - **Expanded Media Hub:** Dedicated interfaces for Manga, ASMR, and TV/Movies.
 - **LAN Security:** Optional LAN authentication with password enforcement for multi-device local network deployments.
 
@@ -275,13 +275,19 @@ Bidirectional sync is fully supported:
 
 ### MyAnimeList
 
-Create an application at [MyAnimeList API settings](https://myanimelist.net/apiconfig).
-Open **Trackers → MyAnimeList** and register the exact redirect URL shown there
-(your dango origin followed by `/trackers`, including the port). Enter the app's
-client ID and, if your app type requires one, its client secret, then select
-**Connect to MyAnimeList**. Public apps use PKCE and do not need a client secret.
-You can also configure `MAL_CLIENT_ID` and `MAL_CLIENT_SECRET` on the server;
-values saved in Trackers take precedence. Never put the secret in frontend build variables.
+Release builds connect through Dango's MyAnimeList auth worker, so
+**Connect to MyAnimeList** needs no setup: the worker holds the app credentials
+and they never reach the browser or your dango database.
+
+To use your own MAL app instead, create one at
+[MyAnimeList API settings](https://myanimelist.net/apiconfig), register the exact
+redirect URL (your dango origin followed by `/api/tracker/mal/callback`,
+including the port), then paste its client ID and client secret in **Trackers**
+or set `MAL_CLIENT_ID` / `MAL_CLIENT_SECRET` on the server. MAL requires the
+secret even when PKCE is used; values saved in Trackers take precedence over the
+worker. Self-built releases can point at a worker with `MAL_AUTH_WORKER_URL`
+(the deployable worker lives in `worker/dango-mal-auth`). Never put the secret
+in frontend build variables.
 
 **Sync Now** merges your authenticated anime list in both directions, retaining
 the higher watched episode number. Remote-only entries are imported, local-only
@@ -289,13 +295,16 @@ entries are sent, and missing entries never trigger deletions. Exact title ID
 mapping uses the offline database and AniList; unmatched titles are reported
 instead of being guessed. Username and XML imports remain available without login.
 
-After an episode reaches the player's existing 80% completion threshold, dango
-queues progress and Watching/Completed status updates for **every connected anime
-tracker**, including AniList and MyAnimeList. Updates run in the background,
-deduplicate repeated playback ticks, preserve higher remote progress, and retry
-failed requests once per minute and after restart. Pending updates appear in
-Trackers. Partial episodes and fractional special-episode numbers are not sent.
-This automatic flow covers anime playback; manga retains its existing separate sync.
+The manga Trackers page has the same connect flow and a **Start Sync** for manga:
+chapter progress and Reading/Completed/On-Hold/Dropped/Planned statuses are merged
+both ways. Local manga are linked by exact title against the fetched MAL list first,
+then by a MAL search for up to 25 unlinked entries per sync; the link is stored
+afterwards. Entries that do not match are reported and never guessed. Manga sync
+never deletes either side. Anime IDs come from the offline database (and the
+per-show link cache) before any AniList lookup.
+
+Progress is sent when you select **Sync Now** (or **Start Sync** for manga); dango
+does not push playback updates to trackers in the background.
 
 MAL tokens refresh automatically. Credentials remain on this dango server and
 are excluded from library sync exports. Disconnect removes the local account

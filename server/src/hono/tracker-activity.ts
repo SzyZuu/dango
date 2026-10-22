@@ -1,7 +1,7 @@
 import type { Hono } from 'hono'
 import { streamSSE } from 'hono/streaming'
 import type { DatabaseWrapper } from '../db.js'
-import { subscribeMalUpdates } from '../lib/tracker/mal-update-events.js'
+import { subscribeTrackerActivity } from '../lib/tracker/tracker-activity.js'
 
 const streams = new WeakMap<DatabaseWrapper, Set<() => void>>()
 
@@ -11,7 +11,7 @@ export function closeTrackerActivityStreams(db: DatabaseWrapper) {
 
 // Registered after the normal LAN authentication middleware. No account data is sent.
 export function registerTrackerActivity(app: Hono, getDb: () => DatabaseWrapper) {
-  app.get('/api/tracker/mal/activity', (c) =>
+  app.get('/api/tracker/activity', (c) =>
     streamSSE(c, async (stream) => {
       const db = getDb()
       const connections = streams.get(db) || new Set<() => void>()
@@ -26,9 +26,9 @@ export function registerTrackerActivity(app: Hono, getDb: () => DatabaseWrapper)
         }
         stream.onAbort(finish)
         connections.add(finish)
-        unsubscribe = subscribeMalUpdates(db, (updating) => {
+        unsubscribe = subscribeTrackerActivity(db, (activity) => {
           void stream
-            .writeSSE({ event: 'mal-update', data: JSON.stringify({ updating }) })
+            .writeSSE({ event: 'tracker-activity', data: JSON.stringify(activity) })
             .catch(finish)
         })
         const heartbeat = setInterval(() => {

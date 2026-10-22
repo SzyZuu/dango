@@ -61,6 +61,13 @@ describe('isShowFinale', () => {
     expect(isShowFinale(['1'], '1', 'Complete')).toBe(true)
     expect(isShowFinale(['1'], '1', 'ended')).toBe(true)
   })
+
+  it('falls back to the episode count when the episode list is empty', () => {
+    expect(isShowFinale([], '10', 'FINISHED', 10)).toBe(true)
+    expect(isShowFinale([], '9', 'FINISHED', 10)).toBe(false)
+    expect(isShowFinale([], '10', 'RELEASING', 10)).toBe(false)
+    expect(isShowFinale([], '10', 'FINISHED')).toBe(false)
+  })
 })
 
 describe('decideEpisodeEnd', () => {

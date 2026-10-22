@@ -10,8 +10,9 @@ export const matchesQueueItem = (
   metaId: string | undefined
 ) => item.showId === id || (!!metaId && item.showId === metaId)
 
+export type EndedModal = 'none' | 'watched' | 'complete'
+
 interface UseEpisodeEndFlowOptions {
-  videoRef: { current: HTMLVideoElement | null }
   testClipActive: boolean
   selectedSourceType?: string
   onEnded: () => void
@@ -20,11 +21,11 @@ interface UseEpisodeEndFlowOptions {
   showId: string | undefined
   showMetaId?: string
   showMetaStatus?: string
+  showEpisodeCount?: number | string | null
   currentEpisode?: string | null
   episodes: string[]
   isAutoplayEnabled: boolean
   isCompleted: boolean
-  showResumeModal: boolean
   nextEpisode: string | null
   previousEpisode: string | null
   navigate: (to: string) => void
@@ -35,7 +36,6 @@ interface UseEpisodeEndFlowOptions {
 // what happens when an episode ends: the queue, the autoplay, the next and
 // the previous episode
 export function useEpisodeEndFlow({
-  videoRef,
   testClipActive,
   selectedSourceType,
   onEnded,
@@ -44,11 +44,11 @@ export function useEpisodeEndFlow({
   showId,
   showMetaId,
   showMetaStatus,
+  showEpisodeCount,
   currentEpisode,
   episodes,
   isAutoplayEnabled,
   isCompleted,
-  showResumeModal,
   nextEpisode,
   previousEpisode,
   navigate,
@@ -56,7 +56,8 @@ export function useEpisodeEndFlow({
   dispatch,
 }: UseEpisodeEndFlowOptions) {
   const [hasReachedEpisodeEnd, setHasReachedEpisodeEnd] = useState(false)
-  const hasDismissedShowCompletedRef = useRef(false)
+  const [endedModal, setEndedModal] = useState<EndedModal>('none')
+  const [hasDismissedEndedModal, setHasDismissedEndedModal] = useState(false)
   const [queueCountdown, setQueueCountdown] = useState<number | null>(null)
   const [pendingQueueTransition, setPendingQueueTransition] = useState<{
     nextItem: QueueItem | null
@@ -66,16 +67,38 @@ export function useEpisodeEndFlow({
   removeFromQueueRef.current = removeFromQueue
 
   const effectiveIsCompleted = isCompleted || hasReachedEpisodeEnd
-  const isShowCompleted =
-    effectiveIsCompleted && isShowFinale(episodes, currentEpisode ?? undefined, showMetaStatus)
+  const isShowFinaleNow = isShowFinale(
+    episodes,
+    currentEpisode ?? undefined,
+    showMetaStatus,
+    showEpisodeCount
+  )
+
+  const showEndedModal = useCallback(() => {
+    if (hasDismissedEndedModal) return
+    setEndedModal(isShowFinaleNow ? 'complete' : 'watched')
+  }, [hasDismissedEndedModal, isShowFinaleNow])
+
+  const dismissEndedModal = useCallback(() => {
+    setHasDismissedEndedModal(true)
+    setEndedModal('none')
+  }, [])
 
   useEffect(() => {
-    if (!hasReachedEpisodeEnd) {
-      hasDismissedShowCompletedRef.current = false
-    }
-  }, [hasReachedEpisodeEnd])
+    setHasDismissedEndedModal(false)
+    setEndedModal('none')
+  }, [showId, currentEpisode])
+
+  useEffect(() => {
+    if (!isCompleted) return
+    if (hasDismissedEndedModal) return
+    setEndedModal((current) =>
+      current === 'none' ? (isShowFinaleNow ? 'complete' : 'watched') : current
+    )
+  }, [isCompleted, hasDismissedEndedModal, isShowFinaleNow])
 
   const handlePlaybackFinished = useCallback(() => {
+    if (testClipActive) return
     onEnded()
 
     const itemToRemove = queue.find(
@@ -110,15 +133,8 @@ export function useEpisodeEndFlow({
       }
     }
 
-    if (
-      !didAutoplayNavigate &&
-      queue.length === 0 &&
-      !pendingQueueTransition &&
-      !hasDismissedShowCompletedRef.current
-    ) {
-      if (isShowFinale(episodes, currentEpisode ?? undefined, showMetaStatus)) {
-        dispatch({ type: 'SET_STATE', payload: { showResumeModal: true } })
-      }
+    if (!didAutoplayNavigate && queue.length === 0 && !pendingQueueTransition) {
+      showEndedModal()
     }
   }, [
     onEnded,
@@ -126,13 +142,13 @@ export function useEpisodeEndFlow({
     queue,
     showId,
     showMetaId,
-    showMetaStatus,
     currentEpisode,
     episodes,
     isAutoplayEnabled,
     pendingQueueTransition,
-    dispatch,
     invalidateContinueWatching,
+    testClipActive,
+    showEndedModal,
   ])
 
   const handleQueueTransition = useCallback(() => {
@@ -158,9 +174,18 @@ export function useEpisodeEndFlow({
     if (nextItem) {
       navigate(`/watch/${nextItem.showId}/${nextItem.episodeNumber}`)
     } else if (itemToRemove) {
-      dispatch({ type: 'SET_STATE', payload: { showResumeModal: true } })
+      showEndedModal()
     }
-  }, [onEnded, navigate, queue, removeFromQueue, showId, showMetaId, currentEpisode, dispatch])
+  }, [
+    onEnded,
+    navigate,
+    queue,
+    removeFromQueue,
+    showId,
+    showMetaId,
+    currentEpisode,
+    showEndedModal,
+  ])
 
   const handleNextEpisode = useCallback(() => {
     if (nextEpisode) {
@@ -168,8 +193,9 @@ export function useEpisodeEndFlow({
       setHasReachedEpisodeEnd(false)
       navigate(`/watch/${showId}/${nextEpisode}`)
     }
+    dismissEndedModal()
     dispatch({ type: 'SET_STATE', payload: { showResumeModal: false } })
-  }, [nextEpisode, navigate, showId, dispatch, invalidateContinueWatching])
+  }, [nextEpisode, navigate, showId, dispatch, invalidateContinueWatching, dismissEndedModal])
 
   const handleNShortcut = useCallback(() => {
     if (queue.length > 0) {
@@ -180,10 +206,6 @@ export function useEpisodeEndFlow({
       toast.error('No next episode available')
     }
   }, [queue.length, handleQueueTransition, handleNextEpisode, nextEpisode])
-
-  const markShowCompletedDismissed = useCallback(() => {
-    hasDismissedShowCompletedRef.current = true
-  }, [])
 
   const resetReachedEpisodeEnd = useCallback(() => setHasReachedEpisodeEnd(false), [])
 
@@ -202,19 +224,6 @@ export function useEpisodeEndFlow({
       navigate(`/watch/${showId}/${previousEpisode}`)
     }
   }, [previousEpisode, navigate, showId])
-
-  useEffect(() => {
-    const videoElement = videoRef.current
-    if (!videoElement) return
-    const handleVideoEnd = () => {
-      if (testClipActive) return
-      handlePlaybackFinished()
-    }
-    videoElement.addEventListener('ended', handleVideoEnd)
-    return () => {
-      videoElement.removeEventListener('ended', handleVideoEnd)
-    }
-  }, [handlePlaybackFinished, videoRef, testClipActive])
 
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
@@ -247,7 +256,7 @@ export function useEpisodeEndFlow({
       if (nextItem) {
         navigate(`/watch/${nextItem.showId}/${nextItem.episodeNumber}`)
       } else if (playedItem) {
-        dispatch({ type: 'SET_STATE', payload: { showResumeModal: true } })
+        showEndedModal()
       }
       return
     }
@@ -257,37 +266,21 @@ export function useEpisodeEndFlow({
     }, 1000)
 
     return () => window.clearTimeout(timer)
-  }, [pendingQueueTransition, queueCountdown, navigate, dispatch])
-
-  useEffect(() => {
-    if (!hasReachedEpisodeEnd) return
-    if (showResumeModal) return
-    if (queue.length > 0) return
-    if (pendingQueueTransition) return
-    if (hasDismissedShowCompletedRef.current) return
-    if (isShowCompleted) {
-      dispatch({ type: 'SET_STATE', payload: { showResumeModal: true } })
-    }
-  }, [
-    hasReachedEpisodeEnd,
-    isShowCompleted,
-    showResumeModal,
-    queue.length,
-    pendingQueueTransition,
-    dispatch,
-  ])
+  }, [pendingQueueTransition, queueCountdown, navigate, showEndedModal])
 
   return {
     hasReachedEpisodeEnd,
+    endedModal,
     effectiveIsCompleted,
-    isShowCompleted,
+    isShowCompleted: effectiveIsCompleted && isShowFinaleNow,
     queueCountdown,
     pendingQueueTransition,
     handleQueueTransition,
     handleNextEpisode,
     handleNShortcut,
     handlePreviousEpisode,
-    markShowCompletedDismissed,
+    handlePlaybackFinished,
+    dismissEndedModal,
     resetReachedEpisodeEnd,
     setReachedEpisodeEnd,
     cancelQueueTransition,

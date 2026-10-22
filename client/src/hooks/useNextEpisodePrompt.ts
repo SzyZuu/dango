@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { isProgressCompleted } from '../lib/playbackCompletion'
 import type { QueueItem } from './useAnimeData'
 
@@ -8,7 +8,7 @@ interface UseNextEpisodePromptOptions {
   showId: string | undefined
   showMetaId?: string
   currentEpisode?: string | null
-  selectedSourceType?: string
+  selectedSource?: { type?: string } | null
   hasNextEpisode: boolean
   nextEpisode: string | null
   prefetchEpisodeSources: (episodeNumber: string, targetShowId?: string) => void
@@ -23,7 +23,7 @@ export function useNextEpisodePrompt({
   showId,
   showMetaId,
   currentEpisode,
-  selectedSourceType,
+  selectedSource,
   hasNextEpisode,
   nextEpisode,
   prefetchEpisodeSources,
@@ -36,76 +36,65 @@ export function useNextEpisodePrompt({
   const prefetchedForRef = useRef<string>('')
 
   useEffect(() => {
-    const videoElement = videoRef.current
-
     setShowNextEpisodePrompt(false)
     setReachedEpisodeEnd(false)
+  }, [currentEpisode, setReachedEpisodeEnd])
 
-    if (!videoElement || selectedSourceType === 'iframe') return
+  const handleThresholds = useCallback(() => {
+    const videoElement = videoRef.current
+    if (!videoElement || selectedSource?.type === 'iframe') return
 
-    const handleThresholds = () => {
-      const duration = videoElement.duration
-      const currentTime = videoElement.currentTime
+    const duration = videoElement.duration
+    const currentTime = videoElement.currentTime
 
-      if (!duration || Number.isNaN(duration)) {
-        setShowNextEpisodePrompt(false)
-        setReachedEpisodeEnd(false)
-        return
-      }
+    if (!duration || Number.isNaN(duration)) {
+      setShowNextEpisodePrompt(false)
+      setReachedEpisodeEnd(false)
+      return
+    }
 
-      if (duration - currentTime <= 60) {
-        const activeQueueIndex = queue.findIndex(
-          (item) =>
-            matchesQueueItem(item, showId, showMetaId) && item.episodeNumber === currentEpisode
-        )
-        const nextQueueItem =
-          queue.length > 0
-            ? activeQueueIndex >= 0
-              ? queue[activeQueueIndex + 1] || null
-              : queue[0]
-            : null
+    if (duration - currentTime <= 60) {
+      const activeQueueIndex = queue.findIndex(
+        (item) =>
+          matchesQueueItem(item, showId, showMetaId) && item.episodeNumber === currentEpisode
+      )
+      const nextQueueItem =
+        queue.length > 0
+          ? activeQueueIndex >= 0
+            ? queue[activeQueueIndex + 1] || null
+            : queue[0]
+          : null
 
-        const prefetchKey = nextQueueItem
-          ? `${nextQueueItem.showId}:${nextQueueItem.episodeNumber}`
-          : hasNextEpisode
-            ? `${showId}:${nextEpisode}`
-            : ''
+      const prefetchKey = nextQueueItem
+        ? `${nextQueueItem.showId}:${nextQueueItem.episodeNumber}`
+        : hasNextEpisode
+          ? `${showId}:${nextEpisode}`
+          : ''
 
-        if (prefetchKey && prefetchedForRef.current !== prefetchKey) {
-          prefetchedForRef.current = prefetchKey
-          if (nextQueueItem) {
-            prefetchNextEpisodeRef.current(nextQueueItem.episodeNumber, nextQueueItem.showId)
-          } else {
-            prefetchNextEpisodeRef.current(nextEpisode ?? '')
-          }
+      if (prefetchKey && prefetchedForRef.current !== prefetchKey) {
+        prefetchedForRef.current = prefetchKey
+        if (nextQueueItem) {
+          prefetchNextEpisodeRef.current(nextQueueItem.episodeNumber, nextQueueItem.showId)
+        } else {
+          prefetchNextEpisodeRef.current(nextEpisode ?? '')
         }
       }
-
-      setShowNextEpisodePrompt(hasNextEpisode && isProgressCompleted(currentTime, duration))
-      setReachedEpisodeEnd(currentTime >= Math.max(duration * 0.98, duration - 10))
     }
 
-    handleThresholds()
-    videoElement.addEventListener('timeupdate', handleThresholds)
-    videoElement.addEventListener('loadedmetadata', handleThresholds)
-
-    return () => {
-      videoElement.removeEventListener('timeupdate', handleThresholds)
-      videoElement.removeEventListener('loadedmetadata', handleThresholds)
-    }
+    setShowNextEpisodePrompt(hasNextEpisode && isProgressCompleted(currentTime, duration))
+    setReachedEpisodeEnd(currentTime >= Math.max(duration * 0.98, duration - 10))
   }, [
     videoRef,
-    hasNextEpisode,
-    currentEpisode,
-    selectedSourceType,
-    nextEpisode,
-    showId,
+    selectedSource,
     queue,
+    showId,
     showMetaId,
+    currentEpisode,
+    hasNextEpisode,
+    nextEpisode,
     setReachedEpisodeEnd,
     matchesQueueItem,
-    prefetchEpisodeSources,
   ])
 
-  return { showNextEpisodePrompt }
+  return { showNextEpisodePrompt, handleThresholds }
 }

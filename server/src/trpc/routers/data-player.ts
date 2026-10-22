@@ -200,60 +200,66 @@ export const dataPlayerRouter = router({
             meta = await getShowMetaById(id)
           } catch (e) {
             logger.warn({ err: e, id }, 'AniList show-meta fetch failed, trying local cache')
-            const localMeta = (await ShowsMetaRepository.getById(db, id)) as Record<
-              string,
-              unknown
-            > | null
-            if (localMeta) {
-              if (typeof localMeta.genres === 'string') {
-                try {
-                  localMeta.genres = JSON.parse(localMeta.genres as string)
-                } catch {
-                  localMeta.genres = []
-                }
-              }
-              return localMeta
-            }
           }
-          if (meta) {
-            const poster = meta.thumbnail?.trim() ? meta.thumbnail : undefined
-            const hasPoster = !!poster
-            try {
-              await ShowsMetaRepository.upsert(db, {
-                id,
-                name: meta.name,
-                thumbnail: poster,
-                nativeName: meta.nativeName,
-                englishName: meta.englishName,
-                popularityScore:
-                  meta.score ?? (meta.averageScore != null ? meta.averageScore / 10 : undefined),
-                genres: meta.genres
-                  ? JSON.stringify(
-                      meta.genres.map((g) => (typeof g === 'string' ? g : g?.name)).filter(Boolean)
-                    )
-                  : undefined,
-                status: meta.status,
-                episodeCount: meta.episodeCount != null ? Number(meta.episodeCount) : undefined,
-                type: meta.type,
-                anilistId: meta.anilistId,
-              })
-            } catch {
-              // ignore
-            }
-            if (hasPoster && poster) {
-              const existingWatchlist = (await WatchlistRepository.getById(db, id)) as {
-                thumbnail?: string
-              } | null
-              if (existingWatchlist && existingWatchlist.thumbnail !== poster) {
-                try {
-                  await WatchlistRepository.updateThumbnail(db, id, poster)
-                } catch {
-                  // ignore
-                }
+          const localMeta = (await ShowsMetaRepository.getById(db, id)) as Record<
+            string,
+            unknown
+          > | null
+          if (!meta) {
+            if (!localMeta) return {}
+            if (typeof localMeta.genres === 'string') {
+              try {
+                const parsed = JSON.parse(localMeta.genres as string)
+                localMeta.genres = Array.isArray(parsed)
+                  ? parsed.map((g) => ({ name: typeof g === 'string' ? g : String(g?.name ?? '') }))
+                  : []
+              } catch {
+                localMeta.genres = []
               }
             }
+            return localMeta
           }
-          if (/^(mal-\d+|-\d+)$/i.test(id) && meta?.anilistId && meta.anilistId > 0) {
+          if (!meta.status && localMeta?.status) meta.status = String(localMeta.status)
+          if (!meta.episodeCount && localMeta?.episodeCount) {
+            meta.episodeCount = Number(localMeta.episodeCount)
+          }
+          const poster = meta.thumbnail?.trim() ? meta.thumbnail : undefined
+          const hasPoster = !!poster
+          try {
+            await ShowsMetaRepository.upsert(db, {
+              id,
+              name: meta.name,
+              thumbnail: poster,
+              nativeName: meta.nativeName,
+              englishName: meta.englishName,
+              popularityScore:
+                meta.score ?? (meta.averageScore != null ? meta.averageScore / 10 : undefined),
+              genres: meta.genres
+                ? JSON.stringify(
+                    meta.genres.map((g) => (typeof g === 'string' ? g : g?.name)).filter(Boolean)
+                  )
+                : undefined,
+              status: meta.status,
+              episodeCount: meta.episodeCount != null ? Number(meta.episodeCount) : undefined,
+              type: meta.type,
+              anilistId: meta.anilistId,
+            })
+          } catch {
+            // ignore
+          }
+          if (hasPoster && poster) {
+            const existingWatchlist = (await WatchlistRepository.getById(db, id)) as {
+              thumbnail?: string
+            } | null
+            if (existingWatchlist && existingWatchlist.thumbnail !== poster) {
+              try {
+                await WatchlistRepository.updateThumbnail(db, id, poster)
+              } catch {
+                // ignore
+              }
+            }
+          }
+          if (/^(mal-\d+|-\d+)$/i.test(id) && meta.anilistId && meta.anilistId > 0) {
             try {
               LegacyIdMappingRepository.set(db, id, String(meta.anilistId))
             } catch {
@@ -264,7 +270,7 @@ export const dataPlayerRouter = router({
         }
         return {}
       },
-      (d) => !!d
+      (d) => !!d && Object.keys(d).length > 0
     )
   }),
 

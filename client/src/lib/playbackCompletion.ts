@@ -33,17 +33,27 @@ const FINISHED_STATUSES = ['finished', 'completed', 'complete', 'ended']
 export const isShowFinale = (
   episodes: string[],
   currentEpisode: string | undefined,
-  status: unknown
-): boolean =>
-  episodes.length > 0 &&
-  !!currentEpisode &&
-  episodes[episodes.length - 1] === currentEpisode &&
-  FINISHED_STATUSES.some((s) =>
-    String(status || '')
-      .trim()
-      .toLowerCase()
-      .includes(s)
+  status: unknown,
+  episodeCount?: number | string | null
+): boolean => {
+  if (!currentEpisode) return false
+  const lastEpisode =
+    episodes.length > 0
+      ? episodes[episodes.length - 1]
+      : episodeCount != null && String(episodeCount) !== ''
+        ? String(episodeCount)
+        : null
+  if (!lastEpisode) return false
+  return (
+    lastEpisode === currentEpisode &&
+    FINISHED_STATUSES.some((s) =>
+      String(status || '')
+        .trim()
+        .toLowerCase()
+        .includes(s)
+    )
   )
+}
 
 export type EpisodeEndAction = 'advance' | 'prompt-next' | 'prompt-complete' | 'none'
 

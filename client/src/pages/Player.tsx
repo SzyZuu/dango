@@ -239,21 +239,20 @@ const Player: React.FC = () => {
   const isCompleted = isProgressCompleted(state.resumeTime, state.resumeDuration)
 
   const {
-    hasReachedEpisodeEnd,
+    endedModal,
     effectiveIsCompleted,
-    isShowCompleted,
     queueCountdown,
     pendingQueueTransition,
     handleQueueTransition,
     handleNextEpisode,
     handleNShortcut,
     handlePreviousEpisode,
-    markShowCompletedDismissed,
+    handlePlaybackFinished,
+    dismissEndedModal,
     resetReachedEpisodeEnd,
     setReachedEpisodeEnd,
     cancelQueueTransition,
   } = useEpisodeEndFlow({
-    videoRef: refs.videoRef,
     testClipActive,
     selectedSourceType: state.selectedSource?.type,
     onEnded: actions.onEnded,
@@ -262,11 +261,11 @@ const Player: React.FC = () => {
     showId,
     showMetaId: state.showMeta?.id,
     showMetaStatus: state.showMeta.status,
+    showEpisodeCount: state.showMeta.episodeCount,
     currentEpisode: state.currentEpisode,
     episodes: state.episodes,
     isAutoplayEnabled: state.isAutoplayEnabled,
     isCompleted,
-    showResumeModal: state.showResumeModal,
     nextEpisode,
     previousEpisode,
     navigate,
@@ -274,13 +273,13 @@ const Player: React.FC = () => {
     dispatch,
   })
 
-  const { showNextEpisodePrompt } = useNextEpisodePrompt({
+  const { showNextEpisodePrompt, handleThresholds } = useNextEpisodePrompt({
     videoRef: refs.videoRef,
     queue,
     showId,
     showMetaId: state.showMeta?.id,
     currentEpisode: state.currentEpisode,
-    selectedSourceType: state.selectedSource?.type,
+    selectedSource: state.selectedSource,
     hasNextEpisode,
     nextEpisode,
     prefetchEpisodeSources,
@@ -288,14 +287,12 @@ const Player: React.FC = () => {
     matchesQueueItem,
   })
 
-  const shouldShowModal = state.showResumeModal && (isShowCompleted || !effectiveIsCompleted)
-  const isEpisodeCompleted = effectiveIsCompleted && !isShowCompleted
+  const shouldShowResumeModal = state.showResumeModal && !effectiveIsCompleted
+  const shouldShowCompleteModal = endedModal === 'complete'
   const shouldShowNextEpisodeModal =
-    isEpisodeCompleted &&
-    queue.length === 0 &&
-    !pendingQueueTransition &&
-    (state.showResumeModal || hasReachedEpisodeEnd)
-  const shouldPauseForModal = shouldShowModal || shouldShowNextEpisodeModal
+    endedModal === 'watched' && queue.length === 0 && !pendingQueueTransition
+  const shouldPauseForModal =
+    shouldShowResumeModal || shouldShowCompleteModal || shouldShowNextEpisodeModal
 
   useAutoRotateFullscreen(player, !!state.selectedLink && !isTheaterMode && !shouldPauseForModal)
 
@@ -469,22 +466,13 @@ const Player: React.FC = () => {
   }
 
   const handleCloseModal = useCallback(() => {
-    if (isShowCompleted) {
-      markShowCompletedDismissed()
-    }
-    if (shouldShowNextEpisodeModal) {
-      resetReachedEpisodeEnd()
-    }
+    dismissEndedModal()
+    resetReachedEpisodeEnd()
     dispatch({ type: 'SET_STATE', payload: { showResumeModal: false } })
-  }, [
-    dispatch,
-    isShowCompleted,
-    shouldShowNextEpisodeModal,
-    markShowCompletedDismissed,
-    resetReachedEpisodeEnd,
-  ])
+  }, [dispatch, dismissEndedModal, resetReachedEpisodeEnd])
 
   const handleReplayCompleted = useCallback(() => {
+    dismissEndedModal()
     resetReachedEpisodeEnd()
     if (refs.videoRef.current) {
       try {
@@ -495,17 +483,18 @@ const Player: React.FC = () => {
       }
     }
     dispatch({ type: 'SET_STATE', payload: { showResumeModal: false } })
-  }, [dispatch, refs, resetReachedEpisodeEnd])
+  }, [dispatch, refs, dismissEndedModal, resetReachedEpisodeEnd])
 
   const handleMoveToCompletedAndNavigate = useCallback(async () => {
     try {
       await moveToCompleted()
+      dismissEndedModal()
       dispatch({ type: 'SET_STATE', payload: { showResumeModal: false } })
       navigate('/')
     } catch {
       // ignore
     }
-  }, [moveToCompleted, dispatch, navigate])
+  }, [moveToCompleted, dispatch, navigate, dismissEndedModal])
 
   const episodeNavControls = (className: string, variant: 'desktop' | 'mobile') => (
     <div className={className}>
@@ -607,7 +596,7 @@ const Player: React.FC = () => {
         />
       )}
       <Modal
-        isOpen={shouldShowModal && isShowCompleted}
+        isOpen={shouldShowCompleteModal}
         onClose={handleCloseModal}
         title="Show Completed!"
         width="sm"
@@ -623,7 +612,7 @@ const Player: React.FC = () => {
       </Modal>
 
       <ResumeModal
-        isOpen={shouldShowModal && !isShowCompleted}
+        isOpen={shouldShowResumeModal}
         onClose={handleCloseModal}
         title="Resume Playback?"
         message={
@@ -880,10 +869,15 @@ const Player: React.FC = () => {
                     disableRemotePlayback
                     onPlay={actions.onPlay}
                     onPause={actions.onPause}
-                    onLoadedMetadata={actions.onLoadedMetadata}
+                    onEnded={handlePlaybackFinished}
+                    onLoadedMetadata={() => {
+                      actions.onLoadedMetadata()
+                      handleThresholds()
+                    }}
                     onTimeUpdate={() => {
                       if (testClipActive) return
                       actions.onTimeUpdate()
+                      handleThresholds()
                       if (
                         pendingQueueTransition &&
                         refs.videoRef.current &&

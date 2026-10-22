@@ -92,6 +92,13 @@
   margin-top: 1.5rem;
 }
 
+@media (min-width: 1100px) {
+  .infoColumns:has(> :last-child:not(:first-child)) {
+    grid-template-columns: minmax(0, 1.5fr) minmax(240px, 1fr);
+    align-items: start;
+  }
+}
+
 .playerAnimeCard img {
   width: 100%;
   height: 100%;
@@ -122,9 +129,140 @@
 }
 
 @keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUpIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 1280px) {
+  .playerPageLayout {
+    grid-template-columns: 280px 1fr;
+    padding: 1.5rem;
+    gap: 1.5rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .playerPageLayout {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .episodeSidebar {
+    width: 100%;
+    height: auto;
+    max-height: 500px;
+    position: static;
+    order: 2;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .playerMain {
+    order: 1;
+    width: 100%;
+  }
+
+  .playerInfoHeader {
+    padding: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .playerPageLayout {
+    padding: 1rem;
+    gap: 1.5rem;
+  }
+
+  .episodeSidebar {
+    display: none;
+  }
+
+  .playerMain {
+    gap: 1.5rem;
+  }
+
+  .videoPlayerWrapper {
+    border-radius: 0;
+  }
+
+  .playerInfoContainer {
+    border-radius: var(--radius-xl);
+    padding: 1.5rem;
+  }
+
+  .playerInfoHeader {
+    flex-direction: row;
+    align-items: flex-start;
+    text-align: left;
+    gap: 1.5rem;
+  }
+
+  .videoTitleSection h1 {
+    font-size: 1.75rem;
+  }
+
+  .playerAnimeCard {
+    width: 100px;
+  }
+}
+
+@media (max-width: 480px) {
+  .playerInfoHeader {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+
+  .playerAnimeCard {
+    width: 120px;
+  }
+}
+
+@media (max-width: 480px) and (orientation: portrait) {
+  .videoPlayerWrapper {
+    padding-top: 100%;
+    position: relative;
+  }
+}
+
+@media (min-width: 481px) and (max-width: 768px) and (orientation: portrait) {
+  .videoPlayerWrapper {
+    padding-top: 75%;
+    position: relative;
+  }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+  .playerPageLayout {
+    padding: 0;
+    gap: 0;
+  }
+
+  .videoPlayerWrapper {
+    border-radius: 0;
+    height: 100vh;
+    padding-top: 0;
+  }
+
+  .playerInfoContainer {
+    padding: 1.5rem;
+  }
 }
 
 /* Low End Mode Layout Overrides */
@@ -195,6 +333,14 @@
 }
 
 @keyframes scaleUpIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 :global(body.theater-mode) header,
@@ -213,4 +359,15 @@
 :global(body.theater-mode) {
   overflow: hidden !important;
   background: #000 !important;
+}
+
+@media (max-width: 768px) {
+  .theaterMode {
+    padding: 1rem !important;
+  }
+
+  .theaterMode .playerMain {
+    width: 100% !important;
+    max-width: none !important;
+  }
 }

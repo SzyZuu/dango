@@ -90,6 +90,14 @@
 }
 
 @keyframes tabFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .settingItem {
@@ -114,7 +122,62 @@
 }
 
 @keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUpIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 900px) {
+  .settingsLayout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: var(--space-2);
+  }
+
+  .sidebarIndicator {
+    right: auto;
+    top: auto !important;
+    bottom: 0;
+    height: 3px !important;
+  }
+
+  .sidebarItem {
+    padding: var(--space-3) var(--space-4);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  .sidebarItem span {
+    display: block;
+  }
+}
+
+@media (max-width: 480px) {
+  .sidebarItem span {
+    display: none;
+  }
+
+  .sidebarItem {
+    padding: var(--space-4);
+    justify-content: center;
+  }
 }

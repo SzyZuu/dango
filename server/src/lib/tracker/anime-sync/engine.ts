@@ -18,7 +18,8 @@ import { SettingsRepository } from '../../../repositories/settings.repository.js
 import { NotificationsRepository } from '../../../repositories/notifications.repository.js'
 import { performWriteTransactionAsync } from '../../../db/transaction.js'
 import { DatabaseWrapper } from '../../../db.js'
-import { dbGet } from '../../../utils/db-utils.js'
+import { completedProgress } from '../episode-sync.js'
+import { withTrackerLock } from '../sync-lock.js'
 import logger from '../../../logger.js'
 import { readTrackerSyncState, resolveStatus } from '../sync-state.js'
 import type { TrackerSyncState, TrackerSyncStateEntry } from '../sync-state.js'
@@ -33,15 +34,14 @@ export interface SyncSummary {
 }
 
 async function getWatchedCount(db: DatabaseWrapper, showId: string): Promise<number> {
-  const row = await dbGet<{ total: number }>(
-    db,
-    'SELECT COUNT(DISTINCT episodeNumber) as total FROM watched_episodes WHERE showId = ?',
-    [showId]
-  )
-  return row?.total ?? 0
+  return completedProgress(db, showId)
 }
 
-export async function syncAniList(db: DatabaseWrapper): Promise<SyncSummary> {
+export function syncAniList(db: DatabaseWrapper): Promise<SyncSummary> {
+  return withTrackerLock(db, 'anilist', () => syncAniListEntries(db))
+}
+
+async function syncAniListEntries(db: DatabaseWrapper): Promise<SyncSummary> {
   const tokenRow = await SettingsRepository.getByKey(db, TOKEN_KEY)
   const token = tokenRow?.value
   if (!token) throw new Error('AniList is not connected. Please log in first.')
@@ -279,7 +279,7 @@ export async function syncAniList(db: DatabaseWrapper): Promise<SyncSummary> {
       }
       for (const w of watchedInserts) {
         for (let ep = w.from; ep <= w.to; ep++) {
-          await WatchedEpisodesRepository.insertIfMissing(tx, {
+          await WatchedEpisodesRepository.markCompleted(tx, {
             showId: w.showId,
             episodeNumber: String(ep),
             watchedAt: toSqliteDatetime(w.updatedAt),

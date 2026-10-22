@@ -99,6 +99,7 @@ export class AniListTracker {
     let response: Response
     try {
       response = await fetch(ANILIST_GRAPHQL_ENDPOINT, {
+        signal: AbortSignal.timeout(20000),
         method: 'POST',
         headers,
         body: JSON.stringify({ query, variables }),

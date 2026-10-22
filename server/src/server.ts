@@ -1,3 +1,4 @@
+import { startEpisodeSync } from './lib/tracker/episode-sync.js'
 process.setMaxListeners(100)
 import { EventEmitter } from 'events'
 EventEmitter.defaultMaxListeners = 100
@@ -192,6 +193,7 @@ async function main() {
   logger.info(`ASMR database initialized at ${asmrDbPath}`)
 
   await offlineDb.init(db)
+  const stopEpisodeSync = startEpisodeSync(db)
   if (await offlineDb.checkWeeklyUpdateDue(db)) {
     logger.info('Weekly offline database update is due on startup, starting background update...')
     offlineDb.executeScheduledUpdate(db).catch((err) => {
@@ -291,6 +293,7 @@ async function main() {
   const shutdown = async (signal?: string) => {
     if (isShuttingDown) return
     isShuttingDown = true
+    stopEpisodeSync()
     stopWatchlistDiscovery()
     clearInterval(syncInterval)
     clearInterval(offlineDbInterval)

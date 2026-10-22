@@ -10,6 +10,7 @@ export function useAnilistAuthCallback(): boolean {
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search)
+    if (searchParams.get('state')?.startsWith('mal:')) return
     const anilistParam = searchParams.get('anilist')
     if (anilistParam) {
       const user = searchParams.get('user')

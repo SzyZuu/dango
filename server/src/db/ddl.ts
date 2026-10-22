@@ -31,6 +31,11 @@ export async function initializeDatabase(dbPath: string): Promise<DatabaseWrappe
       `CREATE TABLE IF NOT EXISTS queue (id INTEGER PRIMARY KEY, showId TEXT NOT NULL, episodeNumber TEXT NOT NULL, queue_order INTEGER NOT NULL)`
     )
     db.run(`CREATE TABLE IF NOT EXISTS settings (key TEXT NOT NULL, value TEXT, PRIMARY KEY (key))`)
+    db.run(`CREATE TABLE IF NOT EXISTS tracker_updates (
+      provider TEXT NOT NULL, showId TEXT NOT NULL, progress INTEGER NOT NULL, status TEXT NOT NULL,
+      syncedProgress INTEGER NOT NULL DEFAULT -1, syncedStatus TEXT NOT NULL DEFAULT '', error TEXT,
+      nextAttempt INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY(provider, showId))`)
     db.run(
       `CREATE TABLE IF NOT EXISTS shows_meta (id TEXT PRIMARY KEY, name TEXT, thumbnail TEXT, nativeName TEXT, englishName TEXT, episodeCount INTEGER, status TEXT, genres TEXT, popularityScore INTEGER, type TEXT)`
     )

@@ -4,10 +4,12 @@ import toast from 'react-hot-toast'
 import { useSidebar } from '../contexts/SidebarContext'
 import { useContentType } from '../contexts/ContentTypeContext'
 import { useAnilistAuthCallback } from '../hooks/useAnilistAuthCallback'
+import { useMalAuthCallback } from '../hooks/useMalAuthCallback'
 import { trpcClient } from '../lib/trpc'
 import { fetchWithLocalHeaders } from '../lib/fetchApi'
 import { Button } from '../components/common/Button'
 import Icon from '../components/common/Icon'
+import MalConnection from '../components/settings/MalConnection'
 
 import styles from './Trackers.module.css'
 import { qk } from '../lib/queryKeys'
@@ -63,6 +65,7 @@ const Trackers: React.FC = () => {
   const [clientIdInput, setClientIdInput] = useState<string>('')
   const [eraseManga, setEraseManga] = useState<boolean>(false)
   const isExchangingToken = useAnilistAuthCallback()
+  const isExchangingMalToken = useMalAuthCallback()
 
   const { data: trackerStatus, isLoading: statusLoading } = useQuery({
     queryKey: [qk.trackerStatus],
@@ -854,6 +857,8 @@ const Trackers: React.FC = () => {
                 <h3>MyAnimeList</h3>
               </div>
             </div>
+
+            <MalConnection connecting={isExchangingMalToken} />
 
             <div className={styles.radioGroup}>
               <label className={styles.radioLabel}>

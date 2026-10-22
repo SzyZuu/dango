@@ -273,6 +273,36 @@ Bidirectional sync is fully supported:
 - Select **Sync Now**.
 - Local episode progress updates remotely; external catalog updates merge safely into your local database without overwriting uncommitted states.
 
+### MyAnimeList
+
+Create an application at [MyAnimeList API settings](https://myanimelist.net/apiconfig).
+Open **Trackers → MyAnimeList** and register the exact redirect URL shown there
+(your dango origin followed by `/trackers`, including the port). Enter the app's
+client ID and, if your app type requires one, its client secret, then select
+**Connect to MyAnimeList**. Public apps use PKCE and do not need a client secret.
+You can also configure `MAL_CLIENT_ID` and `MAL_CLIENT_SECRET` on the server;
+values saved in Trackers take precedence. Never put the secret in frontend build variables.
+
+**Sync Now** merges your authenticated anime list in both directions, retaining
+the higher watched episode number. Remote-only entries are imported, local-only
+entries are sent, and missing entries never trigger deletions. Exact title ID
+mapping uses the offline database and AniList; unmatched titles are reported
+instead of being guessed. Username and XML imports remain available without login.
+
+After an episode reaches the player's existing 80% completion threshold, dango
+queues progress and Watching/Completed status updates for **every connected anime
+tracker**, including AniList and MyAnimeList. Updates run in the background,
+deduplicate repeated playback ticks, preserve higher remote progress, and retry
+failed requests once per minute and after restart. Pending updates appear in
+Trackers. Partial episodes and fractional special-episode numbers are not sent.
+This automatic flow covers anime playback; manga retains its existing separate sync.
+
+MAL tokens refresh automatically. Credentials remain on this dango server and
+are excluded from library sync exports. Disconnect removes the local account
+tokens; revoke dango in MyAnimeList's application settings to revoke remote access.
+The server needs HTTPS access to `myanimelist.net`, `api.myanimelist.net`, and
+`graphql.anilist.co` (for AniList and uncached ID mappings).
+
 ---
 
 ## Disclaimer & Legal

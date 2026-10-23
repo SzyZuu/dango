@@ -22,6 +22,7 @@ export interface MalTokens {
 export interface MalListStatus {
   status: string
   num_episodes_watched: number
+  is_rewatching?: boolean
   score?: number
   updated_at?: string
 }
@@ -40,6 +41,7 @@ export interface MalListEntry {
 export interface MalMangaListStatus {
   status: string
   num_chapters_read: number
+  is_rewatching?: boolean
   score?: number
   updated_at?: string
 }
@@ -349,14 +351,25 @@ export class MalTracker {
     return entries
   }
 
-  update(id: number, progress: number, status: string) {
+  update(id: number, progress: number, status: string, opts: { rewatching?: boolean } = {}) {
     const remoteStatus = DANGO_TO_MAL[status]
     if (!remoteStatus) throw new Error(`Unsupported tracker status: ${status}`)
+    const body = new URLSearchParams({
+      status: remoteStatus,
+      num_watched_episodes: String(progress),
+    })
+    if (opts.rewatching !== undefined) body.set('is_rewatching', String(opts.rewatching))
     return withTrackerWrite(this.db, 'mal', () =>
       this.request<MalListStatus>(`anime/${id}/my_list_status`, {
         method: 'PUT',
-        body: new URLSearchParams({ status: remoteStatus, num_watched_episodes: String(progress) }),
+        body,
       })
+    )
+  }
+
+  deleteAnime(id: number) {
+    return withTrackerWrite(this.db, 'mal', () =>
+      this.request(`anime/${id}/my_list_status`, { method: 'DELETE' })
     )
   }
 
@@ -380,17 +393,25 @@ export class MalTracker {
     ).then((page) => page.data.map((entry) => entry.node))
   }
 
-  updateManga(id: number, progress: number, status: string) {
+  updateManga(id: number, progress: number, status: string, opts: { rewatching?: boolean } = {}) {
     const remoteStatus = DANGO_TO_MAL_MANGA[status]
     if (!remoteStatus) throw new Error(`Unsupported tracker status: ${status}`)
+    const body = new URLSearchParams({
+      status: remoteStatus,
+      num_chapters_read: String(progress),
+    })
+    if (opts.rewatching !== undefined) body.set('is_rewatching', String(opts.rewatching))
     return withTrackerWrite(this.db, 'mal', () =>
       this.request<MalMangaListStatus>(`manga/${id}/my_list_status`, {
         method: 'PUT',
-        body: new URLSearchParams({
-          status: remoteStatus,
-          num_chapters_read: String(progress),
-        }),
+        body,
       })
+    )
+  }
+
+  deleteManga(id: number) {
+    return withTrackerWrite(this.db, 'mal', () =>
+      this.request(`manga/${id}/my_list_status`, { method: 'DELETE' })
     )
   }
 }

@@ -20,6 +20,13 @@ import {
   type MangaSyncSummary,
 } from './manga-sync/resolve.js'
 import { withTrackerLock } from './sync-lock.js'
+import { assertDeleteCap } from './sync-engine.js'
+import {
+  clearRewatchForShow,
+  isRewatching,
+  readRewatchMarkers,
+  setRewatching,
+} from './rewatch.js'
 
 const SYNC_STATE_KEY = 'tracker_mal_manga_sync_state'
 const LINK_PREFIX = 'tracker_mal_manga_link_'
@@ -54,14 +61,22 @@ function matchesTitle(item: MangaLibraryRow, candidate: MalManga): boolean {
   return titleKeys(item.title, item.altTitle).some((key) => remote.has(key))
 }
 
+export interface MalMangaSyncOptions {
+  // Deletions are destructive, so only the manual "Sync now" action opts in.
+  deletions?: boolean
+}
+
 const syncing = new WeakMap<DatabaseWrapper, Promise<MangaSyncSummary>>()
 export function syncMyAnimeListManga(
   db: DatabaseWrapper,
-  mangaDb: DatabaseWrapper
+  mangaDb: DatabaseWrapper,
+  opts: MalMangaSyncOptions = {}
 ): Promise<MangaSyncSummary> {
   const existing = syncing.get(db)
   if (existing) return existing
-  const run = withTrackerLock(db, 'mal', () => sync(db, mangaDb)).finally(() => syncing.delete(db))
+  const run = withTrackerLock(db, 'mal', () =>
+    sync(db, mangaDb, opts.deletions === true)
+  ).finally(() => syncing.delete(db))
   syncing.set(db, run)
   return run
 }
@@ -75,7 +90,11 @@ interface LibraryUpsert {
   status: string
 }
 
-async function sync(db: DatabaseWrapper, mangaDb: DatabaseWrapper): Promise<MangaSyncSummary> {
+async function sync(
+  db: DatabaseWrapper,
+  mangaDb: DatabaseWrapper,
+  includeDeletions: boolean
+): Promise<MangaSyncSummary> {
   const tracker = new MalTracker(db)
   const remote = await tracker.fetchMangaList()
   const local = await MangaLibraryRepository.getAll(mangaDb)
@@ -90,6 +109,7 @@ async function sync(db: DatabaseWrapper, mangaDb: DatabaseWrapper): Promise<Mang
   }
   const state = await readTrackerSyncState(db, SYNC_STATE_KEY)
   const nextState: TrackerSyncState = { ...state }
+  const rewatchMarkers = await readRewatchMarkers(db)
 
   const malIdByLocal = new Map<string, number>()
   for (const item of local) {
@@ -161,6 +181,8 @@ async function sync(db: DatabaseWrapper, mangaDb: DatabaseWrapper): Promise<Mang
     cover: string
     provider: string
   }[] = []
+  const libraryDeletes: string[] = []
+  const remoteDeletes: { malId: number; libraryId: string }[] = []
   const now = Math.floor(Date.now() / 1000)
 
   for (const entry of remote) {
@@ -170,15 +192,30 @@ async function sync(db: DatabaseWrapper, mangaDb: DatabaseWrapper): Promise<Mang
     const libraryId = item?.id ?? `mal:${malId}`
     const cover =
       item?.cover || entry.node.main_picture?.large || entry.node.main_picture?.medium || ''
+    const remoteRewatching = entry.list_status.is_rewatching === true
     try {
       const remoteStatus = MAL_MANGA_TO_DANGO[entry.list_status.status]
       if (!remoteStatus) continue
+      const remoteUpdated = Math.floor(Date.parse(entry.list_status.updated_at || '') / 1000) || 0
+      // On MAL but previously synced and now gone locally: that was a delete.
+      if (!item && includeDeletions && state[String(malId)] && !remoteRewatching) {
+        remoteDeletes.push({ malId, libraryId })
+        delete nextState[String(malId)]
+        summary.pushed++
+        continue
+      }
+      if (remoteRewatching) await setRewatching(db, 'mal', libraryId)
+      if (item && (remoteRewatching || isRewatching(rewatchMarkers, 'mal', item.id))) {
+        // A reread has its own chapter count; never overwrite it with the all-time max.
+        nextState[String(malId)] = { lastSyncedAt: now, remoteUpdatedAt: remoteUpdated }
+        summary.unchanged++
+        continue
+      }
       const localProgress = item
         ? await getLocalChapterProgress(mangaDb, item.id, item.lastChapterNumber)
         : 0
       const remoteProgress = entry.list_status.num_chapters_read || 0
       const progress = Math.max(localProgress, remoteProgress)
-      const remoteUpdated = Math.floor(Date.parse(entry.list_status.updated_at || '') / 1000) || 0
       const { status: resolvedStatus } = item
         ? resolveStatus(
             item.status,
@@ -232,12 +269,23 @@ async function sync(db: DatabaseWrapper, mangaDb: DatabaseWrapper): Promise<Mang
   }
 
   for (const [malId, item] of localByMalId) {
-    const status = mangaStatusOrFallback(item.status)
-    if (!status) {
-      summary.skipped++
-      continue
-    }
     try {
+      if (isRewatching(rewatchMarkers, 'mal', item.id)) {
+        summary.unchanged++
+        continue
+      }
+      // Previously synced and now missing from MAL: that was a delete.
+      if (includeDeletions && state[String(malId)]) {
+        libraryDeletes.push(item.id)
+        delete nextState[String(malId)]
+        summary.pulled++
+        continue
+      }
+      const status = mangaStatusOrFallback(item.status)
+      if (!status) {
+        summary.skipped++
+        continue
+      }
       await tracker.updateManga(
         malId,
         await getLocalChapterProgress(mangaDb, item.id, item.lastChapterNumber),
@@ -249,7 +297,31 @@ async function sync(db: DatabaseWrapper, mangaDb: DatabaseWrapper): Promise<Mang
     }
   }
 
-  if (libraryUpserts.length > 0 || pointers.length > 0 || progressRows.length > 0) {
+  if (includeDeletions && libraryDeletes.length + remoteDeletes.length > 0) {
+    assertDeleteCap({
+      totalDeletes: libraryDeletes.length + remoteDeletes.length,
+      localItemCount: local.length,
+      fetched: remote.length,
+      message: `MyAnimeList manga sync would delete ${libraryDeletes.length + remoteDeletes.length} titles but only ${remote.length} were fetched. Aborting to protect your library - if you really removed that many manga on MyAnimeList, delete them locally first and sync again.`,
+    })
+  }
+
+  for (const deletion of remoteDeletes) {
+    try {
+      await tracker.deleteManga(deletion.malId)
+      await clearRewatchForShow(db, deletion.libraryId)
+    } catch {
+      summary.errors.push(`Could not delete "${deletion.libraryId}" from MyAnimeList.`)
+    }
+  }
+
+  if (
+    libraryUpserts.length > 0 ||
+    pointers.length > 0 ||
+    progressRows.length > 0 ||
+    libraryDeletes.length > 0 ||
+    remoteDeletes.length > 0
+  ) {
     await performMangaWriteTransactionAsync(mangaDb, async (tx) => {
       for (const item of libraryUpserts) await MangaLibraryRepository.upsert(tx, item)
       for (const pointer of pointers)
@@ -263,7 +335,12 @@ async function sync(db: DatabaseWrapper, mangaDb: DatabaseWrapper): Promise<Mang
         )
         await MangaProgressRepository.upsert(tx, row)
       }
+      for (const id of libraryDeletes) {
+        await MangaLibraryRepository.delete(tx, id)
+        await MangaProgressRepository.deleteByKey(tx, id)
+      }
     })
+    for (const id of libraryDeletes) await clearRewatchForShow(db, id)
   }
 
   if (linkWrites.length > 0 || JSON.stringify(nextState) !== JSON.stringify(state)) {

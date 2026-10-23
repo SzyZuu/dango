@@ -3,6 +3,7 @@ import { SettingsRepository } from '../../repositories/settings.repository.js'
 import { WatchlistRepository } from '../../repositories/watchlist.repository.js'
 import { ShowsMetaRepository } from '../../repositories/shows-meta.repository.js'
 import { WatchedEpisodesRepository } from '../../repositories/watched-episodes.repository.js'
+import { NotificationsRepository } from '../../repositories/notifications.repository.js'
 import { performWriteTransactionAsync } from '../../db/transaction.js'
 import { offlineDb } from '../offline-db/index.js'
 import { MalTracker, MAL_TO_DANGO } from './mal-tracker.js'
@@ -10,15 +11,32 @@ import { completedProgress, trackerIds } from './episode-sync.js'
 import { resolveStatus, readTrackerSyncState } from './sync-state.js'
 import type { SyncSummary } from './anime-sync/index.js'
 import { withTrackerLock } from './sync-lock.js'
+import { assertDeleteCap } from './sync-engine.js'
+import {
+  clearRewatchForShow,
+  isRewatching,
+  readRewatchMarkers,
+  setRewatching,
+} from './rewatch.js'
 import logger from '../../logger.js'
 
 const SYNC_STATE_KEY = 'tracker_mal_sync_state'
 
+export interface MalSyncOptions {
+  // Deletions are destructive, so only the manual "Sync now" action opts in.
+  deletions?: boolean
+}
+
 const syncing = new WeakMap<DatabaseWrapper, Promise<SyncSummary>>()
-export function syncMyAnimeList(db: DatabaseWrapper): Promise<SyncSummary> {
+export function syncMyAnimeList(
+  db: DatabaseWrapper,
+  opts: MalSyncOptions = {}
+): Promise<SyncSummary> {
   const existing = syncing.get(db)
   if (existing) return existing
-  const run = withTrackerLock(db, 'mal', () => sync(db)).finally(() => syncing.delete(db))
+  const run = withTrackerLock(db, 'mal', () => sync(db, opts.deletions === true)).finally(() =>
+    syncing.delete(db)
+  )
   syncing.set(db, run)
   return run
 }
@@ -33,13 +51,18 @@ interface WatchlistUpsert {
   type: string
 }
 
-async function sync(db: DatabaseWrapper): Promise<SyncSummary> {
+function showIdForMalId(id: number): string {
+  return String(offlineDb.getByMalId(id)?.anilistId || `mal-${id}`)
+}
+
+async function sync(db: DatabaseWrapper, includeDeletions: boolean): Promise<SyncSummary> {
   const tracker = new MalTracker(db)
   const remote = await tracker.fetchList()
   const local = await WatchlistRepository.getAll(db)
   const summary: SyncSummary = { pushed: 0, pulled: 0, merged: 0, unchanged: 0, errors: [] }
   const state = await readTrackerSyncState(db, SYNC_STATE_KEY)
   const nextState = { ...state }
+  const rewatchMarkers = await readRewatchMarkers(db)
   const mapped = new Map<number, (typeof local)[number]>()
   for (const item of local) {
     try {
@@ -60,19 +83,37 @@ async function sync(db: DatabaseWrapper): Promise<SyncSummary> {
   }[] = []
   const watchedRanges: { showId: string; to: number }[] = []
   const links: { key: string; value: string }[] = []
+  const localDeletes: string[] = []
+  const remoteDeletes: { malId: number; showId: string }[] = []
 
   for (const entry of remote) {
     const id = entry.node.id
     const item = mapped.get(id)
     mapped.delete(id)
-    const showId = item?.id || String(offlineDb.getByMalId(id)?.anilistId || `mal-${id}`)
+    const showId = item?.id || showIdForMalId(id)
+    const remoteRewatching = entry.list_status.is_rewatching === true
     try {
       const remoteStatus = MAL_TO_DANGO[entry.list_status.status]
       if (!remoteStatus) continue
+      const remoteUpdated = Math.floor(Date.parse(entry.list_status.updated_at || '') / 1000) || 0
+      // The entry is on MAL but was previously synced and is gone locally: that was a delete.
+      if (!item && includeDeletions && state[String(id)] && !remoteRewatching) {
+        remoteDeletes.push({ malId: id, showId })
+        delete nextState[String(id)]
+        summary.pushed++
+        continue
+      }
+      if (remoteRewatching) await setRewatching(db, 'mal', showId)
+      if (item && (remoteRewatching || isRewatching(rewatchMarkers, 'mal', item.id))) {
+        // A rewatch has its own progress count; never overwrite it with the all-time max.
+        links.push({ key: `tracker_mal_link_${showId}`, value: String(id) })
+        nextState[String(id)] = { lastSyncedAt: now, remoteUpdatedAt: remoteUpdated }
+        summary.unchanged++
+        continue
+      }
       const localProgress = await completedProgress(db, showId)
       const remoteProgress = entry.list_status.num_episodes_watched
       const progress = Math.max(localProgress, remoteProgress)
-      const remoteUpdated = Math.floor(Date.parse(entry.list_status.updated_at || '') / 1000) || 0
       const { status } = item
         ? resolveStatus(
             item.status,
@@ -119,7 +160,47 @@ async function sync(db: DatabaseWrapper): Promise<SyncSummary> {
     }
   }
 
-  if (watchlistUpserts.length > 0) {
+  if (mapped.size > 0) {
+    for (const [id, item] of mapped) {
+      try {
+        if (isRewatching(rewatchMarkers, 'mal', item.id)) {
+          summary.unchanged++
+          continue
+        }
+        // Previously synced and now missing from MAL: that was a delete.
+        if (includeDeletions && state[String(id)]) {
+          localDeletes.push(item.id)
+          delete nextState[String(id)]
+          summary.pulled++
+          continue
+        }
+        await tracker.update(id, await completedProgress(db, item.id), item.status)
+        summary.pushed++
+      } catch {
+        summary.errors.push(`${item.name}: Could not send to MyAnimeList.`)
+      }
+    }
+  }
+
+  if (includeDeletions && localDeletes.length + remoteDeletes.length > 0) {
+    assertDeleteCap({
+      totalDeletes: localDeletes.length + remoteDeletes.length,
+      localItemCount: local.length,
+      fetched: remote.length,
+      message: `MyAnimeList sync would delete ${localDeletes.length + remoteDeletes.length} shows but only ${remote.length} were fetched. Aborting to protect your library - if you really removed that many shows on MyAnimeList, delete them locally first and sync again.`,
+    })
+  }
+
+  for (const deletion of remoteDeletes) {
+    try {
+      await tracker.deleteAnime(deletion.malId)
+      await clearRewatchForShow(db, deletion.showId)
+    } catch {
+      summary.errors.push(`Could not delete "${deletion.showId}" from MyAnimeList.`)
+    }
+  }
+
+  if (watchlistUpserts.length > 0 || localDeletes.length > 0 || remoteDeletes.length > 0) {
     await performWriteTransactionAsync(db, async (tx) => {
       for (const link of links) await SettingsRepository.upsert(tx, link.key, link.value)
       for (const item of watchlistUpserts) await WatchlistRepository.upsert(tx, item)
@@ -132,18 +213,16 @@ async function sync(db: DatabaseWrapper): Promise<SyncSummary> {
           })
         }
       }
+      for (const id of localDeletes) {
+        await WatchlistRepository.delete(tx, id)
+        await WatchedEpisodesRepository.deleteByShow(tx, id)
+        await NotificationsRepository.deleteByShow(tx, id)
+        await clearRewatchForShow(tx, id)
+      }
       await SettingsRepository.upsert(tx, SYNC_STATE_KEY, JSON.stringify(nextState))
     })
   }
 
-  for (const [id, item] of mapped) {
-    try {
-      await tracker.update(id, await completedProgress(db, item.id), item.status)
-      summary.pushed++
-    } catch {
-      summary.errors.push(`${item.name}: Could not send to MyAnimeList.`)
-    }
-  }
-  // No deletion propagation: an absent or private list must never erase a library.
+  // No deletion propagation unless requested: an absent or private list must never erase a library.
   return summary
 }

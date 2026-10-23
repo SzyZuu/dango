@@ -8,7 +8,8 @@ export function isLocalTrackerSetting(key: unknown): boolean {
         'tracker_mal_user',
         'tracker_mal_oauth_pending',
         'tracker_mal_sync_state',
-      ].includes(key))
+      ].includes(key) ||
+      key.startsWith('tracker_rewatch_'))
   )
 }
 

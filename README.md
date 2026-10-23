@@ -266,51 +266,14 @@ Used as a manual fallback for services like Mega, Dropbox, or custom WebDAV:
 ## Tracker Integrations
 
 ### AniList
-
-Bidirectional sync is fully supported:
-
-- Go to **Trackers** in the navigation panel.
-- Select **Sync Now**.
-- Local episode progress updates remotely; external catalog updates merge safely into your local database without overwriting uncommitted states.
+Bidirectional sync for anime and manga. Go to **Trackers**, connect, then **Sync Now** (anime) / **Start Sync** (manga). Progress and statuses merge both ways; remote-only entries import, local-only entries push. AniList requires no setup.
 
 ### MyAnimeList
+Release builds use Dango's auth worker (no setup). For your own app, create one at [MAL API settings](https://myanimelist.net/apiconfig), register `your-origin/api/tracker/mal/callback`, and paste client ID/secret in **Trackers** (or set `MAL_CLIENT_ID`/`MAL_CLIENT_SECRET`). MAL needs the secret even with PKCE. `MAL_AUTH_WORKER_URL` points self-built releases at a worker.
 
-Release builds connect through Dango's MyAnimeList auth worker, so
-**Connect to MyAnimeList** needs no setup: the worker holds the app credentials
-and they never reach the browser or your dango database.
+**Sync Now** merges your authenticated list both ways. Remote-only entries import, local-only push, missing entries are never deleted. Unmatched titles are reported, not guessed. Username and XML imports work without login. Manga sync links by exact title first, then searches up to 25 unlinked titles per sync.
 
-To use your own MAL app instead, create one at
-[MyAnimeList API settings](https://myanimelist.net/apiconfig), register the exact
-redirect URL (your dango origin followed by `/api/tracker/mal/callback`,
-including the port), then paste its client ID and client secret in **Trackers**
-or set `MAL_CLIENT_ID` / `MAL_CLIENT_SECRET` on the server. MAL requires the
-secret even when PKCE is used; values saved in Trackers take precedence over the
-worker. Self-built releases can point at a worker with `MAL_AUTH_WORKER_URL`
-(the deployable worker lives in `worker/dango-mal-auth`). Never put the secret
-in frontend build variables.
-
-**Sync Now** merges your authenticated anime list in both directions, retaining
-the higher watched episode number. Remote-only entries are imported, local-only
-entries are sent, and missing entries never trigger deletions. Exact title ID
-mapping uses the offline database and AniList; unmatched titles are reported
-instead of being guessed. Username and XML imports remain available without login.
-
-The manga Trackers page has the same connect flow and a **Start Sync** for manga:
-chapter progress and Reading/Completed/On-Hold/Dropped/Planned statuses are merged
-both ways. Local manga are linked by exact title against the fetched MAL list first,
-then by a MAL search for up to 25 unlinked entries per sync; the link is stored
-afterwards. Entries that do not match are reported and never guessed. Manga sync
-never deletes either side. Anime IDs come from the offline database (and the
-per-show link cache) before any AniList lookup.
-
-Progress is sent when you select **Sync Now** (or **Start Sync** for manga); dango
-does not push playback updates to trackers in the background.
-
-MAL tokens refresh automatically. Credentials remain on this dango server and
-are excluded from library sync exports. Disconnect removes the local account
-tokens; revoke dango in MyAnimeList's application settings to revoke remote access.
-The server needs HTTPS access to `myanimelist.net`, `api.myanimelist.net`, and
-`graphql.anilist.co` (for AniList and uncached ID mappings).
+Progress is pushed on **Sync Now** (and on playback once an episode reaches 80% for the active tracker). MAL tokens refresh automatically; credentials stay on this server and are excluded from library exports. Disconnect removes local tokens. Server needs HTTPS access to `myanimelist.net`, `api.myanimelist.net`, and `graphql.anilist.co`.
 
 ---
 

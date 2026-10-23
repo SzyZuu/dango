@@ -55,10 +55,12 @@ await test('MAL login uses PKCE, verifies state, and consumes callback once', as
   assert.equal(url.searchParams.get('code_challenge')?.length, 128)
   await assert.rejects(finishMalLogin(db, 'test-code', 'mal:wrong'), /invalid state/)
   mockFetch(t, (url, init) => {
-    if (url.endsWith('/token')) {
-      const body = init.body as URLSearchParams
-      assert.equal(body.get('code_verifier'), new URL(login.url).searchParams.get('code_challenge'))
-      assert.equal(body.get('redirect_uri'), 'http://localhost:5174/api/tracker/mal/callback')
+    if (url.endsWith('/token') || url.includes('/exchange') || url.includes('/refresh')) {
+      const raw = typeof init.body === 'string' ? JSON.parse(init.body) : init.body
+      const body = raw instanceof URLSearchParams ? raw : new URLSearchParams(raw as Record<string, string>)
+      if (url.includes('/exchange')) {
+        assert.equal(body.get('code_verifier'), new URL(login.url).searchParams.get('code_challenge'))
+      }
       return json({ access_token: 'test-access', refresh_token: 'test-refresh', expires_in: 3600 })
     }
     return json({ id: 1, name: 'Test viewer' })
@@ -175,9 +177,11 @@ await test('concurrent MAL requests refresh expiring tokens only once', async (t
   await connect(db, 0)
   let refreshes = 0
   mockFetch(t, async (url, init) => {
-    if (url.endsWith('/token')) {
+    if (url.endsWith('/token') || url.includes('/refresh')) {
+      const raw = typeof init.body === 'string' ? JSON.parse(init.body) : init.body
+      const body = raw instanceof URLSearchParams ? raw : new URLSearchParams(raw as Record<string, string>)
       refreshes++
-      assert.equal((init.body as URLSearchParams).get('grant_type'), 'refresh_token')
+      assert.equal(body.get('refresh_token'), 'test-refresh')
       await new Promise((r) => setTimeout(r, 10))
       return json({ access_token: 'test-new', refresh_token: 'test-rotated', expires_in: 3600 })
     }
@@ -197,7 +201,7 @@ await test('MAL 401 refreshes and retries the request', async (t) => {
   await connect(db)
   let calls = 0
   mockFetch(t, (url) => {
-    if (url.endsWith('/token'))
+    if (url.endsWith('/token') || url.includes('/refresh'))
       return json({ access_token: 'new-access', refresh_token: 'new-refresh', expires_in: 3600 })
     return ++calls === 1 ? json({}, 401) : json({ id: 1, title: 'Example' })
   })

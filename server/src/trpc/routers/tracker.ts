@@ -163,7 +163,10 @@ export const trackerRouter = router({
       throw badRequest(`Provider "${provider}" is not supported yet`)
     }
     try {
-      const summary = provider === 'mal' ? await syncMyAnimeList(ctx.db) : await syncAniList(ctx.db)
+      const summary =
+        provider === 'mal'
+          ? await syncMyAnimeList(ctx.db, { deletions: true })
+          : await syncAniList(ctx.db, { deletions: true })
       return { success: true, summary }
     } catch (err) {
       throw failed(err instanceof Error ? err.message : 'Sync failed')
@@ -308,6 +311,7 @@ export const trackerRouter = router({
       const syncDirection = direction === 'pull-only' ? 'pull-only' : 'two-way'
       const result = await syncAniListManga(ctx.db, mangaDb, {
         direction: syncDirection,
+        deletions: true,
       })
       return {
         success: true,
@@ -327,7 +331,7 @@ export const trackerRouter = router({
       if (!mangaDb || mangaDb.isClosedCheck()) {
         throw unavailable('Manga database is not ready')
       }
-      const summary = await syncMyAnimeListManga(ctx.db, mangaDb)
+      const summary = await syncMyAnimeListManga(ctx.db, mangaDb, { deletions: true })
       return { success: true, summary }
     } catch (err) {
       if (err instanceof TRPCError) throw err

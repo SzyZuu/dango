@@ -24,7 +24,7 @@ async function databases(t: TestContext) {
   await settings.upsert(
     db,
     MAL_KEYS.tokens,
-    JSON.stringify({ access_token: 'test-access', refresh_token: 'test-refresh', expiresAt: 0 })
+    JSON.stringify({ access_token: 'test-access', refresh_token: 'test-refresh', expiresAt: Date.now() + 3600000 })
   )
   return { db, mangaDb }
 }
@@ -57,7 +57,7 @@ await test('MAL manga sync pushes local chapters, pulls remote-only entries, and
 
   const writes: string[] = []
   mockFetch(t, (url, init) => {
-    if (url.endsWith('/token'))
+    if (url.endsWith('/token') || url.includes('/refresh'))
       return json({ access_token: 'test-access', refresh_token: 'test-refresh', expires_in: 3600 })
     if (url.includes('/mangalist?'))
       return remoteList([

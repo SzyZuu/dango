@@ -24,6 +24,17 @@ import logger from '../../../logger.js'
 import { readTrackerSyncState, resolveStatus } from '../sync-state.js'
 import type { TrackerSyncState, TrackerSyncStateEntry } from '../sync-state.js'
 import { assertDeleteCap, collectMediaIds, pushRemoteChanges } from '../sync-engine.js'
+import {
+  clearRewatchForShow,
+  isRewatching,
+  readRewatchMarkers,
+  setRewatching,
+} from '../rewatch.js'
+
+export interface SyncOptions {
+  // Deletions are destructive, so only the manual "Sync now" action opts in.
+  deletions?: boolean
+}
 
 export interface SyncSummary {
   pushed: number
@@ -37,11 +48,14 @@ async function getWatchedCount(db: DatabaseWrapper, showId: string): Promise<num
   return completedProgress(db, showId)
 }
 
-export function syncAniList(db: DatabaseWrapper): Promise<SyncSummary> {
-  return withTrackerLock(db, 'anilist', () => syncAniListEntries(db))
+export function syncAniList(db: DatabaseWrapper, opts: SyncOptions = {}): Promise<SyncSummary> {
+  return withTrackerLock(db, 'anilist', () => syncAniListEntries(db, opts.deletions === true))
 }
 
-async function syncAniListEntries(db: DatabaseWrapper): Promise<SyncSummary> {
+async function syncAniListEntries(
+  db: DatabaseWrapper,
+  includeDeletions: boolean
+): Promise<SyncSummary> {
   const tokenRow = await SettingsRepository.getByKey(db, TOKEN_KEY)
   const token = tokenRow?.value
   if (!token) throw new Error('AniList is not connected. Please log in first.')
@@ -52,6 +66,7 @@ async function syncAniListEntries(db: DatabaseWrapper): Promise<SyncSummary> {
 
   const localItems = await WatchlistRepository.getAll(db)
   const syncState = await readTrackerSyncState(db, SYNC_STATE_KEY)
+  const rewatchMarkers = await readRewatchMarkers(db)
 
   const remoteByMediaId = new Map<number, RemoteMediaEntry>()
   for (const entry of remoteEntries) remoteByMediaId.set(entry.mediaId, entry)
@@ -110,8 +125,13 @@ async function syncAniListEntries(db: DatabaseWrapper): Promise<SyncSummary> {
     try {
       if (local && !remote) {
         if (syncState[showId] && remoteEntries.length > 0) {
+          if (!includeDeletions || isRewatching(rewatchMarkers, 'anilist', showId)) {
+            summary.unchanged++
+            continue
+          }
           watchlistDeletes.push(showId)
           stateUpdates[showId] = undefined
+          await clearRewatchForShow(db, showId)
           summary.pulled++
           continue
         }
@@ -128,16 +148,23 @@ async function syncAniListEntries(db: DatabaseWrapper): Promise<SyncSummary> {
 
       if (!local && remote) {
         if (syncState[showId]) {
+          if (!includeDeletions || remote.rewatching) {
+            summary.unchanged++
+            continue
+          }
           if (remote.entryId) {
             remoteDeleteEntryIds.push({ showId, entryId: remote.entryId })
             stateUpdates[showId] = undefined
+            await clearRewatchForShow(db, showId)
             summary.pushed++
             continue
           }
           stateUpdates[showId] = undefined
+          await clearRewatchForShow(db, showId)
           summary.pushed++
           continue
         }
+        if (remote.rewatching) await setRewatching(db, 'anilist', showId)
         logger.debug(
           { mediaId, remoteStatus: remote.status },
           '[AniList Sync] Remote only -> pulling to local'
@@ -172,10 +199,23 @@ async function syncAniListEntries(db: DatabaseWrapper): Promise<SyncSummary> {
 
       if (!local && !remote && syncState[showId]) {
         stateUpdates[showId] = undefined
+        await clearRewatchForShow(db, showId)
         continue
       }
 
       if (local && remote) {
+        if (remote.rewatching) {
+          await setRewatching(db, 'anilist', showId)
+          stateUpdates[showId] = { lastSyncedAt: now, remoteUpdatedAt: remote.updatedAt }
+          summary.unchanged++
+          continue
+        }
+        // A local rewatch keeps its own progress; don't overwrite it with the all-time count.
+        if (isRewatching(rewatchMarkers, 'anilist', showId)) {
+          stateUpdates[showId] = { lastSyncedAt: now, remoteUpdatedAt: remote.updatedAt }
+          summary.unchanged++
+          continue
+        }
         const watchedCount = await getWatchedCount(db, showId)
         const localLastSync = syncState[showId]?.lastSyncedAt ?? 0
         const remoteUpdated = remote.updatedAt || 0

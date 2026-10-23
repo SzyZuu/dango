@@ -77,6 +77,38 @@ const Trackers: React.FC = () => {
   const anilistConnected = trackerStatus?.anilist?.connected ?? false
   const malConnected = trackerStatus?.mal?.connected ?? false
 
+  const { data: activeTrackerData } = useQuery({
+    queryKey: ['activeTrackerProvider'],
+    queryFn: async () => {
+      const res = await trpcClient.settings.getByKey.query({ key: 'active_tracker_provider' })
+      return (res?.value as string) || ''
+    },
+  })
+
+  const activeTrackerMutation = useMutation({
+    mutationFn: async (provider: string) => {
+      await trpcClient.settings.set.mutate({ key: 'active_tracker_provider', value: provider })
+      return provider
+    },
+    onSuccess: (provider) => {
+      queryClient.invalidateQueries({ queryKey: ['activeTrackerProvider'] })
+      toast.success(`Active tracker set to ${provider === 'mal' ? 'MyAnimeList' : 'AniList'}`)
+    },
+    onError: () => toast.error('Failed to update active tracker'),
+  })
+
+  const activeTracker =
+    activeTrackerData && ((activeTrackerData === 'anilist' && anilistConnected) || (activeTrackerData === 'mal' && malConnected))
+      ? activeTrackerData
+      : anilistConnected && !malConnected
+        ? 'anilist'
+        : malConnected && !anilistConnected
+          ? 'mal'
+          : anilistConnected
+            ? 'anilist'
+            : ''
+  const showTrackerSelector = anilistConnected || malConnected
+
   useEffect(() => {
     if (anilistConnected) setAnilistImportMode('sync')
   }, [anilistConnected])
@@ -378,9 +410,46 @@ const Trackers: React.FC = () => {
           color: 'var(--text-secondary)',
         }}
       >
-        ⚠ Syncing writes directly to your AniList and MyAnimeList entries, and dango may not always
+        ⚠         Syncing writes directly to your AniList and MyAnimeList entries, and dango may not always
         handle anime/manga lists correctly - always keep a backup of your lists before syncing.
       </div>
+
+      {showTrackerSelector && (
+        <div
+          style={{
+            marginBottom: '16px',
+            padding: '10px 14px',
+            borderRadius: '8px',
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px solid var(--glass-border)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            fontSize: '0.85rem',
+          }}
+        >
+          <label htmlFor="active-tracker-select" style={{ fontWeight: 600 }}>
+            Active tracker:
+          </label>
+          <select
+            id="active-tracker-select"
+            value={activeTracker}
+            onChange={(e) => activeTrackerMutation.mutate(e.currentTarget.value)}
+            style={{
+              padding: '0.4rem 0.6rem',
+              borderRadius: 'var(--radius-md)',
+              background: 'rgba(255, 255, 255, 0.05)',
+              color: 'var(--text-primary)',
+              border: '1px solid var(--glass-border)',
+              fontSize: 'var(--font-size-sm)',
+              cursor: 'pointer',
+            }}
+          >
+            {anilistConnected && <option value="anilist">AniList</option>}
+            {malConnected && <option value="mal">MyAnimeList</option>}
+          </select>
+        </div>
+      )}
 
       {!showMangaTrackers && (
         <>
@@ -398,8 +467,13 @@ const Trackers: React.FC = () => {
             </div>
 
             <AniListConnection />
+            {anilistConnected && activeTracker !== 'anilist' && (
+              <p style={{ color: 'var(--color-warning)', marginTop: '8px', fontSize: '0.85rem' }}>
+                Not the active tracker - sync disabled.
+              </p>
+            )}
 
-            {anilistConnected && (
+            {anilistConnected && activeTracker === 'anilist' && (
               <>
                 <hr className={styles.divider} />
 
@@ -534,8 +608,13 @@ const Trackers: React.FC = () => {
             </div>
 
             <AniListConnection />
+            {anilistConnected && activeTracker !== 'anilist' && (
+              <p style={{ color: 'var(--color-warning)', marginTop: '8px', fontSize: '0.85rem' }}>
+                Not the active tracker - sync disabled.
+              </p>
+            )}
 
-            {anilistConnected && (
+            {anilistConnected && activeTracker === 'anilist' && (
               <>
                 <hr className={styles.divider} />
                 <div className={styles.radioGroup}>
@@ -716,7 +795,7 @@ const Trackers: React.FC = () => {
               </div>
             </div>
 
-            <MalConnection />
+            <MalConnection active={activeTracker === 'mal'} />
 
             <div className={styles.radioGroup}>
               <label className={styles.radioLabel}>
@@ -933,7 +1012,7 @@ const Trackers: React.FC = () => {
             </div>
           </div>
 
-          <MalConnection kind="manga" />
+          <MalConnection kind="manga" active={activeTracker === 'mal'} />
 
           <div className={styles.radioGroup}>
             <label className={styles.radioLabel}>

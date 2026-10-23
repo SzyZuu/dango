@@ -4,7 +4,13 @@ import { parseJsonBody } from '../../utils/http.utils.js'
 
 const ANILIST_GRAPHQL_ENDPOINT = 'https://graphql.anilist.co'
 
-export type AniListMediaListStatus = 'CURRENT' | 'COMPLETED' | 'PAUSED' | 'DROPPED' | 'PLANNING'
+export type AniListMediaListStatus =
+  | 'CURRENT'
+  | 'COMPLETED'
+  | 'PAUSED'
+  | 'DROPPED'
+  | 'PLANNING'
+  | 'REPEATING'
 
 export const ANILIST_TO_DANGO_STATUS: Record<AniListMediaListStatus, string> = {
   CURRENT: 'Watching',
@@ -12,11 +18,13 @@ export const ANILIST_TO_DANGO_STATUS: Record<AniListMediaListStatus, string> = {
   PAUSED: 'On-Hold',
   DROPPED: 'Dropped',
   PLANNING: 'Planned',
+  REPEATING: 'Watching',
 }
 
 export const DANGO_TO_ANILIST_STATUS: Record<string, AniListMediaListStatus> = {
   Watching: 'CURRENT',
   Reading: 'CURRENT',
+  Rewatching: 'REPEATING',
   Completed: 'COMPLETED',
   'On-Hold': 'PAUSED',
   Dropped: 'DROPPED',
@@ -29,6 +37,7 @@ export const ANILIST_TO_MANGA_STATUS: Record<AniListMediaListStatus, string> = {
   PAUSED: 'On-Hold',
   DROPPED: 'Dropped',
   PLANNING: 'Planned',
+  REPEATING: 'Reading',
 }
 
 export interface AnilistViewer {
@@ -49,6 +58,7 @@ export interface RemoteMediaEntry {
   coverImage?: string
   totalEpisodes?: number
   episodeDuration?: number
+  rewatching?: boolean
 }
 
 export interface RemoteMangaEntry {
@@ -64,6 +74,7 @@ export interface RemoteMangaEntry {
   coverImage?: string
   totalChapters?: number
   totalVolumes?: number
+  rewatching?: boolean
 }
 
 interface RequestOptions {
@@ -202,7 +213,6 @@ export class AniListTracker {
     for (const list of lists) {
       for (const entry of list.entries ?? []) {
         if (!entry.media) continue
-        if (entry.status === 'REPEATING') continue
         entries.push({
           mediaId: entry.mediaId,
           entryId: (entry as { id?: number }).id,
@@ -215,6 +225,7 @@ export class AniListTracker {
           coverImage: entry.media.coverImage?.large,
           totalEpisodes: entry.media.episodes ?? undefined,
           episodeDuration: entry.media.duration ?? undefined,
+          rewatching: entry.status === 'REPEATING',
         })
       }
     }
@@ -263,7 +274,6 @@ export class AniListTracker {
     for (const list of lists) {
       for (const entry of list.entries ?? []) {
         if (!entry.media) continue
-        if (entry.status === 'REPEATING') continue
         entries.push({
           mediaId: entry.mediaId,
           entryId: (entry as { id?: number }).id,
@@ -277,6 +287,7 @@ export class AniListTracker {
           coverImage: entry.media.coverImage?.large,
           totalChapters: entry.media.chapters ?? undefined,
           totalVolumes: entry.media.volumes ?? undefined,
+          rewatching: entry.status === 'REPEATING',
         })
       }
     }

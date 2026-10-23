@@ -133,7 +133,6 @@ async function fetchVideoSources(
 
     const savedResumeTime = progress?.currentTime || 0
     const resumeDuration = progress?.duration || 0
-    // An episode already counted as watched restarts instead of asking to resume near the end.
     const finished = resumeDuration > 0 && savedResumeTime >= resumeDuration * 0.8
     const resumeTime = finished ? 0 : savedResumeTime
     const rawSkips = Array.isArray(skipTimesData)

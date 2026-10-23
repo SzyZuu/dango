@@ -6,7 +6,13 @@ import { qk } from '../../lib/queryKeys'
 import Icon from '../common/Icon'
 import styles from '../../pages/Trackers.module.css'
 
-export default function MalConnection({ kind = 'anime', active = true }: { kind?: 'anime' | 'manga'; active?: boolean }) {
+export default function MalConnection({
+  kind = 'anime',
+  active = true,
+}: {
+  kind?: 'anime' | 'manga'
+  active?: boolean
+}) {
   const queryClient = useQueryClient()
   const [clientId, setClientId] = useState('')
   const [clientSecret, setClientSecret] = useState('')
@@ -130,7 +136,9 @@ export default function MalConnection({ kind = 'anime', active = true }: { kind?
               {summary && <div className={styles.syncSummary}>{summary}</div>}
             </>
           ) : (
-            <p className={styles.connectedHint} style={{ color: 'var(--color-warning)' }}>Not the active tracker - sync disabled.</p>
+            <p className={styles.connectedHint} style={{ color: 'var(--color-warning)' }}>
+              Not the active tracker - sync disabled.
+            </p>
           )}
         </>
       ) : (

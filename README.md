@@ -266,9 +266,11 @@ Used as a manual fallback for services like Mega, Dropbox, or custom WebDAV:
 ## Tracker Integrations
 
 ### AniList
+
 Bidirectional sync for anime and manga. Go to **Trackers**, connect, then **Sync Now** (anime) / **Start Sync** (manga). Progress and statuses merge both ways; remote-only entries import, local-only entries push. AniList requires no setup.
 
 ### MyAnimeList
+
 Release builds use Dango's auth worker (no setup). For your own app, create one at [MAL API settings](https://myanimelist.net/apiconfig), register `your-origin/api/tracker/mal/callback`, and paste client ID/secret in **Trackers** (or set `MAL_CLIENT_ID`/`MAL_CLIENT_SECRET`). MAL needs the secret even with PKCE. `MAL_AUTH_WORKER_URL` points self-built releases at a worker.
 
 **Sync Now** merges your authenticated list both ways. Remote-only entries import, local-only push, missing entries are never deleted. Unmatched titles are reported, not guessed. Username and XML imports work without login. Manga sync links by exact title first, then searches up to 25 unlinked titles per sync.

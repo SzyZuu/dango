@@ -21,12 +21,7 @@ import {
 } from './manga-sync/resolve.js'
 import { withTrackerLock } from './sync-lock.js'
 import { assertDeleteCap } from './sync-engine.js'
-import {
-  clearRewatchForShow,
-  isRewatching,
-  readRewatchMarkers,
-  setRewatching,
-} from './rewatch.js'
+import { clearRewatchForShow, isRewatching, readRewatchMarkers, setRewatching } from './rewatch.js'
 
 const SYNC_STATE_KEY = 'tracker_mal_manga_sync_state'
 const LINK_PREFIX = 'tracker_mal_manga_link_'
@@ -62,7 +57,6 @@ function matchesTitle(item: MangaLibraryRow, candidate: MalManga): boolean {
 }
 
 export interface MalMangaSyncOptions {
-  // Deletions are destructive, so only the manual "Sync now" action opts in.
   deletions?: boolean
 }
 
@@ -74,9 +68,9 @@ export function syncMyAnimeListManga(
 ): Promise<MangaSyncSummary> {
   const existing = syncing.get(db)
   if (existing) return existing
-  const run = withTrackerLock(db, 'mal', () =>
-    sync(db, mangaDb, opts.deletions === true)
-  ).finally(() => syncing.delete(db))
+  const run = withTrackerLock(db, 'mal', () => sync(db, mangaDb, opts.deletions === true)).finally(
+    () => syncing.delete(db)
+  )
   syncing.set(db, run)
   return run
 }
@@ -197,7 +191,6 @@ async function sync(
       const remoteStatus = MAL_MANGA_TO_DANGO[entry.list_status.status]
       if (!remoteStatus) continue
       const remoteUpdated = Math.floor(Date.parse(entry.list_status.updated_at || '') / 1000) || 0
-      // On MAL but previously synced and now gone locally: that was a delete.
       if (!item && includeDeletions && state[String(malId)] && !remoteRewatching) {
         remoteDeletes.push({ malId, libraryId })
         delete nextState[String(malId)]
@@ -206,7 +199,6 @@ async function sync(
       }
       if (remoteRewatching) await setRewatching(db, 'mal', libraryId)
       if (item && (remoteRewatching || isRewatching(rewatchMarkers, 'mal', item.id))) {
-        // A reread has its own chapter count; never overwrite it with the all-time max.
         nextState[String(malId)] = { lastSyncedAt: now, remoteUpdatedAt: remoteUpdated }
         summary.unchanged++
         continue
@@ -274,7 +266,6 @@ async function sync(
         summary.unchanged++
         continue
       }
-      // Previously synced and now missing from MAL: that was a delete.
       if (includeDeletions && state[String(malId)]) {
         libraryDeletes.push(item.id)
         delete nextState[String(malId)]
@@ -349,6 +340,5 @@ async function sync(
       await SettingsRepository.upsert(tx, SYNC_STATE_KEY, JSON.stringify(nextState))
     })
   }
-  // No deletion propagation: an absent or private list must never erase a library.
   return summary
 }

@@ -21,12 +21,7 @@ import { searchAnilistMangaByTitle } from '../../anilist/index.js'
 import { readTrackerSyncState, resolveStatus } from '../sync-state.js'
 import type { TrackerSyncState, TrackerSyncStateEntry } from '../sync-state.js'
 import { assertDeleteCap, collectMediaIds, pushRemoteChanges } from '../sync-engine.js'
-import {
-  clearRewatchForShow,
-  isRewatching,
-  readRewatchMarkers,
-  setRewatching,
-} from '../rewatch.js'
+import { clearRewatchForShow, isRewatching, readRewatchMarkers, setRewatching } from '../rewatch.js'
 import {
   buildAnilistMangaId,
   buildSyntheticChapterId,

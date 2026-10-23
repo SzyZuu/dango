@@ -89,7 +89,11 @@ export const progressRouter = router({
       const currentTime = input.currentTime || 0
       const duration = input.duration || 0
 
-      const previous = await WatchedEpisodesRepository.getByShowAndEpisode(ctx.db, showId, episodeNumber)
+      const previous = await WatchedEpisodesRepository.getByShowAndEpisode(
+        ctx.db,
+        showId,
+        episodeNumber
+      )
       const wasCompleted =
         !!previous &&
         (previous.duration === 0
@@ -161,8 +165,7 @@ export const progressRouter = router({
         await NotificationsRepository.deleteDiscovered(tx, showId, episodeNumber)
       })
 
-      const becameCompleted =
-        !wasCompleted && duration > 0 && currentTime >= duration * 0.8
+      const becameCompleted = !wasCompleted && duration > 0 && currentTime >= duration * 0.8
 
       if (becameCompleted) {
         void pushCompletedEpisode(ctx.db, showId, episodeNumber).catch(() => {})

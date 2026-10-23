@@ -57,9 +57,13 @@ await test('MAL login uses PKCE, verifies state, and consumes callback once', as
   mockFetch(t, (url, init) => {
     if (url.endsWith('/token') || url.includes('/exchange') || url.includes('/refresh')) {
       const raw = typeof init.body === 'string' ? JSON.parse(init.body) : init.body
-      const body = raw instanceof URLSearchParams ? raw : new URLSearchParams(raw as Record<string, string>)
+      const body =
+        raw instanceof URLSearchParams ? raw : new URLSearchParams(raw as Record<string, string>)
       if (url.includes('/exchange')) {
-        assert.equal(body.get('code_verifier'), new URL(login.url).searchParams.get('code_challenge'))
+        assert.equal(
+          body.get('code_verifier'),
+          new URL(login.url).searchParams.get('code_challenge')
+        )
       }
       return json({ access_token: 'test-access', refresh_token: 'test-refresh', expires_in: 3600 })
     }
@@ -179,7 +183,8 @@ await test('concurrent MAL requests refresh expiring tokens only once', async (t
   mockFetch(t, async (url, init) => {
     if (url.endsWith('/token') || url.includes('/refresh')) {
       const raw = typeof init.body === 'string' ? JSON.parse(init.body) : init.body
-      const body = raw instanceof URLSearchParams ? raw : new URLSearchParams(raw as Record<string, string>)
+      const body =
+        raw instanceof URLSearchParams ? raw : new URLSearchParams(raw as Record<string, string>)
       refreshes++
       assert.equal(body.get('refresh_token'), 'test-refresh')
       await new Promise((r) => setTimeout(r, 10))

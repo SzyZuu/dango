@@ -98,7 +98,9 @@ const Trackers: React.FC = () => {
   })
 
   const activeTracker =
-    activeTrackerData && ((activeTrackerData === 'anilist' && anilistConnected) || (activeTrackerData === 'mal' && malConnected))
+    activeTrackerData &&
+    ((activeTrackerData === 'anilist' && anilistConnected) ||
+      (activeTrackerData === 'mal' && malConnected))
       ? activeTrackerData
       : anilistConnected && !malConnected
         ? 'anilist'
@@ -410,7 +412,7 @@ const Trackers: React.FC = () => {
           color: 'var(--text-secondary)',
         }}
       >
-        ⚠         Syncing writes directly to your AniList and MyAnimeList entries, and dango may not always
+        ⚠ Syncing writes directly to your AniList and MyAnimeList entries, and dango may not always
         handle anime/manga lists correctly - always keep a backup of your lists before syncing.
       </div>
 

@@ -5,12 +5,7 @@ import { ShowsMetaRepository } from '../../repositories/shows-meta.repository.js
 import { completedProgress, trackerIds } from './episode-sync.js'
 import { AniListTracker } from './anilist-tracker.js'
 import { MalTracker } from './mal-tracker.js'
-import {
-  clearRewatching,
-  isRewatching,
-  readRewatchMarkers,
-  setRewatching,
-} from './rewatch.js'
+import { clearRewatching, isRewatching, readRewatchMarkers, setRewatching } from './rewatch.js'
 import logger from '../../logger.js'
 
 const TOKEN_KEY = 'tracker_anilist_token'
@@ -41,7 +36,9 @@ export async function pushCompletedEpisode(
   try {
     const { anilistId, malId } = await trackerIds(db, showId)
     const item = await WatchlistRepository.getById(db, showId)
-    const meta = (await ShowsMetaRepository.getById(db, showId)) as { episodeCount?: number | null } | null
+    const meta = (await ShowsMetaRepository.getById(db, showId)) as {
+      episodeCount?: number | null
+    } | null
     const episodeCount = meta?.episodeCount ?? 0
     const completed = await completedProgress(db, showId)
     const epNum = Number(episodeNumber)
@@ -50,7 +47,8 @@ export async function pushCompletedEpisode(
     const malTokensRaw = (await SettingsRepository.getByKey(db, MAL_TOKENS_KEY))?.value
     const malConnected = !!malTokensRaw
 
-    const activeRaw = (await SettingsRepository.getByKey(db, 'active_tracker_provider'))?.value || ''
+    const activeRaw =
+      (await SettingsRepository.getByKey(db, 'active_tracker_provider'))?.value || ''
     const activeProvider =
       activeRaw === 'mal' && malConnected
         ? 'mal'
@@ -65,15 +63,14 @@ export async function pushCompletedEpisode(
     const markers = await readRewatchMarkers(db)
     let isRewatch = isRewatching(markers, 'anilist', showId) || isRewatching(markers, 'mal', showId)
 
-      if (!isRewatch && item?.status === 'Completed' && epNum === 1) {
-        isRewatch = true
-        if (pushAnilist) await setRewatching(db, 'anilist', showId)
-        if (pushMal) await setRewatching(db, 'mal', showId)
-        if (item) await WatchlistRepository.updateStatus(db, showId, 'Watching')
-      }
+    if (!isRewatch && item?.status === 'Completed' && epNum === 1) {
+      isRewatch = true
+      if (pushAnilist) await setRewatching(db, 'anilist', showId)
+      if (pushMal) await setRewatching(db, 'mal', showId)
+      if (item) await WatchlistRepository.updateStatus(db, showId, 'Watching')
+    }
 
-    const finishing =
-      isRewatch && episodeCount > 0 && epNum >= episodeCount
+    const finishing = isRewatch && episodeCount > 0 && epNum >= episodeCount
 
     if (finishing) {
       if (pushAnilist) await clearRewatching(db, 'anilist', showId)

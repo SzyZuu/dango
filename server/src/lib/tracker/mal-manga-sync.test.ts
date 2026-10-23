@@ -24,7 +24,11 @@ async function databases(t: TestContext) {
   await settings.upsert(
     db,
     MAL_KEYS.tokens,
-    JSON.stringify({ access_token: 'test-access', refresh_token: 'test-refresh', expiresAt: Date.now() + 3600000 })
+    JSON.stringify({
+      access_token: 'test-access',
+      refresh_token: 'test-refresh',
+      expiresAt: Date.now() + 3600000,
+    })
   )
   return { db, mangaDb }
 }

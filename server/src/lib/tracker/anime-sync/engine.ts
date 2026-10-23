@@ -24,15 +24,9 @@ import logger from '../../../logger.js'
 import { readTrackerSyncState, resolveStatus } from '../sync-state.js'
 import type { TrackerSyncState, TrackerSyncStateEntry } from '../sync-state.js'
 import { assertDeleteCap, collectMediaIds, pushRemoteChanges } from '../sync-engine.js'
-import {
-  clearRewatchForShow,
-  isRewatching,
-  readRewatchMarkers,
-  setRewatching,
-} from '../rewatch.js'
+import { clearRewatchForShow, isRewatching, readRewatchMarkers, setRewatching } from '../rewatch.js'
 
 export interface SyncOptions {
-  // Deletions are destructive, so only the manual "Sync now" action opts in.
   deletions?: boolean
 }
 
@@ -210,7 +204,6 @@ async function syncAniListEntries(
           summary.unchanged++
           continue
         }
-        // A local rewatch keeps its own progress; don't overwrite it with the all-time count.
         if (isRewatching(rewatchMarkers, 'anilist', showId)) {
           stateUpdates[showId] = { lastSyncedAt: now, remoteUpdatedAt: remote.updatedAt }
           summary.unchanged++

@@ -5,12 +5,7 @@ import { parseJsonBody } from '../../utils/http.utils.js'
 const ANILIST_GRAPHQL_ENDPOINT = 'https://graphql.anilist.co'
 
 export type AniListMediaListStatus =
-  | 'CURRENT'
-  | 'COMPLETED'
-  | 'PAUSED'
-  | 'DROPPED'
-  | 'PLANNING'
-  | 'REPEATING'
+  'CURRENT' | 'COMPLETED' | 'PAUSED' | 'DROPPED' | 'PLANNING' | 'REPEATING'
 
 export const ANILIST_TO_DANGO_STATUS: Record<AniListMediaListStatus, string> = {
   CURRENT: 'Watching',

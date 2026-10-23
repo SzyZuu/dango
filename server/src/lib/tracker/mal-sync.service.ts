@@ -12,18 +12,12 @@ import { resolveStatus, readTrackerSyncState } from './sync-state.js'
 import type { SyncSummary } from './anime-sync/index.js'
 import { withTrackerLock } from './sync-lock.js'
 import { assertDeleteCap } from './sync-engine.js'
-import {
-  clearRewatchForShow,
-  isRewatching,
-  readRewatchMarkers,
-  setRewatching,
-} from './rewatch.js'
+import { clearRewatchForShow, isRewatching, readRewatchMarkers, setRewatching } from './rewatch.js'
 import logger from '../../logger.js'
 
 const SYNC_STATE_KEY = 'tracker_mal_sync_state'
 
 export interface MalSyncOptions {
-  // Deletions are destructive, so only the manual "Sync now" action opts in.
   deletions?: boolean
 }
 
@@ -96,7 +90,6 @@ async function sync(db: DatabaseWrapper, includeDeletions: boolean): Promise<Syn
       const remoteStatus = MAL_TO_DANGO[entry.list_status.status]
       if (!remoteStatus) continue
       const remoteUpdated = Math.floor(Date.parse(entry.list_status.updated_at || '') / 1000) || 0
-      // The entry is on MAL but was previously synced and is gone locally: that was a delete.
       if (!item && includeDeletions && state[String(id)] && !remoteRewatching) {
         remoteDeletes.push({ malId: id, showId })
         delete nextState[String(id)]
@@ -105,7 +98,6 @@ async function sync(db: DatabaseWrapper, includeDeletions: boolean): Promise<Syn
       }
       if (remoteRewatching) await setRewatching(db, 'mal', showId)
       if (item && (remoteRewatching || isRewatching(rewatchMarkers, 'mal', item.id))) {
-        // A rewatch has its own progress count; never overwrite it with the all-time max.
         links.push({ key: `tracker_mal_link_${showId}`, value: String(id) })
         nextState[String(id)] = { lastSyncedAt: now, remoteUpdatedAt: remoteUpdated }
         summary.unchanged++
@@ -167,7 +159,6 @@ async function sync(db: DatabaseWrapper, includeDeletions: boolean): Promise<Syn
           summary.unchanged++
           continue
         }
-        // Previously synced and now missing from MAL: that was a delete.
         if (includeDeletions && state[String(id)]) {
           localDeletes.push(item.id)
           delete nextState[String(id)]
@@ -223,6 +214,5 @@ async function sync(db: DatabaseWrapper, includeDeletions: boolean): Promise<Syn
     })
   }
 
-  // No deletion propagation unless requested: an absent or private list must never erase a library.
   return summary
 }

@@ -49,7 +49,6 @@ export type MangaSyncDirection = 'two-way' | 'pull-only'
 
 export interface MangaSyncOptions {
   direction?: MangaSyncDirection
-  // Deletions are destructive, so only the manual "Sync now" action opts in.
   deletions?: boolean
 }
 

@@ -56,7 +56,8 @@ export async function syncAniListManga(
   const remoteEntries = await tracker.fetchUserMangaList(viewer.id)
 
   const localItems = await MangaLibraryRepository.getAll(mangaDb)
-  const syncState = await readTrackerSyncState(db, MANGA_SYNC_STATE_KEY)
+  const rawSyncState = await readTrackerSyncState(db, MANGA_SYNC_STATE_KEY)
+  const syncState = localItems.length === 0 ? {} : rawSyncState
   const rewatchMarkers = await readRewatchMarkers(db)
 
   const remoteByMediaId = new Map<number, RemoteMangaEntry>()

@@ -101,7 +101,8 @@ async function sync(
     errors: [],
     warnings: [],
   }
-  const state = await readTrackerSyncState(db, SYNC_STATE_KEY)
+  const rawState = await readTrackerSyncState(db, SYNC_STATE_KEY)
+  const state = local.length === 0 ? {} : rawState
   const nextState: TrackerSyncState = { ...state }
   const rewatchMarkers = await readRewatchMarkers(db)
 

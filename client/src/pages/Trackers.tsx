@@ -578,17 +578,6 @@ const Trackers: React.FC = () => {
                     )}
                   </>
                 )}
-
-                <p
-                  style={{
-                    fontSize: '0.75rem',
-                    color: 'var(--text-tertiary)',
-                    marginTop: '8px',
-                  }}
-                >
-                  AniList <code>Rewatching (REPEATING)</code> is not tracked - entries with this
-                  status are ignored.
-                </p>
               </>
             )}
           </div>
@@ -766,17 +755,6 @@ const Trackers: React.FC = () => {
                     )}
                   </>
                 )}
-
-                <p
-                  style={{
-                    fontSize: '0.75rem',
-                    color: 'var(--text-tertiary)',
-                    marginTop: '8px',
-                  }}
-                >
-                  AniList <code>Rereading (REPEATING)</code> is not tracked - entries with this
-                  status are ignored.
-                </p>
               </>
             )}
           </div>

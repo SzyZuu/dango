@@ -3,9 +3,12 @@ import { SettingsRepository } from '../../repositories/settings.repository.js'
 import { WatchlistRepository } from '../../repositories/watchlist.repository.js'
 import { ShowsMetaRepository } from '../../repositories/shows-meta.repository.js'
 import { completedProgress, trackerIds } from './episode-sync.js'
+import { readTrackerSyncState } from './sync-state.js'
+import { performWriteTransactionAsync } from '../../db/transaction.js'
 import { AniListTracker } from './anilist-tracker.js'
 import { MalTracker } from './mal-tracker.js'
 import { clearRewatching, isRewatching, readRewatchMarkers, setRewatching } from './rewatch.js'
+import { withTrackerWrite } from './tracker-activity.js'
 import logger from '../../logger.js'
 
 const TOKEN_KEY = 'tracker_anilist_token'
@@ -95,11 +98,19 @@ export async function pushCompletedEpisode(
 
     if (pushAnilist) {
       try {
-        const tracker = new AniListTracker(anilistToken)
-        await tracker.updateMediaEntry({
-          mediaId: anilistId,
-          status: isRewatch ? 'Rewatching' : status,
-          progress,
+        await withTrackerWrite(db, 'anilist', async () => {
+          const tracker = new AniListTracker(anilistToken)
+          await tracker.updateMediaEntry({
+            mediaId: anilistId,
+            status: isRewatch ? 'Rewatching' : status,
+            progress,
+          })
+        })
+        const now = Math.floor(Date.now() / 1000)
+        const state = await readTrackerSyncState(db, 'tracker_anilist_sync_state')
+        state[showId] = { lastSyncedAt: now, remoteUpdatedAt: now }
+        await performWriteTransactionAsync(db, async (tx) => {
+          await SettingsRepository.upsert(tx, 'tracker_anilist_sync_state', JSON.stringify(state))
         })
       } catch (err) {
         logger.warn({ err, showId }, '[AutoSync] AniList push failed')
@@ -111,6 +122,12 @@ export async function pushCompletedEpisode(
         const tracker = new MalTracker(db)
         await tracker.update(malId, progress, status === 'Completed' ? 'Completed' : 'Watching', {
           rewatching: isRewatch && !finishing,
+        })
+        const now = Math.floor(Date.now() / 1000)
+        const state = await readTrackerSyncState(db, 'tracker_mal_sync_state')
+        state[String(malId)] = { lastSyncedAt: now, remoteUpdatedAt: now }
+        await performWriteTransactionAsync(db, async (tx) => {
+          await SettingsRepository.upsert(tx, 'tracker_mal_sync_state', JSON.stringify(state))
         })
       } catch (err) {
         logger.warn({ err, showId }, '[AutoSync] MAL push failed')

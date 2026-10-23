@@ -54,7 +54,8 @@ async function sync(db: DatabaseWrapper, includeDeletions: boolean): Promise<Syn
   const remote = await tracker.fetchList()
   const local = await WatchlistRepository.getAll(db)
   const summary: SyncSummary = { pushed: 0, pulled: 0, merged: 0, unchanged: 0, errors: [] }
-  const state = await readTrackerSyncState(db, SYNC_STATE_KEY)
+  const rawState = await readTrackerSyncState(db, SYNC_STATE_KEY)
+  const state = local.length === 0 ? {} : rawState
   const nextState = { ...state }
   const rewatchMarkers = await readRewatchMarkers(db)
   const mapped = new Map<number, (typeof local)[number]>()

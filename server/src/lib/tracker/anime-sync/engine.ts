@@ -59,7 +59,8 @@ async function syncAniListEntries(
   const remoteEntries = await tracker.fetchUserAnimeList(viewer.id)
 
   const localItems = await WatchlistRepository.getAll(db)
-  const syncState = await readTrackerSyncState(db, SYNC_STATE_KEY)
+  const rawSyncState = await readTrackerSyncState(db, SYNC_STATE_KEY)
+  const syncState = localItems.length === 0 ? {} : rawSyncState
   const rewatchMarkers = await readRewatchMarkers(db)
 
   const remoteByMediaId = new Map<number, RemoteMediaEntry>()
